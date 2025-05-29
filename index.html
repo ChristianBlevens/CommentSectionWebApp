@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comment Section</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.12.0/dist/cdn.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/markdown-it/dist/markdown-it.min.js"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <style>
+        .comment-indent { margin-left: 2rem; }
+        .markdown-content img { max-width: 100%; height: auto; }
+        .markdown-content video { max-width: 100%; height: auto; }
+        .embed-responsive { position: relative; display: block; width: 100%; padding: 0; overflow: hidden; }
+        .embed-responsive-16by9::before { display: block; content: ""; padding-top: 56.25%; }
+        .embed-responsive-item { position: absolute; top: 0; bottom: 0; left: 0; width: 100%; height: 100%; border: 0; }
+        .spoiler { background-color: #000; color: #000; cursor: pointer; padding: 0 4px; }
+        .spoiler.revealed { background-color: transparent; color: inherit; }
+        .markdown-toolbar { position: absolute; bottom: 8px; right: 8px; }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div x-data="commentApp()" x-init="init()" class="container mx-auto p-4 max-w-4xl">
+        <!-- Header -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h1 class="text-2xl font-bold mb-4">Comments</h1>
+            
+            <!-- Sign In / User Info -->
+            <div class="mb-4">
+                <div x-show="!user" id="g_id_onload"
+                     data-client_id="YOUR_GOOGLE_CLIENT_ID"
+                     data-callback="handleCredentialResponse">
+                </div>
+                <div x-show="!user" class="g_id_signin" data-type="standard"></div>
+                
+                <div x-show="user" class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <img :src="user.picture" class="w-10 h-10 rounded-full mr-3">
+                        <span x-text="user.name" class="font-medium"></span>
+                    </div>
+                    <button @click="signOut()" class="text-sm text-red-600 hover:text-red-800">
+                        Sign Out
+                    </button>
+                </div>
+            </div>
+
+            <!-- Sorting Options -->
+            <div class="flex space-x-4 mb-4">
+                <button @click="sortBy = 'likes'; sortComments()" 
+                        :class="{'bg-blue-500 text-white': sortBy === 'likes', 'bg-gray-200': sortBy !== 'likes'}"
+                        class="px-4 py-2 rounded-md transition-colors">
+                    <i class="fas fa-thumbs-up mr-2"></i>Top
+                </button>
+                <button @click="sortBy = 'newest'; sortComments()" 
+                        :class="{'bg-blue-500 text-white': sortBy === 'newest', 'bg-gray-200': sortBy !== 'newest'}"
+                        class="px-4 py-2 rounded-md transition-colors">
+                    <i class="fas fa-clock mr-2"></i>Newest
+                </button>
+                <button @click="sortBy = 'oldest'; sortComments()" 
+                        :class="{'bg-blue-500 text-white': sortBy === 'oldest', 'bg-gray-200': sortBy !== 'oldest'}"
+                        class="px-4 py-2 rounded-md transition-colors">
+                    <i class="fas fa-history mr-2"></i>Oldest
+                </button>
+            </div>
+
+            <!-- New Comment Button -->
+            <button x-show="user && !showNewComment" @click="showNewComment = true" 
+                    class="w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 transition-colors">
+                <i class="fas fa-comment mr-2"></i>Write a Comment
+            </button>
+
+            <!-- New Comment Form -->
+            <div x-show="showNewComment" class="mt-4">
+                <div class="relative">
+                    <textarea x-model="newCommentText" 
+                              @input="updatePreview()"
+                              placeholder="Write your comment... (Markdown supported)"
+                              class="w-full p-3 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                              rows="6"></textarea>
+                    
+                    <!-- Markdown Toolbar -->
+                    <div class="markdown-toolbar bg-white border rounded-md shadow-sm p-1 flex space-x-1">
+                        <button @click="insertMarkdown('**', '**')" title="Bold" class="p-2 hover:bg-gray-100 rounded">
+                            <i class="fas fa-bold"></i>
+                        </button>
+                        <button @click="insertMarkdown('*', '*')" title="Italic" class="p-2 hover:bg-gray-100 rounded">
+                            <i class="fas fa-italic"></i>
+                        </button>
+                        <button @click="insertMarkdown('<u>', '</u>')" title="Underline" class="p-2 hover:bg-gray-100 rounded">
+                            <i class="fas fa-underline"></i>
+                        </button>
+                        <button @click="insertMarkdown('~~', '~~')" title="Strikethrough" class="p-2 hover:bg-gray-100 rounded">
+                            <i class="fas fa-strikethrough"></i>
+                        </button>
+                        <button @click="insertMarkdown('## ', '')" title="Header" class="p-2 hover:bg-gray-100 rounded">
+                            <i class="fas fa-heading"></i>
+                        </button>
+                        <button @click="insertMarkdown('||', '||')" title="Spoiler" class="p-2 hover:bg-gray-100 rounded">
+                            <i class="fas fa-eye-slash"></i>
+                        </button>
+                        <button @click="insertImage()" title="Image" class="p-2 hover:bg-gray-100 rounded">
+                            <i class="fas fa-image"></i>
+                        </button>
+                        <button @click="insertVideo()" title="Video" class="p-2 hover:bg-gray-100 rounded">
+                            <i class="fas fa-video"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Preview -->
+                <div x-show="newCommentText" class="mt-4">
+                    <h4 class="font-semibold mb-2">Preview:</h4>
+                    <div x-html="commentPreview" class="markdown-content bg-gray-50 p-4 rounded-md"></div>
+                </div>
+
+                <!-- Actions -->
+                <div class="flex justify-end space-x-2 mt-4">
+                    <button @click="cancelNewComment()" 
+                            class="px-4 py-2 bg-gray-300 rounded-md hover:bg-gray-400 transition-colors">
+                        Cancel
+                    </button>
+                    <button @click="submitComment()" 
+                            :disabled="!newCommentText.trim()"
+                            class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors disabled:bg-gray-300">
+                        Post Comment
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Comments List -->
+        <div class="space-y-4">
+            <template x-for="comment in sortedComments" :key="comment.id">
+                <div x-html="renderComment(comment)"></div>
+            </template>
+        </div>
+
+        <!-- Loading State -->
+        <div x-show="loading" class="text-center py-8">
+            <i class="fas fa-spinner fa-spin text-4xl text-gray-400"></i>
+        </div>
+
+        <!-- No Comments State -->
+        <div x-show="!loading && comments.length === 0" class="text-center py-8 text-gray-500">
+            <i class="fas fa-comments text-4xl mb-4"></i>
+            <p>No comments yet. Be the first to comment!</p>
+        </div>
+    </div>
+
+    <script>
+        // Global handler for Google Sign-In
+        function handleCredentialResponse(response) {
+            window.commentAppInstance.handleGoogleSignIn(response);
+        }
+
+        function commentApp() {
+            return {
+                user: null,
+                comments: [],
+                sortedComments: [],
+                loading: true,
+                showNewComment: false,
+                newCommentText: '',
+                commentPreview: '',
+                replyingTo: null,
+                replyTexts: {},
+                sortBy: 'likes',
+                pageId: '',
+                md: null,
+                apiUrl: 'http://localhost:3000/api', // Replace with your API URL
+                moderationUrl: 'http://localhost:3001/api', // Replace with your moderation API URL
+
+                init() {
+                    window.commentAppInstance = this;
+                    this.pageId = this.getPageId();
+                    this.initMarkdown();
+                    this.loadComments();
+                    this.checkExistingSession();
+                },
+
+                getPageId() {
+                    // Get page ID from environment variable or URL parameter
+                    const urlParams = new URLSearchParams(window.location.search);
+                    return urlParams.get('pageId') || window.PAGE_ID || 'default';
+                },
+
+                initMarkdown() {
+                    this.md = window.markdownit({
+                        html: true, // Enable HTML to allow our processed embeds
+                        breaks: true,
+                        linkify: false // Disable automatic link detection
+                    });
+
+                    // Custom image renderer
+                    this.md.renderer.rules.image = this.createImageRenderer();
+                },
+
+                createImageRenderer() {
+                    return function(tokens, idx, options, env, self) {
+                        const token = tokens[idx];
+                        const srcIndex = token.attrIndex('src');
+                        const altIndex = token.attrIndex('alt');
+                        const titleIndex = token.attrIndex('title');
+                        
+                        if (srcIndex < 0) return '';
+                        
+                        const src = token.attrs[srcIndex][1];
+                        const alt = altIndex >= 0 ? token.attrs[altIndex][1] : '';
+                        const title = titleIndex >= 0 ? token.attrs[titleIndex][1] : '';
+                        
+                        return `<a href="${src}" target="_blank" rel="noopener noreferrer" class="inline-block markdown-image-link">
+                                  <img src="${src}" alt="${alt}" title="${title}" 
+                                       class="max-w-full h-auto rounded-md cursor-pointer hover:opacity-90 transition-opacity markdown-image" 
+                                       style="max-height: 400px; object-fit: contain; display: block; margin: 1rem 0;" />
+                                </a>`;
+                    };
+                },
+
+                preprocessMarkdown(text) {
+                    // Handle spoilers first (||text||)
+                    text = text.replace(/\|\|([^|]+)\|\|/g, '<span class="spoiler">$1</span>');
+                    
+                    const videoRegex = /!video\[(.*?)\]\((.*?)\)(?:{(.*?)})?/g;
+                    
+                    return text.replace(videoRegex, (match, alt, url, attributes) => {
+                        const youtubeId = this.getYoutubeId(url);
+                        const vimeoId = this.getVimeoId(url);
+                        const imgurId = this.getImgurId(url);
+                        
+                        if (youtubeId) {
+                            return this.createYouTubeEmbed(youtubeId);
+                        } else if (vimeoId) {
+                            return this.createVimeoEmbed(vimeoId);
+                        } else if (imgurId) {
+                            return this.createImgurVideoEmbed(url);
+                        }
+                        
+                        return match;
+                    });
+                },
+
+                getYoutubeId(url) {
+                    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+                    const match = url.match(regExp);
+                    return (match && match[2].length === 11) ? match[2] : null;
+                },
+
+                getVimeoId(url) {
+                    const regExp = /^.*(vimeo\.com\/)((channels\/[A-z]+\/)|(groups\/[A-z]+\/videos\/))?([0-9]+)/;
+                    const match = url.match(regExp);
+                    return (match && match[5]) ? match[5] : null;
+                },
+
+                getImgurId(url) {
+                    const regExp = /^.*i\.imgur\.com\/([a-zA-Z0-9]+)\.(mp4|webm)$/;
+                    const match = url.match(regExp);
+                    return match ? match[1] : null;
+                },
+
+                createYouTubeEmbed(videoId) {
+                    return `<div class="embed-responsive embed-responsive-16by9">
+                              <iframe class="embed-responsive-item" width="640" height="390" 
+                                      src="https://www.youtube.com/embed/${videoId}" 
+                                      frameborder="0" allowfullscreen></iframe>
+                            </div>`;
+                },
+
+                createVimeoEmbed(videoId) {
+                    return `<div class="embed-responsive embed-responsive-16by9">
+                              <iframe class="embed-responsive-item" width="640" height="360" 
+                                      src="https://player.vimeo.com/video/${videoId}" 
+                                      frameborder="0" allowfullscreen></iframe>
+                            </div>`;
+                },
+
+                createImgurVideoEmbed(url) {
+                    return `<div class="embed-responsive embed-responsive-16by9">
+                              <video class="embed-responsive-item" width="640" height="360" 
+                                     controls loop muted preload="metadata">
+                                <source src="${url}" type="video/mp4">
+                                Your browser does not support the video tag.
+                              </video>
+                            </div>`;
+                },
+
+                async handleGoogleSignIn(response) {
+                    try {
+                        const decoded = JSON.parse(atob(response.credential.split('.')[1]));
+                        this.user = {
+                            id: decoded.sub,
+                            email: decoded.email,
+                            name: decoded.name,
+                            picture: decoded.picture
+                        };
+                        
+                        localStorage.setItem('user', JSON.stringify(this.user));
+                        
+                        // Register user with backend
+                        await fetch(`${this.apiUrl}/users/register`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(this.user)
+                        });
+                    } catch (error) {
+                        console.error('Sign in error:', error);
+                    }
+                },
+
+                checkExistingSession() {
+                    const savedUser = localStorage.getItem('user');
+                    if (savedUser) {
+                        this.user = JSON.parse(savedUser);
+                    }
+                },
+
+                signOut() {
+                    this.user = null;
+                    localStorage.removeItem('user');
+                    google.accounts.id.disableAutoSelect();
+                },
+
+                async loadComments() {
+                    try {
+                        const response = await fetch(`${this.apiUrl}/comments/${this.pageId}`);
+                        const data = await response.json();
+                        this.comments = data;
+                        this.buildCommentTree();
+                        this.sortComments();
+                    } catch (error) {
+                        console.error('Error loading comments:', error);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                buildCommentTree() {
+                    const commentMap = {};
+                    const rootComments = [];
+
+                    // First pass: create map
+                    this.comments.forEach(comment => {
+                        comment.children = [];
+                        commentMap[comment.id] = comment;
+                    });
+
+                    // Second pass: build tree
+                    this.comments.forEach(comment => {
+                        if (comment.parentId) {
+                            const parent = commentMap[comment.parentId];
+                            if (parent) {
+                                parent.children.push(comment);
+                            } else {
+                                // Parent not found, treat as root
+                                rootComments.push(comment);
+                            }
+                        } else {
+                            rootComments.push(comment);
+                        }
+                    });
+
+                    this.comments = rootComments;
+                },
+
+                sortComments() {
+                    const sortFn = this.getSortFunction();
+                    
+                    const sortRecursive = (comments) => {
+                        comments.sort(sortFn);
+                        comments.forEach(comment => {
+                            if (comment.children && comment.children.length > 0) {
+                                sortRecursive(comment.children);
+                            }
+                        });
+                    };
+
+                    sortRecursive(this.comments);
+                    this.sortedComments = [...this.comments];
+                },
+
+                getSortFunction() {
+                    switch (this.sortBy) {
+                        case 'likes':
+                            return (a, b) => (b.likes - b.dislikes) - (a.likes - a.dislikes);
+                        case 'newest':
+                            return (a, b) => new Date(b.createdAt) - new Date(a.createdAt);
+                        case 'oldest':
+                            return (a, b) => new Date(a.createdAt) - new Date(b.createdAt);
+                        default:
+                            return (a, b) => 0;
+                    }
+                },
+
+                updatePreview() {
+                    const processed = this.preprocessMarkdown(this.newCommentText);
+                    this.commentPreview = this.md.render(processed);
+                    this.$nextTick(() => {
+                        this.attachSpoilerHandlers();
+                    });
+                },
+
+                insertMarkdown(before, after) {
+                    const textarea = document.querySelector('textarea');
+                    const start = textarea.selectionStart;
+                    const end = textarea.selectionEnd;
+                    const text = textarea.value;
+                    const selectedText = text.substring(start, end);
+                    
+                    const newText = text.substring(0, start) + before + selectedText + after + text.substring(end);
+                    this.newCommentText = newText;
+                    
+                    this.$nextTick(() => {
+                        textarea.focus();
+                        const newCursorPos = start + before.length + selectedText.length;
+                        textarea.setSelectionRange(newCursorPos, newCursorPos);
+                        this.updatePreview();
+                    });
+                },
+
+                insertImage() {
+                    const url = prompt('Enter image URL:');
+                    if (url) {
+                        this.insertMarkdown(`![Image](${url})`, '');
+                    }
+                },
+
+                insertVideo() {
+                    const url = prompt('Enter video URL (YouTube, Vimeo, or Imgur):');
+                    if (url) {
+                        this.insertMarkdown(`!video[Video](${url})`, '');
+                    }
+                },
+
+                cancelNewComment() {
+                    this.showNewComment = false;
+                    this.newCommentText = '';
+                    this.commentPreview = '';
+                },
+
+                async submitComment(parentId = null) {
+                    const content = parentId ? this.replyTexts[parentId] : this.newCommentText;
+                    
+                    if (!content || !content.trim()) return;
+
+                    try {
+                        // Send to moderation first
+                        const moderationResponse = await fetch(`${this.moderationUrl}/moderate`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ content })
+                        });
+
+                        const moderationResult = await moderationResponse.json();
+
+                        if (!moderationResult.approved) {
+                            alert(`Your comment was not approved. Reason: ${moderationResult.reason}`);
+                            return;
+                        }
+
+                        // If approved, submit to database
+                        const commentData = {
+                            pageId: this.pageId,
+                            userId: this.user.id,
+                            content: content,
+                            parentId: parentId,
+                            userName: this.user.name,
+                            userPicture: this.user.picture
+                        };
+
+                        const response = await fetch(`${this.apiUrl}/comments`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(commentData)
+                        });
+
+                        const newComment = await response.json();
+                        
+                        // Add to local state
+                        this.addCommentToTree(newComment);
+                        
+                        // Clear form
+                        if (parentId) {
+                            this.cancelReply(parentId);
+                        } else {
+                            this.cancelNewComment();
+                        }
+
+                        // Resort
+                        this.sortComments();
+
+                    } catch (error) {
+                        console.error('Error submitting comment:', error);
+                        alert('Failed to submit comment. Please try again.');
+                    }
+                },
+
+                addCommentToTree(comment) {
+                    comment.children = [];
+                    
+                    if (!comment.parentId) {
+                        this.comments.push(comment);
+                    } else {
+                        const parent = this.findComment(comment.parentId, this.comments);
+                        if (parent) {
+                            parent.children.push(comment);
+                        } else {
+                            this.comments.push(comment);
+                        }
+                    }
+                },
+
+                findComment(id, comments) {
+                    for (const comment of comments) {
+                        if (comment.id === id) return comment;
+                        if (comment.children) {
+                            const found = this.findComment(id, comment.children);
+                            if (found) return found;
+                        }
+                    }
+                    return null;
+                },
+
+                async voteComment(commentId, voteType) {
+                    if (!this.user) {
+                        alert('Please sign in to vote');
+                        return;
+                    }
+
+                    try {
+                        const response = await fetch(`${this.apiUrl}/comments/${commentId}/vote`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                userId: this.user.id,
+                                voteType: voteType
+                            })
+                        });
+
+                        const result = await response.json();
+                        
+                        // Update local state
+                        const comment = this.findComment(commentId, this.comments);
+                        if (comment) {
+                            comment.likes = result.likes;
+                            comment.dislikes = result.dislikes;
+                            comment.userVote = result.userVote;
+                        }
+
+                        // Resort if sorting by likes
+                        if (this.sortBy === 'likes') {
+                            this.sortComments();
+                        }
+
+                    } catch (error) {
+                        console.error('Error voting:', error);
+                    }
+                },
+
+                showReplyForm(commentId) {
+                    if (!this.user) {
+                        alert('Please sign in to reply');
+                        return;
+                    }
+                    this.replyingTo = commentId;
+                    this.$nextTick(() => {
+                        const textarea = document.querySelector(`#reply-${commentId}`);
+                        if (textarea) textarea.focus();
+                    });
+                },
+
+                cancelReply(commentId) {
+                    this.replyingTo = null;
+                    delete this.replyTexts[commentId];
+                },
+
+                renderComment(comment, level = 0) {
+                    const processed = this.preprocessMarkdown(comment.content);
+                    const content = this.md.render(processed);
+                    
+                    const html = `
+                        <div class="bg-white rounded-lg shadow-md p-4 ${level > 0 ? 'comment-indent' : ''}">
+                            <div class="flex items-start mb-3">
+                                <img src="${comment.userPicture}" class="w-10 h-10 rounded-full mr-3">
+                                <div class="flex-1">
+                                    <div class="flex items-center mb-1">
+                                        <span class="font-semibold">${comment.userName}</span>
+                                        <span class="text-gray-500 text-sm ml-2">
+                                            ${new Date(comment.createdAt).toLocaleDateString()}
+                                        </span>
+                                    </div>
+                                    <div class="markdown-content">${content}</div>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-center space-x-4 mt-3">
+                                <button onclick="window.commentAppInstance.voteComment('${comment.id}', 'like')" 
+                                        class="flex items-center space-x-1 text-gray-600 hover:text-green-600">
+                                    <i class="fas fa-thumbs-up ${comment.userVote === 'like' ? 'text-green-600' : ''}"></i>
+                                    <span>${comment.likes}</span>
+                                </button>
+                                <button onclick="window.commentAppInstance.voteComment('${comment.id}', 'dislike')" 
+                                        class="flex items-center space-x-1 text-gray-600 hover:text-red-600">
+                                    <i class="fas fa-thumbs-down ${comment.userVote === 'dislike' ? 'text-red-600' : ''}"></i>
+                                    <span>${comment.dislikes}</span>
+                                </button>
+                                <button onclick="window.commentAppInstance.showReplyForm('${comment.id}')" 
+                                        class="text-gray-600 hover:text-blue-600">
+                                    <i class="fas fa-reply mr-1"></i>Reply
+                                </button>
+                            </div>
+                            
+                            ${this.replyingTo === comment.id ? `
+                                <div class="mt-4">
+                                    <textarea id="reply-${comment.id}" 
+                                              x-model="replyTexts['${comment.id}']"
+                                              placeholder="Write your reply..."
+                                              class="w-full p-3 border rounded-md focus:ring-2 focus:ring-blue-500"
+                                              rows="3"></textarea>
+                                    <div class="flex justify-end space-x-2 mt-2">
+                                        <button onclick="window.commentAppInstance.cancelReply('${comment.id}')" 
+                                                class="px-3 py-1 bg-gray-300 rounded-md hover:bg-gray-400">
+                                            Cancel
+                                        </button>
+                                        <button onclick="window.commentAppInstance.submitComment('${comment.id}')" 
+                                                class="px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600">
+                                            Reply
+                                        </button>
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>
+                        
+                        ${comment.children.map(child => this.renderComment(child, level + 1)).join('')}
+                    `;
+                    
+                    return html;
+                },
+
+                attachSpoilerHandlers() {
+                    document.querySelectorAll('.spoiler').forEach(spoiler => {
+                        spoiler.addEventListener('click', function() {
+                            this.classList.toggle('revealed');
+                        });
+                    });
+                }
+            }
+        }
+    </script>
+</body>
+</html>
