@@ -8,7 +8,6 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.12.0/dist/cdn.min.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/markdown-it/dist/markdown-it.min.js"></script>
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <style>
         .comment-indent { margin-left: 2rem; }
         .markdown-content img { max-width: 100%; height: auto; }
@@ -29,16 +28,20 @@
             
             <!-- Sign In / User Info -->
             <div class="mb-4">
-                <div x-show="!user" id="g_id_onload"
-                     data-client_id="YOUR_GOOGLE_CLIENT_ID"
-                     data-callback="handleCredentialResponse">
+                <div x-show="!user">
+                    <button @click="signInWithDiscord()" 
+                            class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md flex items-center transition-colors">
+                        <svg class="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M20.317 4.492c-1.53-.69-3.17-1.2-4.885-1.49a.075.075 0 0 0-.079.036c-.21.369-.444.85-.608 1.23a18.566 18.566 0 0 0-5.487 0 12.36 12.36 0 0 0-.617-1.23A.077.077 0 0 0 8.562 3c-1.714.29-3.354.8-4.885 1.491a.07.07 0 0 0-.032.027C.533 9.093-.32 13.555.099 17.961a.08.08 0 0 0 .031.055 20.03 20.03 0 0 0 5.993 2.98.078.078 0 0 0 .084-.026 13.83 13.83 0 0 0 1.226-1.963.074.074 0 0 0-.041-.104 13.175 13.175 0 0 1-1.872-.878.075.075 0 0 1-.008-.125 10.775 10.775 0 0 0 .372-.291.072.072 0 0 1 .077-.01c3.927 1.764 8.18 1.764 12.061 0a.071.071 0 0 1 .078.009c.12.098.246.198.373.292a.075.075 0 0 1-.006.125c-.598.344-1.22.635-1.873.877a.075.075 0 0 0-.041.105c.36.687.772 1.341 1.225 1.962a.077.077 0 0 0 .084.028 19.963 19.963 0 0 0 6.002-2.981.076.076 0 0 0 .032-.054c.5-5.094-.838-9.52-3.549-13.442a.06.06 0 0 0-.031-.028zM8.02 15.278c-1.182 0-2.157-1.069-2.157-2.38 0-1.312.956-2.38 2.157-2.38 1.21 0 2.176 1.077 2.157 2.38 0 1.312-.956 2.38-2.157 2.38zm7.975 0c-1.183 0-2.157-1.069-2.157-2.38 0-1.312.955-2.38 2.157-2.38 1.21 0 2.176 1.077 2.157 2.38 0 1.312-.946 2.38-2.157 2.38z"/>
+                        </svg>
+                        Sign in with Discord
+                    </button>
                 </div>
-                <div x-show="!user" class="g_id_signin" data-type="standard"></div>
                 
                 <div x-show="user" class="flex items-center justify-between">
                     <div class="flex items-center">
-                        <img :src="user.picture" class="w-10 h-10 rounded-full mr-3">
-                        <span x-text="user.name" class="font-medium"></span>
+                        <img :src="user.avatar" class="w-10 h-10 rounded-full mr-3">
+                        <span x-text="user.username" class="font-medium"></span>
                     </div>
                     <button @click="signOut()" class="text-sm text-red-600 hover:text-red-800">
                         Sign Out
@@ -150,11 +153,6 @@
     </div>
 
     <script>
-        // Global handler for Google Sign-In
-        function handleCredentialResponse(response) {
-            window.commentAppInstance.handleGoogleSignIn(response);
-        }
-
         function commentApp() {
             return {
                 user: null,
@@ -171,19 +169,97 @@
                 md: null,
                 apiUrl: 'http://localhost:3000/api', // Replace with your API URL
                 moderationUrl: 'http://localhost:3001/api', // Replace with your moderation API URL
+                authUrl: 'http://localhost:3000/auth/discord', // Discord OAuth endpoint
 
                 init() {
                     window.commentAppInstance = this;
                     this.pageId = this.getPageId();
                     this.initMarkdown();
-                    this.loadComments();
                     this.checkExistingSession();
+                    this.loadComments();
+                    
+                    // Check if returning from Discord OAuth
+                    this.checkDiscordCallback();
                 },
 
                 getPageId() {
                     // Get page ID from environment variable or URL parameter
                     const urlParams = new URLSearchParams(window.location.search);
                     return urlParams.get('pageId') || window.PAGE_ID || 'default';
+                },
+
+                checkDiscordCallback() {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const code = urlParams.get('code');
+                    const state = urlParams.get('state');
+                    
+                    if (code && state) {
+                        // Exchange code for user info
+                        this.handleDiscordCallback(code, state);
+                    }
+                },
+
+                async handleDiscordCallback(code, state) {
+                    try {
+                        const response = await fetch(`${this.apiUrl}/discord/callback`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ code, state })
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (data.user) {
+                            this.user = data.user;
+                            localStorage.setItem('user', JSON.stringify(this.user));
+                            
+                            // Clean up URL
+                            const url = new URL(window.location);
+                            url.searchParams.delete('code');
+                            url.searchParams.delete('state');
+                            window.history.replaceState({}, document.title, url.toString());
+                        }
+                    } catch (error) {
+                        console.error('Discord callback error:', error);
+                    }
+                },
+
+                signInWithDiscord() {
+                    // Generate state for CSRF protection
+                    const state = Math.random().toString(36).substring(7);
+                    localStorage.setItem('discord_state', state);
+                    
+                    // Discord OAuth URL
+                    const clientId = 'YOUR_DISCORD_CLIENT_ID'; // Replace with your Discord app ID
+                    const redirectUri = encodeURIComponent(window.location.href.split('?')[0]);
+                    const scope = 'identify';
+                    
+                    const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&state=${state}`;
+                    
+                    // Open in popup
+                    const width = 500;
+                    const height = 700;
+                    const left = (window.screen.width - width) / 2;
+                    const top = (window.screen.height - height) / 2;
+                    
+                    const authWindow = window.open(
+                        discordAuthUrl,
+                        'discord-auth',
+                        `width=${width},height=${height},left=${left},top=${top}`
+                    );
+                    
+                    // Poll for completion
+                    const checkInterval = setInterval(() => {
+                        try {
+                            if (authWindow.closed) {
+                                clearInterval(checkInterval);
+                                // Check if user was set
+                                this.checkExistingSession();
+                            }
+                        } catch (e) {
+                            // Cross-origin error is expected
+                        }
+                    }, 1000);
                 },
 
                 initMarkdown() {
@@ -285,29 +361,6 @@
                             </div>`;
                 },
 
-                async handleGoogleSignIn(response) {
-                    try {
-                        const decoded = JSON.parse(atob(response.credential.split('.')[1]));
-                        this.user = {
-                            id: decoded.sub,
-                            email: decoded.email,
-                            name: decoded.name,
-                            picture: decoded.picture
-                        };
-                        
-                        localStorage.setItem('user', JSON.stringify(this.user));
-                        
-                        // Register user with backend
-                        await fetch(`${this.apiUrl}/users/register`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(this.user)
-                        });
-                    } catch (error) {
-                        console.error('Sign in error:', error);
-                    }
-                },
-
                 checkExistingSession() {
                     const savedUser = localStorage.getItem('user');
                     if (savedUser) {
@@ -318,7 +371,6 @@
                 signOut() {
                     this.user = null;
                     localStorage.removeItem('user');
-                    google.accounts.id.disableAutoSelect();
                 },
 
                 async loadComments() {
@@ -448,7 +500,7 @@
                         const moderationResponse = await fetch(`${this.moderationUrl}/moderate`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ content })
+                            body: JSON.stringify({ content, userId: this.user.id })
                         });
 
                         const moderationResult = await moderationResponse.json();
@@ -464,8 +516,8 @@
                             userId: this.user.id,
                             content: content,
                             parentId: parentId,
-                            userName: this.user.name,
-                            userPicture: this.user.picture
+                            userName: this.user.username,
+                            userPicture: this.user.avatar
                         };
 
                         const response = await fetch(`${this.apiUrl}/comments`, {
