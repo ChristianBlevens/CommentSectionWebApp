@@ -7,7 +7,7 @@ WORKDIR /usr/src/app
 COPY package*.json ./
 
 # Install production dependencies with natural language processing support
-RUN npm ci --only=production
+RUN npm install --omit=dev
 
 # Copy app source
 COPY moderation-server.js .
