@@ -47,7 +47,11 @@ The moderation service runs on `http://localhost:3001` and includes:
 
 ### 3. Frontend
 
-Open `index.html` in a web browser or serve it with any web server:
+The frontend consists of two files:
+- `index.html` - Main application
+- `oauth-callback.html` - OAuth callback handler
+
+Serve both files with any web server:
 ```bash
 python -m http.server 8080
 # or
@@ -61,7 +65,14 @@ npx serve .
 1. Go to [Discord Developer Portal](https://discord.com/developers/applications)
 2. Create a new application
 3. Go to OAuth2 → General
-4. Add redirect URL: `http://localhost:8080` (or your production URL)
+4. Add redirect URL: `https://yourdomain.com/oauth-callback.html`
+   
+   **⚠️ IMPORTANT: Discord OAuth does NOT work with localhost:**
+   - Discord does not allow internal URLs as a redirect URL
+   - For production, use your full domain (e.g., `https://yourdomain.com/oauth-callback.html`)
+   - The redirect URL must match EXACTLY what your application uses
+   - The callback URL must point to the `oauth-callback.html` file, not the main index
+
 5. Copy Client ID and Client Secret to BackendServer/.env
 
 ### Environment Variables

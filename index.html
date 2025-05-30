@@ -38,14 +38,78 @@
                     </button>
                 </div>
                 
-                <div x-show="user" class="flex items-center justify-between">
-                    <div class="flex items-center">
-                        <img :src="user.avatar" class="w-10 h-10 rounded-full mr-3">
-                        <span x-text="user.username" class="font-medium"></span>
+                <div x-show="user">
+                    <!-- User Info Bar -->
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center">
+                            <img :src="user.avatar" class="w-10 h-10 rounded-full mr-3">
+                            <span x-text="user.username" class="font-medium"></span>
+                        </div>
+                        <button @click="signOut()" class="text-sm text-red-600 hover:text-red-800">
+                            Sign Out
+                        </button>
                     </div>
-                    <button @click="signOut()" class="text-sm text-red-600 hover:text-red-800">
-                        Sign Out
-                    </button>
+                    
+                    <!-- Main Comment Box -->
+                    <div class="flex space-x-3">
+                        <div class="flex-1">
+                            <div class="relative">
+                                <textarea x-model="newCommentText" 
+                                          @input="updatePreview()"
+                                          placeholder="Write your comment... (Markdown supported)"
+                                          class="w-full p-3 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                                          rows="4"></textarea>
+                                
+                                <!-- Markdown Toolbar -->
+                                <div class="markdown-toolbar bg-white border rounded-md shadow-sm p-1 flex space-x-1">
+                                    <button @click="insertMarkdown('**', '**')" title="Bold" class="p-2 hover:bg-gray-100 rounded">
+                                        <i class="fas fa-bold"></i>
+                                    </button>
+                                    <button @click="insertMarkdown('*', '*')" title="Italic" class="p-2 hover:bg-gray-100 rounded">
+                                        <i class="fas fa-italic"></i>
+                                    </button>
+                                    <button @click="insertMarkdown('<u>', '</u>')" title="Underline" class="p-2 hover:bg-gray-100 rounded">
+                                        <i class="fas fa-underline"></i>
+                                    </button>
+                                    <button @click="insertMarkdown('~~', '~~')" title="Strikethrough" class="p-2 hover:bg-gray-100 rounded">
+                                        <i class="fas fa-strikethrough"></i>
+                                    </button>
+                                    <button @click="insertMarkdown('## ', '')" title="Header" class="p-2 hover:bg-gray-100 rounded">
+                                        <i class="fas fa-heading"></i>
+                                    </button>
+                                    <button @click="insertMarkdown('||', '||')" title="Spoiler" class="p-2 hover:bg-gray-100 rounded">
+                                        <i class="fas fa-eye-slash"></i>
+                                    </button>
+                                    <button @click="insertImage()" title="Image" class="p-2 hover:bg-gray-100 rounded">
+                                        <i class="fas fa-image"></i>
+                                    </button>
+                                    <button @click="insertVideo()" title="Video" class="p-2 hover:bg-gray-100 rounded">
+                                        <i class="fas fa-video"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Preview -->
+                            <div x-show="newCommentText" class="mt-4">
+                                <h4 class="font-semibold mb-2">Preview:</h4>
+                                <div x-html="commentPreview" class="markdown-content bg-gray-50 p-4 rounded-md"></div>
+                            </div>
+
+                            <!-- Submit Button -->
+                            <div class="flex justify-end mt-4">
+                                <button @click="submitComment()" 
+                                        :disabled="!newCommentText.trim()"
+                                        class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors disabled:bg-gray-300">
+                                    Post Comment
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Profile Picture on the right -->
+                        <div class="flex-shrink-0">
+                            <img :src="user.avatar" class="w-12 h-12 rounded-full">
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -68,69 +132,6 @@
                 </button>
             </div>
 
-            <!-- New Comment Button -->
-            <button x-show="user && !showNewComment" @click="showNewComment = true" 
-                    class="w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 transition-colors">
-                <i class="fas fa-comment mr-2"></i>Write a Comment
-            </button>
-
-            <!-- New Comment Form -->
-            <div x-show="showNewComment" class="mt-4">
-                <div class="relative">
-                    <textarea x-model="newCommentText" 
-                              @input="updatePreview()"
-                              placeholder="Write your comment... (Markdown supported)"
-                              class="w-full p-3 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                              rows="6"></textarea>
-                    
-                    <!-- Markdown Toolbar -->
-                    <div class="markdown-toolbar bg-white border rounded-md shadow-sm p-1 flex space-x-1">
-                        <button @click="insertMarkdown('**', '**')" title="Bold" class="p-2 hover:bg-gray-100 rounded">
-                            <i class="fas fa-bold"></i>
-                        </button>
-                        <button @click="insertMarkdown('*', '*')" title="Italic" class="p-2 hover:bg-gray-100 rounded">
-                            <i class="fas fa-italic"></i>
-                        </button>
-                        <button @click="insertMarkdown('<u>', '</u>')" title="Underline" class="p-2 hover:bg-gray-100 rounded">
-                            <i class="fas fa-underline"></i>
-                        </button>
-                        <button @click="insertMarkdown('~~', '~~')" title="Strikethrough" class="p-2 hover:bg-gray-100 rounded">
-                            <i class="fas fa-strikethrough"></i>
-                        </button>
-                        <button @click="insertMarkdown('## ', '')" title="Header" class="p-2 hover:bg-gray-100 rounded">
-                            <i class="fas fa-heading"></i>
-                        </button>
-                        <button @click="insertMarkdown('||', '||')" title="Spoiler" class="p-2 hover:bg-gray-100 rounded">
-                            <i class="fas fa-eye-slash"></i>
-                        </button>
-                        <button @click="insertImage()" title="Image" class="p-2 hover:bg-gray-100 rounded">
-                            <i class="fas fa-image"></i>
-                        </button>
-                        <button @click="insertVideo()" title="Video" class="p-2 hover:bg-gray-100 rounded">
-                            <i class="fas fa-video"></i>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Preview -->
-                <div x-show="newCommentText" class="mt-4">
-                    <h4 class="font-semibold mb-2">Preview:</h4>
-                    <div x-html="commentPreview" class="markdown-content bg-gray-50 p-4 rounded-md"></div>
-                </div>
-
-                <!-- Actions -->
-                <div class="flex justify-end space-x-2 mt-4">
-                    <button @click="cancelNewComment()" 
-                            class="px-4 py-2 bg-gray-300 rounded-md hover:bg-gray-400 transition-colors">
-                        Cancel
-                    </button>
-                    <button @click="submitComment()" 
-                            :disabled="!newCommentText.trim()"
-                            class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors disabled:bg-gray-300">
-                        Post Comment
-                    </button>
-                </div>
-            </div>
         </div>
 
         <!-- Comments List -->
@@ -167,9 +168,13 @@
                 sortBy: 'likes',
                 pageId: '',
                 md: null,
-                apiUrl: 'http://localhost:3000/api', // Backend API URL
-                moderationUrl: 'http://localhost:3001/api', // Moderation API URL
-                authUrl: 'http://localhost:3000/api/discord', // Discord OAuth endpoint
+                // Dynamic API URLs based on environment
+                apiUrl: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+                    ? 'http://localhost:3000/api'
+                    : 'https://your-backend-url.com/api', // Replace with your production backend URL
+                moderationUrl: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+                    ? 'http://localhost:3001/api'
+                    : 'https://your-moderation-url.com/api', // Replace with your production moderation URL
 
                 init() {
                     window.commentAppInstance = this;
@@ -180,6 +185,15 @@
                     
                     // Check if returning from Discord OAuth
                     this.checkDiscordCallback();
+                    
+                    // Listen for login messages from popup
+                    window.addEventListener('message', (event) => {
+                        if (event.data && event.data.type === 'discord-login-success') {
+                            this.user = event.data.user;
+                            localStorage.setItem('user', JSON.stringify(this.user));
+                            this.loadComments(); // Reload to get user-specific data
+                        }
+                    });
                 },
 
                 getPageId() {
@@ -189,40 +203,10 @@
                 },
 
                 checkDiscordCallback() {
-                    const urlParams = new URLSearchParams(window.location.search);
-                    const code = urlParams.get('code');
-                    const state = urlParams.get('state');
-                    
-                    if (code && state) {
-                        // Exchange code for user info
-                        this.handleDiscordCallback(code, state);
-                    }
+                    // This is no longer needed since we use a dedicated callback page
+                    // Keeping empty function for compatibility
                 },
 
-                async handleDiscordCallback(code, state) {
-                    try {
-                        const response = await fetch(`${this.apiUrl}/discord/callback`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ code, state })
-                        });
-                        
-                        const data = await response.json();
-                        
-                        if (data.user) {
-                            this.user = data.user;
-                            localStorage.setItem('user', JSON.stringify(this.user));
-                            
-                            // Clean up URL
-                            const url = new URL(window.location);
-                            url.searchParams.delete('code');
-                            url.searchParams.delete('state');
-                            window.history.replaceState({}, document.title, url.toString());
-                        }
-                    } catch (error) {
-                        console.error('Discord callback error:', error);
-                    }
-                },
 
                 signInWithDiscord() {
                     // Generate state for CSRF protection
@@ -231,7 +215,8 @@
                     
                     // Discord OAuth URL
                     const clientId = '1377826318456193094'; // Replace with your Discord app ID
-                    const redirectUri = encodeURIComponent(window.location.href.split('?')[0]);
+                    const baseUrl = window.location.origin;
+                    const redirectUri = encodeURIComponent(baseUrl + '/oauth-callback.html');
                     const scope = 'identify';
                     
                     const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&state=${state}`;
@@ -248,18 +233,10 @@
                         `width=${width},height=${height},left=${left},top=${top}`
                     );
                     
-                    // Poll for completion
-                    const checkInterval = setInterval(() => {
-                        try {
-                            if (authWindow.closed) {
-                                clearInterval(checkInterval);
-                                // Check if user was set
-                                this.checkExistingSession();
-                            }
-                        } catch (e) {
-                            // Cross-origin error is expected
-                        }
-                    }, 1000);
+                    // Focus the popup
+                    if (authWindow) {
+                        authWindow.focus();
+                    }
                 },
 
                 initMarkdown() {
@@ -485,7 +462,6 @@
                 },
 
                 cancelNewComment() {
-                    this.showNewComment = false;
                     this.newCommentText = '';
                     this.commentPreview = '';
                 },
@@ -535,7 +511,8 @@
                         if (parentId) {
                             this.cancelReply(parentId);
                         } else {
-                            this.cancelNewComment();
+                            this.newCommentText = '';
+                            this.commentPreview = '';
                         }
 
                         // Resort

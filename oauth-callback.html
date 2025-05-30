@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Discord OAuth Callback</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f3f4f6;
+        }
+        .loading {
+            text-align: center;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 4px solid #5865F2;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .error {
+            color: #dc2626;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="loading" id="content">
+        <div class="spinner"></div>
+        <p>Completing Discord sign in...</p>
+    </div>
+
+    <script>
+        // OAuth callback handler
+        async function handleOAuthCallback() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const code = urlParams.get('code');
+            const state = urlParams.get('state');
+            const error = urlParams.get('error');
+            
+            // Check if we're in a popup
+            const isPopup = window.opener && window.opener !== window;
+            
+            if (error) {
+                showError('Discord authorization was cancelled or failed.');
+                if (isPopup) {
+                    setTimeout(() => window.close(), 3000);
+                }
+                return;
+            }
+            
+            if (!code || !state) {
+                showError('Invalid authorization response.');
+                if (isPopup) {
+                    setTimeout(() => window.close(), 3000);
+                }
+                return;
+            }
+            
+            // Validate state to prevent CSRF
+            const savedState = localStorage.getItem('discord_state');
+            if (state !== savedState) {
+                showError('Security validation failed. Please try again.');
+                if (isPopup) {
+                    setTimeout(() => window.close(), 3000);
+                }
+                return;
+            }
+            
+            try {
+                // Exchange code for user info
+                // Use the backend URL based on environment
+                const backendUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+                    ? 'http://localhost:3000'
+                    : 'https://your-backend-url.com'; // Replace with your production backend URL
+                    
+                const response = await fetch(`${backendUrl}/api/discord/callback`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code, state })
+                });
+                
+                const data = await response.json();
+                
+                if (data.user) {
+                    // Store user data
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    localStorage.removeItem('discord_state');
+                    
+                    if (isPopup) {
+                        // We're in a popup - notify parent and close
+                        if (window.opener) {
+                            window.opener.postMessage({ 
+                                type: 'discord-login-success', 
+                                user: data.user 
+                            }, window.location.origin);
+                        }
+                        
+                        document.getElementById('content').innerHTML = 
+                            '<p style="color: #10b981;">Sign in successful! Closing window...</p>';
+                        
+                        setTimeout(() => window.close(), 1000);
+                    } else {
+                        // We're in the main window - redirect to the app
+                        document.getElementById('content').innerHTML = 
+                            '<p style="color: #10b981;">Sign in successful! Redirecting...</p>';
+                        
+                        // Redirect to the main app without OAuth params
+                        const redirectUrl = new URL(window.location.origin + window.location.pathname.replace('oauth-callback.html', 'index.html'));
+                        setTimeout(() => window.location.href = redirectUrl.toString(), 1000);
+                    }
+                } else {
+                    throw new Error('No user data received');
+                }
+            } catch (error) {
+                console.error('OAuth callback error:', error);
+                showError('Failed to complete sign in. Please try again.');
+                
+                if (isPopup) {
+                    setTimeout(() => window.close(), 3000);
+                } else {
+                    // Redirect back to main app after delay
+                    setTimeout(() => {
+                        window.location.href = window.location.origin + 
+                            window.location.pathname.replace('oauth-callback.html', 'index.html');
+                    }, 3000);
+                }
+            }
+        }
+        
+        function showError(message) {
+            document.getElementById('content').innerHTML = 
+                `<div class="error">
+                    <p>❌</p>
+                    <p>${message}</p>
+                </div>`;
+        }
+        
+        // Handle the callback immediately
+        handleOAuthCallback();
+    </script>
+</body>
+</html>
