@@ -154,16 +154,10 @@
     </div>
 
     <script>
-        // CONFIGURATION - Update these URLs to match your deployment
+        // CONFIGURATION
         const CONFIG = {
-            backendUrl: {
-                local: 'http://localhost:3000',
-                production: 'https://your-backend-url.com' // TODO: Replace with your actual backend URL
-            },
-            moderationUrl: {
-                local: 'http://localhost:3001',
-                production: 'https://your-moderation-url.com' // TODO: Replace with your actual moderation URL
-            }
+            backendUrl: 'http://24.22.137.234:3000',
+            moderationUrl: 'http://24.22.137.234:3001'
         };
         
         function commentApp() {
@@ -180,13 +174,9 @@
                 sortBy: 'likes',
                 pageId: '',
                 md: null,
-                // Dynamic API URLs based on environment
-                apiUrl: (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-                    ? CONFIG.backendUrl.local
-                    : CONFIG.backendUrl.production) + '/api',
-                moderationUrl: (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-                    ? CONFIG.moderationUrl.local
-                    : CONFIG.moderationUrl.production) + '/api',
+                // API URLs
+                apiUrl: CONFIG.backendUrl + '/api',
+                moderationUrl: CONFIG.moderationUrl + '/api',
 
                 init() {
                     window.commentAppInstance = this;
@@ -229,10 +219,8 @@
                     const clientId = '1377826318456193094'; // Replace with your Discord app ID
                     
                     // IMPORTANT: This redirect URI must match EXACTLY what's configured in Discord
-                    // For GitHub Pages, it should be: https://christianblevens.github.io/CommentSectionWebApp/oauth-callback.html
-                    const baseUrl = window.location.origin;
-                    const pathname = window.location.pathname.replace('index.html', '').replace(/\/$/, '');
-                    const fullRedirectUri = baseUrl + pathname + '/oauth-callback.html';
+                    // For GitHub Pages: https://christianblevens.github.io/CommentSectionWebApp/oauth-callback.html
+                    const fullRedirectUri = 'https://christianblevens.github.io/CommentSectionWebApp/oauth-callback.html';
                     
                     // Debug logging
                     console.log('OAuth Redirect URI:', fullRedirectUri);

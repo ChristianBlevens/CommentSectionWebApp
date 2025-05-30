@@ -43,12 +43,9 @@
     </div>
 
     <script>
-        // CONFIGURATION - Update these URLs to match your deployment
+        // CONFIGURATION
         const CONFIG = {
-            backendUrl: {
-                local: 'http://localhost:3000',
-                production: 'https://your-backend-url.com' // TODO: Replace with your actual backend URL
-            }
+            backendUrl: 'http://24.22.137.234:3000'
         };
         
         // OAuth callback handler
@@ -89,15 +86,10 @@
             
             try {
                 // Exchange code for user info
-                // Use the backend URL based on environment
-                const backendUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-                    ? CONFIG.backendUrl.local
-                    : CONFIG.backendUrl.production;
-                
-                console.log('Attempting to call backend at:', `${backendUrl}/api/discord/callback`);
+                console.log('Attempting to call backend at:', `${CONFIG.backendUrl}/api/discord/callback`);
                 console.log('With code:', code.substring(0, 10) + '...');
                     
-                const response = await fetch(`${backendUrl}/api/discord/callback`, {
+                const response = await fetch(`${CONFIG.backendUrl}/api/discord/callback`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ code, state })

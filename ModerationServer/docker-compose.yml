@@ -15,13 +15,27 @@ services:
       - DB_NAME=moderation_db
       - ADMIN_KEY=${ADMIN_KEY}
     ports:
-      - "3001:3001"
+      - "0.0.0.0:3001:3001"  # Bind to all interfaces for public access
     depends_on:
       postgres:
         condition: service_healthy
     networks:
       - moderation-network
     restart: unless-stopped
+    # Security headers and rate limiting
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.middlewares.ratelimit.ratelimit.average=100"
+      - "traefik.http.middlewares.ratelimit.ratelimit.burst=50"
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
 
   # PostgreSQL database for moderation
   postgres:
@@ -47,3 +61,6 @@ volumes:
 networks:
   moderation-network:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16

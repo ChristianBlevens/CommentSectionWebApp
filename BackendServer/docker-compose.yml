@@ -18,7 +18,7 @@ services:
       - DISCORD_CLIENT_SECRET=${DISCORD_CLIENT_SECRET}
       - DISCORD_REDIRECT_URI=${DISCORD_REDIRECT_URI:-http://localhost:8080}
     ports:
-      - "3000:3000"
+      - "0.0.0.0:3000:3000"  # Bind to all interfaces for public access
     depends_on:
       postgres:
         condition: service_healthy
@@ -27,6 +27,20 @@ services:
     networks:
       - backend-network
     restart: unless-stopped
+    # Security headers and rate limiting
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.middlewares.ratelimit.ratelimit.average=100"
+      - "traefik.http.middlewares.ratelimit.ratelimit.burst=50"
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
 
   # PostgreSQL database for comments
   postgres:
@@ -68,3 +82,6 @@ volumes:
 networks:
   backend-network:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
