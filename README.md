@@ -1,602 +1,396 @@
-# Comment System - Complete Deployment Guide
+# Discord Comment System
 
-## System Architecture
+A modern, secure comment system with Discord OAuth authentication, real-time moderation, and Docker deployment. Built with Node.js, PostgreSQL, Redis, and vanilla JavaScript frontend.
 
-The comment system consists of three main components:
+## 🏗️ Architecture
 
-1. **Frontend Web App** - HTML/JavaScript with Alpine.js, Tailwind CSS
-2. **Backend API Server** - Node.js/Express with PostgreSQL and Redis
-3. **Moderation Service** - Node.js/Express with PostgreSQL and NLP
+The system consists of three independent components:
 
-## Prerequisites
+1. **Frontend (index.html)** - Single-page application using Alpine.js and Tailwind CSS
+2. **Backend API Server** - Node.js/Express handling authentication, comments, and votes
+3. **Moderation Service** - NLP-powered content moderation with admin controls
 
-- Node.js 18+ 
-- PostgreSQL 15+
-- Redis 7+
-- Google OAuth Client ID
-- Docker & Docker Compose (optional)
+## 🚀 Quick Start
 
-## Setup Instructions
+### Prerequisites
+- Docker & Docker Compose
+- Discord Application (for OAuth)
+- Web browser
 
-### 1. Discord OAuth Configuration
-
-# Discord OAuth Setup Guide for Comment System
-
-## Why Discord OAuth?
-
-Discord OAuth works better than Google OAuth for iframe-embedded applications because:
-- Discord doesn't restrict OAuth flows in iframes
-- Your target audience (gamers, developers, communities) likely already has Discord
-- Consistent user IDs across all embedded sites
-- No additional costs or restrictions
-
-## Setup Steps
-
-### 1. Create Discord Application
-
-1. Go to [Discord Developer Portal](https://discord.com/developers/applications)
-2. Click "New Application"
-3. Name your application (e.g., "My Comment System")
-4. Go to the "OAuth2" section in the sidebar
-5. Copy your **Client ID** and **Client Secret**
-
-### 2. Configure OAuth2 Settings
-
-In the OAuth2 section:
-
-1. Add Redirect URIs:
-   ```
-   http://localhost:8080
-   http://localhost:8080/
-   https://yourdomain.com
-   https://yourdomain.com/
-   ```
-   Add ALL domains where you'll embed the comment system
-
-2. Save changes
-
-### 3. Update Frontend Code
-
-In the comment system HTML file, replace:
-```javascript
-const clientId = 'YOUR_DISCORD_CLIENT_ID'; // Replace with your Discord app ID
-```
-
-With your actual Discord Client ID.
-
-### 4. Update Backend Environment
-
-Create a `.env` file for your backend:
-```env
-# API Server
-PORT=3000
-DB_HOST=localhost
-DB_PORT=5432
-DB_USER=postgres
-DB_PASSWORD=your_secure_password
-DB_NAME=comments_db
-REDIS_URL=redis://localhost:6379
-
-# Discord OAuth
-DISCORD_CLIENT_ID=your_discord_client_id
-DISCORD_CLIENT_SECRET=your_discord_client_secret
-DISCORD_REDIRECT_URI=http://localhost:8080
-```
-
-### 5. Install Backend Dependencies
+### 1. Backend API Server
 
 ```bash
-cd comment-api
-npm install axios  # Added for Discord API calls
+cd BackendServer
+cp .env.example .env
+# Edit .env with your Discord credentials
+docker-compose up
 ```
 
-## How Discord OAuth Works in This System
+The backend runs on `http://localhost:3000` and includes:
+- PostgreSQL database for comments
+- Redis cache for performance
+- Discord OAuth authentication
 
-1. **User clicks "Sign in with Discord"**
-   - Opens Discord authorization in a popup window
-   - User approves the application
+### 2. Moderation Service
 
-2. **Discord redirects back with code**
-   - The popup receives an authorization code
-   - Frontend sends code to backend
-
-3. **Backend exchanges code for user data**
-   - Backend contacts Discord API
-   - Gets user ID, username, and avatar
-   - Creates/updates user in database
-
-4. **User can now comment**
-   - User data stored in localStorage
-   - Consistent across page reloads
-
-## Discord User Data Structure
-
-```javascript
-{
-    id: "discord_123456789",  // Prefixed Discord ID
-    username: "CoolUser",
-    avatar: "https://cdn.discordapp.com/avatars/...",
-    email: "123456789@discord.user"  // Synthetic email
-}
+```bash
+cd ModerationServer
+cp .env.example .env
+# Edit .env with your admin key
+docker-compose up
 ```
 
-## Important Notes
+The moderation service runs on `http://localhost:3001` and includes:
+- PostgreSQL database for moderation logs
+- NLP-based content analysis
+- Admin endpoints for configuration
 
-1. **Avatar URLs**: Discord avatars are served from CDN, no CORS issues
-2. **User IDs**: Prefixed with "discord_" to avoid conflicts
-3. **Email**: Discord doesn't always provide email, so we create a synthetic one
-4. **Discriminators**: Discord is phasing these out, but we handle both formats
+### 3. Frontend
 
-## Testing
-
-1. Start your backend server:
-   ```bash
-   npm run dev
-   ```
-
-2. Serve your frontend:
-   ```bash
-   python -m http.server 8080
-   ```
-
-3. Visit `http://localhost:8080?pageId=test`
-4. Click "Sign in with Discord"
-5. Authorize the application
-6. You should be signed in!
-
-## Production Deployment
-
-1. **Update Redirect URIs**: Add all production domains in Discord Developer Portal
-2. **Environment Variables**: Set proper values in production
-3. **HTTPS**: Use HTTPS in production for security
-4. **CORS**: Configure CORS to only allow your domains
-
-## Troubleshooting
-
-### "Invalid OAuth2 redirect_uri"
-- Make sure the redirect URI exactly matches what's in Discord settings
-- Include both with and without trailing slash
-- Protocol (http/https) must match exactly
-
-### User avatar not showing
-- Check if user has custom avatar
-- Default avatars are based on discriminator
-
-### Popup blocked
-- Users need to allow popups for your site
-- Show a message if popup is blocked
-
-## Alternative: Direct Redirect (No Popup)
-
-If popups are problematic, you can use direct redirect:
-
-```javascript
-// Instead of window.open, use:
-window.location.href = discordAuthUrl;
+Open `index.html` in a web browser or serve it with any web server:
+```bash
+python -m http.server 8080
+# or
+npx serve .
 ```
 
-This takes the user away from the page but works in all browsers.
+## 📋 Configuration
 
-## Security Best Practices
+### Discord OAuth Setup
 
-1. **Never expose Client Secret** in frontend code
-2. **Validate state parameter** to prevent CSRF
-3. **Use HTTPS in production**
-4. **Limit OAuth scopes** - only request 'identify'
-5. **Rate limit** OAuth endpoints
+1. Go to [Discord Developer Portal](https://discord.com/developers/applications)
+2. Create a new application
+3. Go to OAuth2 → General
+4. Add redirect URL: `http://localhost:8080` (or your production URL)
+5. Copy Client ID and Client Secret to BackendServer/.env
 
-The Discord OAuth implementation is now complete and ready to use!
+### Environment Variables
 
-### 2. Database Setup
+**BackendServer/.env**
+```env
+# Required
+DISCORD_CLIENT_ID=your_discord_client_id
+DISCORD_CLIENT_SECRET=your_discord_client_secret
 
-#### Option A: Using Docker Compose
-
-Create a `docker-compose.yml` file:
-
-```yaml
-version: '3.8'
-
-services:
-  # Main database for comments
-  postgres-main:
-    image: postgres:15
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: your_secure_password
-      POSTGRES_DB: comments_db
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_main_data:/var/lib/postgresql/data
-    networks:
-      - comment-network
-
-  # Moderation database
-  postgres-moderation:
-    image: postgres:15
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: your_secure_password
-      POSTGRES_DB: moderation_db
-    ports:
-      - "5433:5432"
-    volumes:
-      - postgres_moderation_data:/var/lib/postgresql/data
-    networks:
-      - comment-network
-
-  # Redis cache
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    networks:
-      - comment-network
-
-volumes:
-  postgres_main_data:
-  postgres_moderation_data:
-  redis_data:
-
-networks:
-  comment-network:
-    driver: bridge
+# Optional
+DISCORD_REDIRECT_URI=http://localhost:8080
+DB_PASSWORD=postgres_password
+PORT=3000
 ```
 
-Run: `docker-compose up -d`
+**ModerationServer/.env**
+```env
+# Required
+ADMIN_KEY=your_secure_admin_key
 
-#### Option B: Manual Setup
-
-1. Install PostgreSQL and create two databases:
-   ```sql
-   CREATE DATABASE comments_db;
-   CREATE DATABASE moderation_db;
-   ```
-
-2. Install and start Redis
-
-### 3. Backend API Setup
-
-1. Create directory and install dependencies:
-   ```bash
-   mkdir comment-api
-   cd comment-api
-   npm init -y
-   npm install express cors body-parser pg redis
-   npm install -D nodemon
-   ```
-
-2. Create `.env` file:
-   ```env
-   PORT=3000
-   DB_HOST=localhost
-   DB_PORT=5432
-   DB_USER=postgres
-   DB_PASSWORD=your_secure_password
-   DB_NAME=comments_db
-   REDIS_URL=redis://localhost:6379
-   ```
-
-3. Copy the backend API code from the artifact above into `server.js`
-
-4. Update `package.json` scripts:
-   ```json
-   {
-     "scripts": {
-       "start": "node server.js",
-       "dev": "nodemon server.js"
-     }
-   }
-   ```
-
-5. Start the server:
-   ```bash
-   npm run dev
-   ```
-
-### 4. Moderation Service Setup
-
-1. Create directory and install dependencies:
-   ```bash
-   mkdir comment-moderation
-   cd comment-moderation
-   npm init -y
-   npm install express cors body-parser pg natural
-   npm install -D nodemon
-   ```
-
-2. Create `.env` file:
-   ```env
-   PORT=3001
-   DB_HOST=localhost
-   DB_PORT=5433
-   DB_USER=postgres
-   DB_PASSWORD=your_secure_password
-   DB_NAME=moderation_db
-   ADMIN_KEY=your_admin_secret_key
-   ```
-
-3. Copy the moderation service code from the artifact above into `moderation-server.js`
-
-4. Start the service:
-   ```bash
-   npm run dev
-   ```
-
-### 5. Frontend Setup
-
-1. Update the frontend HTML file:
-   - Replace `YOUR_GOOGLE_CLIENT_ID` with your actual Google Client ID
-   - Update API URLs if not using localhost:
-     ```javascript
-     apiUrl: 'http://localhost:3000/api',
-     moderationUrl: 'http://localhost:3001/api',
-     ```
-
-2. Serve the HTML file:
-   - For development: `python -m http.server 8080`
-   - For production: Use nginx, Apache, or CDN
-
-### 6. Environment Variables for iframe Usage
-
-To use the comment system in an iframe with different page IDs:
-
-```html
-<!-- Host page -->
-<iframe src="comments.html?pageId=article-123" width="100%" height="600"></iframe>
+# Optional
+DB_PASSWORD=postgres_password
+PORT=3001
 ```
 
-Or set via JavaScript:
-```javascript
-window.PAGE_ID = 'article-123';
-```
+## 🔧 Features
 
-## Production Deployment
+### Comment System
+- **Nested comments** with unlimited reply depth
+- **Rich text support** with Markdown formatting
+- **Media embedding** for images and videos (YouTube, Vimeo, Imgur)
+- **Spoiler text** with click-to-reveal
+- **Vote system** with like/dislike functionality
+- **Real-time updates** with Redis caching
+- **Comment sorting** by popularity, newest, or oldest
 
-### Security Considerations
+### Moderation Features
+- **Automated content filtering** with NLP analysis
+- **Blocked word detection** with severity levels
+- **Spam pattern recognition**
+- **Sentiment analysis** for toxic content
+- **User trust scoring** based on history
+- **HTML/CSS/JS injection prevention**
+- **Link blocking** (except in media embeds)
+- **Admin controls** for managing blocked words
 
-1. **HTTPS**: Always use HTTPS in production
-2. **CORS**: Configure CORS to only allow your domains
-3. **Rate Limiting**: Add rate limiting to prevent spam:
-   ```bash
-   npm install express-rate-limit
-   ```
-   ```javascript
-   const rateLimit = require('express-rate-limit');
-   const limiter = rateLimit({
-     windowMs: 15 * 60 * 1000, // 15 minutes
-     max: 100 // limit each IP to 100 requests per windowMs
-   });
-   app.use('/api', limiter);
-   ```
+### Security Features
+- **Discord OAuth** for secure authentication
+- **CSRF protection** with state parameter
+- **SQL injection prevention** with parameterized queries
+- **XSS protection** through content sanitization
+- **Rate limiting** ready (add express-rate-limit)
+- **CORS configuration** for production
+- **Input validation** on all endpoints
 
-4. **Input Validation**: Add additional validation:
-   ```bash
-   npm install validator xss
-   ```
-
-5. **Authentication**: Verify Google tokens server-side:
-   ```bash
-   npm install google-auth-library
-   ```
-
-### Database Optimization
-
-1. **Indexes**: The system automatically creates indexes on:
-   - `comments.page_id`
-   - `comments.parent_id`
-   - `votes.comment_id`
-   - `votes.user_id`
-
-2. **Partitioning**: For high-traffic sites, partition the comments table by page_id:
-   ```sql
-   CREATE TABLE comments_partitioned (
-     LIKE comments INCLUDING ALL
-   ) PARTITION BY HASH (page_id);
-   
-   CREATE TABLE comments_part_0 PARTITION OF comments_partitioned
-   FOR VALUES WITH (modulus 4, remainder 0);
-   -- Create parts 1, 2, 3 similarly
-   ```
-
-3. **Connection Pooling**: Configure pool size in production:
-   ```javascript
-   const pgPool = new Pool({
-     max: 20, // Maximum number of clients in the pool
-     idleTimeoutMillis: 30000,
-     connectionTimeoutMillis: 2000,
-   });
-   ```
-
-### Monitoring & Logging
-
-1. **Application Monitoring**:
-   ```bash
-   npm install winston
-   ```
-   ```javascript
-   const winston = require('winston');
-   const logger = winston.createLogger({
-     level: 'info',
-     format: winston.format.json(),
-     transports: [
-       new winston.transports.File({ filename: 'error.log', level: 'error' }),
-       new winston.transports.File({ filename: 'combined.log' })
-     ]
-   });
-   ```
-
-2. **Health Checks**: Both services expose `/api/health` endpoints
-
-3. **Metrics**: Add Prometheus metrics:
-   ```bash
-   npm install prom-client
-   ```
-
-### Scaling Strategies
-
-1. **Horizontal Scaling**:
-   - Run multiple API server instances behind a load balancer
-   - Use Redis for session management
-   - Consider using a message queue for moderation
-
-2. **Caching Strategy**:
-   - Comments are cached for 5 minutes in Redis
-   - Implement CDN caching for static assets
-   - Consider edge caching for read-heavy pages
-
-3. **Database Scaling**:
-   - Read replicas for comment queries
-   - Write master for new comments/votes
-   - Consider sharding by page_id for massive scale
-
-## API Documentation
+## 📡 API Reference
 
 ### Backend API Endpoints
 
-#### POST /api/users/register
-Register or update a user.
-
-Request:
-```json
-{
-  "id": "google_user_id",
-  "email": "user@example.com",
-  "name": "User Name",
-  "picture": "https://..."
-}
-```
-
-#### GET /api/comments/:pageId
-Get all comments for a page.
-
-Query Parameters:
-- `userId` (optional): Include user's votes
-
-Response:
-```json
-[
+#### Authentication
+- `POST /api/discord/callback` - Discord OAuth callback
+  ```json
   {
-    "id": 1,
-    "pageId": "page-123",
-    "userId": "user_id",
-    "parentId": null,
-    "content": "Comment content",
-    "likes": 5,
-    "dislikes": 1,
-    "createdAt": "2023-01-01T00:00:00Z",
-    "userName": "User Name",
-    "userPicture": "https://...",
-    "userVote": "like"
+    "code": "auth_code",
+    "state": "csrf_state"
   }
-]
-```
+  ```
 
-#### POST /api/comments
-Create a new comment.
+#### Comments
+- `GET /api/comments/:pageId` - Get comments for a page
+  - Query: `?userId=xxx` (optional, includes user votes)
+  
+- `POST /api/comments` - Create new comment
+  ```json
+  {
+    "pageId": "page-123",
+    "userId": "discord_123",
+    "content": "Comment text",
+    "parentId": null,
+    "userName": "User",
+    "userPicture": "avatar_url"
+  }
+  ```
 
-Request:
-```json
-{
-  "pageId": "page-123",
-  "userId": "user_id",
-  "content": "Comment content",
-  "parentId": null,
-  "userName": "User Name",
-  "userPicture": "https://..."
-}
-```
+- `POST /api/comments/:commentId/vote` - Vote on comment
+  ```json
+  {
+    "userId": "discord_123",
+    "voteType": "like" // or "dislike"
+  }
+  ```
 
-#### POST /api/comments/:commentId/vote
-Vote on a comment.
-
-Request:
-```json
-{
-  "userId": "user_id",
-  "voteType": "like" // or "dislike"
-}
-```
+- `GET /api/health` - Health check
 
 ### Moderation API Endpoints
 
-#### POST /api/moderate
-Check if content is appropriate.
+#### Public
+- `POST /api/moderate` - Check content
+  ```json
+  {
+    "content": "Text to moderate",
+    "userId": "discord_123" // optional
+  }
+  ```
+  Response:
+  ```json
+  {
+    "approved": true,
+    "reason": null,
+    "confidence": 0.95,
+    "flaggedWords": [],
+    "suggestions": []
+  }
+  ```
 
-Request:
-```json
-{
-  "content": "Comment text to moderate",
-  "userId": "user_id" // optional
-}
+#### Admin (requires ADMIN_KEY)
+- `POST /api/admin/blocked-words` - Add/update blocked word
+  ```json
+  {
+    "word": "example",
+    "severity": "medium", // low, medium, high
+    "adminKey": "your_admin_key"
+  }
+  ```
+
+- `DELETE /api/admin/blocked-words/:word?adminKey=xxx` - Remove blocked word
+
+- `GET /api/admin/stats?adminKey=xxx&hours=24` - Get moderation statistics
+
+- `GET /api/health` - Health check
+
+## 🗄️ Database Schema
+
+### Backend Database (PostgreSQL)
+```sql
+-- Users table
+users (
+  id VARCHAR(255) PRIMARY KEY,
+  email VARCHAR(255) UNIQUE NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  picture TEXT,
+  created_at TIMESTAMP,
+  updated_at TIMESTAMP
+)
+
+-- Comments table
+comments (
+  id SERIAL PRIMARY KEY,
+  page_id VARCHAR(255) NOT NULL,
+  user_id VARCHAR(255) NOT NULL REFERENCES users(id),
+  parent_id INTEGER REFERENCES comments(id),
+  content TEXT NOT NULL CHECK (length <= 5000),
+  likes INTEGER DEFAULT 0,
+  dislikes INTEGER DEFAULT 0,
+  created_at TIMESTAMP,
+  updated_at TIMESTAMP
+)
+
+-- Votes table
+votes (
+  id SERIAL PRIMARY KEY,
+  comment_id INTEGER NOT NULL REFERENCES comments(id),
+  user_id VARCHAR(255) NOT NULL REFERENCES users(id),
+  vote_type VARCHAR(10) CHECK (vote_type IN ('like', 'dislike')),
+  created_at TIMESTAMP,
+  UNIQUE(comment_id, user_id)
+)
 ```
 
-Response:
-```json
-{
-  "approved": true,
-  "reason": null,
-  "confidence": 0.95,
-  "flaggedWords": [],
-  "suggestions": []
-}
+### Moderation Database (PostgreSQL)
+```sql
+-- Moderation logs
+moderation_logs (
+  id SERIAL PRIMARY KEY,
+  content TEXT NOT NULL,
+  approved BOOLEAN NOT NULL,
+  reason VARCHAR(255),
+  confidence FLOAT,
+  flagged_words TEXT[],
+  user_id VARCHAR(255),
+  created_at TIMESTAMP
+)
+
+-- Blocked words
+blocked_words (
+  id SERIAL PRIMARY KEY,
+  word VARCHAR(255) UNIQUE NOT NULL,
+  severity VARCHAR(50) DEFAULT 'medium',
+  created_at TIMESTAMP
+)
+
+-- Trusted users
+trusted_users (
+  id VARCHAR(255) PRIMARY KEY,
+  trust_score FLOAT DEFAULT 0.5,
+  total_comments INTEGER DEFAULT 0,
+  flagged_comments INTEGER DEFAULT 0,
+  created_at TIMESTAMP,
+  updated_at TIMESTAMP
+)
 ```
 
-## Troubleshooting
+## 🔨 Development
 
-### Common Issues
+### Running Without Docker
 
-1. **CORS Errors**: Ensure the frontend URL is in the CORS allowed origins
-2. **Database Connection**: Check PostgreSQL is running and credentials are correct
-3. **Redis Connection**: Ensure Redis is running on the correct port
-4. **Google Sign-In**: Verify the client ID and authorized domains
-
-### Debug Mode
-
-Enable debug logging:
-```javascript
-// Add to both servers
-app.use((req, res, next) => {
-  console.log(`${req.method} ${req.path}`, req.body);
-  next();
-});
-```
-
-## Maintenance
-
-### Database Backups
-
+**Backend Server:**
 ```bash
-# Backup
-pg_dump -U postgres -h localhost comments_db > comments_backup.sql
-pg_dump -U postgres -h localhost -p 5433 moderation_db > moderation_backup.sql
-
-# Restore
-psql -U postgres -h localhost comments_db < comments_backup.sql
-psql -U postgres -h localhost -p 5433 moderation_db < moderation_backup.sql
+cd BackendServer
+npm install
+# Start PostgreSQL and Redis locally
+npm run dev
 ```
 
-### Updating Blocked Words
+**Moderation Server:**
+```bash
+cd ModerationServer
+npm install
+# Start PostgreSQL locally
+npm run dev
+```
 
+### Testing Moderation
+
+Test content moderation:
+```bash
+curl -X POST http://localhost:3001/api/moderate \
+  -H "Content-Type: application/json" \
+  -d '{"content": "This is a test comment"}'
+```
+
+Add blocked word (admin):
 ```bash
 curl -X POST http://localhost:3001/api/admin/blocked-words \
   -H "Content-Type: application/json" \
   -d '{
-    "word": "newbadword",
+    "word": "badword",
     "severity": "high",
-    "adminKey": "your_admin_secret_key"
+    "adminKey": "your_admin_key"
   }'
 ```
 
-### Monitoring Moderation Stats
+## 🌐 Production Deployment
 
-```bash
-curl "http://localhost:3001/api/admin/stats?adminKey=your_admin_secret_key"
+### Security Checklist
+- [ ] Use HTTPS everywhere
+- [ ] Set strong passwords in .env files
+- [ ] Configure CORS for your domain only
+- [ ] Add rate limiting to prevent spam
+- [ ] Set up proper firewall rules
+- [ ] Use secrets management for credentials
+- [ ] Enable database backups
+- [ ] Set up monitoring and alerts
+
+### Performance Optimization
+- Enable Redis persistence in production
+- Configure PostgreSQL connection pooling
+- Add CDN for static assets
+- Implement horizontal scaling with load balancer
+- Use database read replicas for scaling
+
+### Docker Production Tips
+```yaml
+# Add to docker-compose.yml for production:
+services:
+  backend-api:
+    restart: always
+    environment:
+      - NODE_ENV=production
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
 ```
 
-## License
+## 🔍 Troubleshooting
 
-This comment system is provided as-is for educational and commercial use.
+### Common Issues
 
+**Discord OAuth not working:**
+- Verify Client ID and Secret are correct
+- Check redirect URI matches exactly
+- Ensure application is not in test mode
+
+**Comments not loading:**
+- Check backend server is running: `http://localhost:3000/api/health`
+- Verify database connection in logs
+- Check browser console for CORS errors
+
+**Moderation blocking all comments:**
+- Check admin key is set correctly
+- Review blocked words list
+- Check moderation logs in database
+
+### Viewing Logs
+```bash
+# Backend logs
+cd BackendServer && docker-compose logs -f
+
+# Moderation logs
+cd ModerationServer && docker-compose logs -f
+
+# Database queries
+docker exec -it comment-postgres psql -U postgres comments_db
+```
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes with tests
+4. Submit a pull request
+
+### Code Style
+- Use ES6+ JavaScript features
+- Add comments for complex logic
+- Follow existing patterns
+- Test error scenarios
+
+## 📄 License
+
+This project is provided as-is for educational and commercial use.
+
+## 🙏 Acknowledgments
+
+- Discord for OAuth integration
+- Alpine.js for reactive UI
+- Tailwind CSS for styling
+- markdown-it for Markdown parsing
+- Natural for NLP processing

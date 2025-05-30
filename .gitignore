@@ -1,0 +1,59 @@
+# Node modules
+node_modules/
+*/node_modules/
+**/node_modules/
+
+# Environment files
+.env
+.env.local
+.env.production
+*/.env
+*/.env.local
+*/.env.production
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+**/logs/
+**/*.log
+**/npm-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+**/pids
+**/*.pid
+**/*.seed
+**/*.pid.lock
+
+# OS files
+.DS_Store
+Thumbs.db
+**/.DS_Store
+**/Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+**/.vscode/
+**/.idea/
+**/*.swp
+**/*.swo
+
+# Temporary files
+temp/
+tmp/
+.cache/
+**/temp/
+**/tmp/
+**/.cache/
+
+# Docker volumes (from root docker-compose if used)
+postgres_main_data/
+postgres_moderation_data/
+redis_data/

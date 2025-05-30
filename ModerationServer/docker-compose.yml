@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  # Moderation Service
+  moderation-api:
+    build: .
+    container_name: comment-moderation-api
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=${DB_PASSWORD:-postgres_password}
+      - DB_NAME=moderation_db
+      - ADMIN_KEY=${ADMIN_KEY}
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - moderation-network
+    restart: unless-stopped
+
+  # PostgreSQL database for moderation
+  postgres:
+    image: postgres:15-alpine
+    container_name: moderation-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres_password}
+      POSTGRES_DB: moderation_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - moderation-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+
+networks:
+  moderation-network:
+    driver: bridge

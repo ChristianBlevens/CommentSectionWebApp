@@ -1,0 +1,20 @@
+{
+  "name": "comment-moderation-service",
+  "version": "1.0.0",
+  "description": "Content moderation service for comment system",
+  "main": "moderation-server.js",
+  "scripts": {
+    "start": "node moderation-server.js",
+    "dev": "nodemon moderation-server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "body-parser": "^1.20.2",
+    "pg": "^8.11.3",
+    "natural": "^6.10.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}
