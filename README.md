@@ -82,9 +82,9 @@ npx serve .
 # Required
 DISCORD_CLIENT_ID=your_discord_client_id
 DISCORD_CLIENT_SECRET=your_discord_client_secret
+DISCORD_REDIRECT_URI=https://yourdomain.com/oauth-callback.html  # MUST match Discord exactly!
 
 # Optional
-DISCORD_REDIRECT_URI=http://localhost:8080
 DB_PASSWORD=postgres_password
 PORT=3000
 ```
@@ -353,6 +353,16 @@ services:
 ## 🔍 Troubleshooting
 
 ### Common Issues
+
+**Discord OAuth "Invalid redirect_uri" error:**
+- Open browser console (F12) and click "Sign in with Discord"
+- Copy the EXACT redirect URI shown in console
+- Add this EXACT URL to Discord Developer Portal
+- Update DISCORD_REDIRECT_URI in BackendServer/.env to match
+- Common issues:
+  - Trailing slashes matter! `/oauth-callback.html` ≠ `/oauth-callback.html/`
+  - Protocol matters! `http://` ≠ `https://`
+  - Path matters! `/CommentSectionWebApp/oauth-callback.html` ≠ `/oauth-callback.html`
 
 **Discord OAuth not working:**
 - Verify Client ID and Secret are correct
