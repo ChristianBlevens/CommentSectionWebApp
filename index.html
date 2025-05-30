@@ -154,6 +154,18 @@
     </div>
 
     <script>
+        // CONFIGURATION - Update these URLs to match your deployment
+        const CONFIG = {
+            backendUrl: {
+                local: 'http://localhost:3000',
+                production: 'https://your-backend-url.com' // TODO: Replace with your actual backend URL
+            },
+            moderationUrl: {
+                local: 'http://localhost:3001',
+                production: 'https://your-moderation-url.com' // TODO: Replace with your actual moderation URL
+            }
+        };
+        
         function commentApp() {
             return {
                 user: null,
@@ -169,12 +181,12 @@
                 pageId: '',
                 md: null,
                 // Dynamic API URLs based on environment
-                apiUrl: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-                    ? 'http://localhost:3000/api'
-                    : 'https://your-backend-url.com/api', // Replace with your production backend URL
-                moderationUrl: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-                    ? 'http://localhost:3001/api'
-                    : 'https://your-moderation-url.com/api', // Replace with your production moderation URL
+                apiUrl: (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+                    ? CONFIG.backendUrl.local
+                    : CONFIG.backendUrl.production) + '/api',
+                moderationUrl: (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+                    ? CONFIG.moderationUrl.local
+                    : CONFIG.moderationUrl.production) + '/api',
 
                 init() {
                     window.commentAppInstance = this;

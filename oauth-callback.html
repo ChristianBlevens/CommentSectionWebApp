@@ -43,6 +43,14 @@
     </div>
 
     <script>
+        // CONFIGURATION - Update these URLs to match your deployment
+        const CONFIG = {
+            backendUrl: {
+                local: 'http://localhost:3000',
+                production: 'https://your-backend-url.com' // TODO: Replace with your actual backend URL
+            }
+        };
+        
         // OAuth callback handler
         async function handleOAuthCallback() {
             const urlParams = new URLSearchParams(window.location.search);
@@ -83,8 +91,11 @@
                 // Exchange code for user info
                 // Use the backend URL based on environment
                 const backendUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-                    ? 'http://localhost:3000'
-                    : 'https://your-backend-url.com'; // Replace with your production backend URL
+                    ? CONFIG.backendUrl.local
+                    : CONFIG.backendUrl.production;
+                
+                console.log('Attempting to call backend at:', `${backendUrl}/api/discord/callback`);
+                console.log('With code:', code.substring(0, 10) + '...');
                     
                 const response = await fetch(`${backendUrl}/api/discord/callback`, {
                     method: 'POST',
@@ -92,7 +103,16 @@
                     body: JSON.stringify({ code, state })
                 });
                 
+                console.log('Response status:', response.status);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Backend error response:', errorText);
+                    throw new Error(`Backend returned ${response.status}: ${errorText}`);
+                }
+                
                 const data = await response.json();
+                console.log('Backend response:', data);
                 
                 if (data.user) {
                     // Store user data

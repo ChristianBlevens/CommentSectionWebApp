@@ -12,6 +12,25 @@ The system consists of three independent components:
 
 ## 🚀 Quick Start
 
+### Important: Frontend Configuration
+
+Before deploying, update the backend URLs in these files:
+1. **index.html** - Update the `CONFIG` object at the top of the script section
+2. **oauth-callback.html** - Update the `CONFIG` object at the top of the script section
+
+```javascript
+const CONFIG = {
+    backendUrl: {
+        local: 'http://localhost:3000',
+        production: 'https://your-backend-api.com' // ← UPDATE THIS
+    },
+    moderationUrl: {
+        local: 'http://localhost:3001', 
+        production: 'https://your-moderation-api.com' // ← UPDATE THIS
+    }
+};
+```
+
 ### Prerequisites
 - Docker & Docker Compose
 - Discord Application (for OAuth)
