@@ -133,11 +133,8 @@ const initDatabase = async () => {
     }
 };
 
-// Initialize database on startup
-initDatabase().catch(err => {
-    console.error('Failed to initialize database:', err);
-    process.exit(1);
-});
+// Store database initialization promise
+const databaseInitPromise = initDatabase();
 
 // Natural Language Processing setup
 const tokenizer = new natural.WordTokenizer();
@@ -148,15 +145,24 @@ const sentiment = new natural.SentimentAnalyzer('English', stemmer, 'afinn');
 class ContentModerator {
     constructor() {
         this.blockedWords = new Map();
-        this.loadBlockedWords();
+        // Don't load blocked words in constructor
+        // Will be loaded after database is initialized
+    }
+    
+    // Initialize moderator after database is ready
+    async initialize() {
+        console.log('Initializing content moderator...');
+        await this.loadBlockedWords();
         
         // Refresh blocked words periodically
         setInterval(() => this.loadBlockedWords(), 60000); // Every minute
+        console.log('Content moderator initialized');
     }
     
     // Load blocked words from database
     async loadBlockedWords() {
         try {
+            console.log('Loading blocked words from database...');
             const result = await pgPool.query('SELECT word, severity FROM blocked_words');
             
             // Clear existing words
@@ -167,7 +173,7 @@ class ContentModerator {
                 this.blockedWords.set(row.word.toLowerCase(), row.severity);
             });
             
-            console.log(`Loaded ${this.blockedWords.size} blocked words`);
+            console.log(`Loaded ${this.blockedWords.size} blocked words from database`);
         } catch (error) {
             console.error('Error loading blocked words:', error);
         }
@@ -175,6 +181,8 @@ class ContentModerator {
     
     // Main moderation function
     async moderate(content, userId = null) {
+        console.log('Moderating content:', { userId, contentLength: content?.length });
+        
         const result = {
             approved: true,
             reason: null,
@@ -185,6 +193,7 @@ class ContentModerator {
         
         // Validate content exists
         if (!content || content.trim().length === 0) {
+            console.log('Content rejected: Empty content');
             result.approved = false;
             result.reason = 'Empty content';
             result.confidence = 1.0;
@@ -193,6 +202,7 @@ class ContentModerator {
         
         // Check content length limit
         if (content.length > 5000) {
+            console.log('Content rejected: Too long', content.length);
             result.approved = false;
             result.reason = 'Content too long (max 5000 characters)';
             result.confidence = 1.0;
@@ -200,8 +210,10 @@ class ContentModerator {
         }
         
         // Check for HTML/CSS/JavaScript injection attempts
+        console.log('Checking for code injection...');
         const hasCustomCode = this.checkForCustomCode(content);
         if (hasCustomCode) {
+            console.log('Content rejected: Code injection detected');
             result.approved = false;
             result.reason = 'HTML, CSS, or JavaScript code is not allowed';
             result.confidence = 1.0;
@@ -209,8 +221,10 @@ class ContentModerator {
         }
         
         // Check for unauthorized links
+        console.log('Checking for unauthorized links...');
         const hasLinks = this.checkForLinks(content);
         if (hasLinks) {
+            console.log('Content rejected: Unauthorized links detected');
             result.approved = false;
             result.reason = 'External links are not allowed';
             result.confidence = 1.0;
@@ -221,6 +235,7 @@ class ContentModerator {
         const tokens = tokenizer.tokenize(content.toLowerCase());
         
         // Check against blocked words
+        console.log('Checking against blocked words...');
         const foundBlockedWords = [];
         let severityScore = 0;
         
@@ -228,6 +243,7 @@ class ContentModerator {
             if (this.blockedWords.has(token)) {
                 const severity = this.blockedWords.get(token);
                 foundBlockedWords.push({ word: token, severity });
+                console.log(`Found blocked word: ${token} (${severity})`);
                 
                 // Calculate severity score
                 switch (severity) {
@@ -254,27 +270,37 @@ class ContentModerator {
         let trustScore = 0.5;
         if (userId) {
             trustScore = await this.getUserTrustScore(userId);
+            console.log(`User trust score for ${userId}: ${trustScore}`);
         }
         
         // Make moderation decision based on all factors
+        console.log('Making moderation decision...', { 
+            severityScore, spamScore, sentimentScore, capsRatio, hasExcessiveRepetition 
+        });
+        
         if (foundBlockedWords.length > 0 && severityScore >= 5) {
+            console.log('Content rejected: Prohibited language');
             result.approved = false;
             result.reason = 'Contains prohibited language';
             result.flaggedWords = foundBlockedWords.map(w => w.word);
             result.confidence = 0.9;
         } else if (spamScore > 0.7) {
+            console.log('Content rejected: Spam detected');
             result.approved = false;
             result.reason = 'Detected as spam';
             result.confidence = spamScore;
         } else if (sentimentScore < -3) {
+            console.log('Content rejected: Extremely negative');
             result.approved = false;
             result.reason = 'Extremely negative content';
             result.confidence = 0.8;
         } else if (capsRatio > 0.8 && content.length > 10) {
+            console.log('Content rejected: Excessive caps');
             result.approved = false;
             result.reason = 'Excessive capitalization';
             result.confidence = 0.9;
         } else if (hasExcessiveRepetition) {
+            console.log('Content rejected: Character repetition');
             result.approved = false;
             result.reason = 'Excessive character repetition';
             result.confidence = 0.85;
@@ -514,14 +540,28 @@ class ContentModerator {
 // Initialize content moderator
 const moderator = new ContentModerator();
 
+// Initialize everything after database is ready
+databaseInitPromise
+    .then(async () => {
+        // Initialize moderator after database is ready
+        await moderator.initialize();
+    })
+    .catch(err => {
+        console.error('Failed to initialize:', err);
+        process.exit(1);
+    });
+
 // Routes
 
 // Main moderation endpoint
 app.post('/api/moderate', async (req, res) => {
     const { content, userId } = req.body;
     
+    console.log('Moderation request received:', { userId, contentLength: content?.length });
+    
     // Validate content parameter
     if (content === undefined || content === null) {
+        console.error('Missing content parameter in moderation request');
         return res.status(400).json({ 
             error: 'Content parameter is required' 
         });
@@ -529,10 +569,13 @@ app.post('/api/moderate', async (req, res) => {
     
     try {
         // Perform moderation
+        console.log('Starting content moderation...');
         const result = await moderator.moderate(content, userId);
+        console.log('Moderation result:', { approved: result.approved, reason: result.reason, confidence: result.confidence });
         
         // Update user trust score if userId provided
         if (userId) {
+            console.log('Updating user trust score for:', userId);
             moderator.updateUserTrustScore(userId, result.approved)
                 .catch(err => console.error('Failed to update trust score:', err));
         }
@@ -726,4 +769,7 @@ const server = app.listen(port, () => {
     console.log(`Moderation service running on port ${port}`);
     console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`Admin endpoints: ${ADMIN_KEY ? 'enabled' : 'disabled'}`);
+    console.log(`Database host: ${process.env.DB_HOST || 'localhost'}`);
+    console.log(`Natural language processing enabled`);
+    console.log(`Trust scoring system active`);
 });

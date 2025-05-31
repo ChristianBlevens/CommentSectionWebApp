@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Moderator Management</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.12.0/dist/cdn.min.js" defer></script>
+</head>
+<body class="bg-gray-100">
+    <div x-data="moderatorApp()" x-init="init()" class="container mx-auto p-4 max-w-4xl">
+        <!-- Header -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h1 class="text-2xl font-bold mb-4">
+                <i class="fas fa-shield-alt mr-2 text-blue-600"></i>
+                Moderator Management
+            </h1>
+            
+            <!-- Auth check -->
+            <div x-show="!user" class="text-center py-8">
+                <i class="fas fa-lock text-4xl text-gray-400 mb-4"></i>
+                <p class="text-gray-600 mb-4">Please sign in to access this page</p>
+                <button @click="signInWithDiscord()" 
+                        class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md">
+                    <svg class="w-5 h-5 mr-2 inline" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M20.317 4.492c-1.53-.69-3.17-1.2-4.885-1.49a.075.075 0 0 0-.079.036c-.21.369-.444.85-.608 1.23a18.566 18.566 0 0 0-5.487 0 12.36 12.36 0 0 0-.617-1.23A.077.077 0 0 0 8.562 3c-1.714.29-3.354.8-4.885 1.491a.07.07 0 0 0-.032.027C.533 9.093-.32 13.555.099 17.961a.08.08 0 0 0 .031.055 20.03 20.03 0 0 0 5.993 2.98.078.078 0 0 0 .084-.026 13.83 13.83 0 0 0 1.226-1.963.074.074 0 0 0-.041-.104 13.175 13.175 0 0 1-1.872-.878.075.075 0 0 1-.008-.125 10.775 10.775 0 0 0 .372-.291.072.072 0 0 1 .077-.01c3.927 1.764 8.18 1.764 12.061 0a.071.071 0 0 1 .078.009c.12.098.246.198.373.292a.075.075 0 0 1-.006.125c-.598.344-1.22.635-1.873.877a.075.075 0 0 0-.041.105c.36.687.772 1.341 1.225 1.962a.077.077 0 0 0 .084.028 19.963 19.963 0 0 0 6.002-2.981.076.076 0 0 0 .032-.054c.5-5.094-.838-9.52-3.549-13.442a.06.06 0 0 0-.031-.028zM8.02 15.278c-1.182 0-2.157-1.069-2.157-2.38 0-1.312.956-2.38 2.157-2.38 1.21 0 2.176 1.077 2.157 2.38 0 1.312-.956 2.38-2.157 2.38zm7.975 0c-1.183 0-2.157-1.069-2.157-2.38 0-1.312.955-2.38 2.157-2.38 1.21 0 2.176 1.077 2.157 2.38 0 1.312-.946 2.38-2.157 2.38z"/>
+                    </svg>
+                    Sign in with Discord
+                </button>
+            </div>
+            
+            <!-- Not moderator message -->
+            <div x-show="user && !user.is_moderator" class="text-center py-8">
+                <i class="fas fa-exclamation-triangle text-4xl text-yellow-500 mb-4"></i>
+                <p class="text-gray-600">You do not have permission to access this page</p>
+            </div>
+            
+            <!-- Moderator panel -->
+            <div x-show="user && user.is_moderator">
+                <!-- Add moderator form -->
+                <div class="mb-8">
+                    <h2 class="text-lg font-semibold mb-4">Add New Moderator</h2>
+                    <div class="flex space-x-4">
+                        <input type="text" 
+                               x-model="newModeratorId" 
+                               placeholder="Enter Discord User ID (e.g., discord_123456789)"
+                               class="flex-1 p-2 border rounded-md focus:ring-2 focus:ring-blue-500">
+                        <button @click="addModerator()" 
+                                :disabled="!newModeratorId"
+                                class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md disabled:bg-gray-300">
+                            <i class="fas fa-plus mr-2"></i>Add Moderator
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Current moderators list -->
+                <div>
+                    <h2 class="text-lg font-semibold mb-4">Current Moderators</h2>
+                    
+                    <div x-show="loading" class="text-center py-8">
+                        <i class="fas fa-spinner fa-spin text-4xl text-gray-400"></i>
+                    </div>
+                    
+                    <div x-show="!loading && moderators.length === 0" class="text-center py-8 text-gray-500">
+                        No moderators found
+                    </div>
+                    
+                    <div x-show="!loading && moderators.length > 0" class="space-y-3">
+                        <template x-for="mod in moderators" :key="mod.id">
+                            <div class="bg-gray-50 rounded-lg p-4 flex items-center justify-between">
+                                <div class="flex items-center">
+                                    <img :src="mod.picture || 'https://cdn.discordapp.com/embed/avatars/1.png'" 
+                                         class="w-10 h-10 rounded-full mr-3">
+                                    <div>
+                                        <p class="font-medium" x-text="mod.name"></p>
+                                        <p class="text-sm text-gray-600" x-text="mod.id"></p>
+                                    </div>
+                                </div>
+                                <button @click="removeModerator(mod.id, mod.name)" 
+                                        :disabled="mod.id === user.id"
+                                        class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm disabled:bg-gray-300">
+                                    <i class="fas fa-times mr-1"></i>Remove
+                                </button>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Configuration
+        const CONFIG = {
+            backendUrl: 'http://localhost:3000',
+            debugMode: true
+        };
+        
+        function moderatorApp() {
+            return {
+                user: null,
+                moderators: [],
+                loading: true,
+                newModeratorId: '',
+                apiUrl: CONFIG.backendUrl + '/api',
+                
+                init() {
+                    console.log('Moderator app initializing...');
+                    this.checkExistingSession();
+                    
+                    // Listen for login messages
+                    window.addEventListener('message', (event) => {
+                        if (event.data && event.data.type === 'discord-login-success') {
+                            console.log('Received Discord login success');
+                            this.user = event.data.user;
+                            localStorage.setItem('user', JSON.stringify(this.user));
+                            if (this.user.is_moderator) {
+                                this.loadModerators();
+                            }
+                        }
+                    });
+                },
+                
+                checkExistingSession() {
+                    const savedUser = localStorage.getItem('user');
+                    if (savedUser) {
+                        this.user = JSON.parse(savedUser);
+                        console.log('Found existing session:', this.user.username);
+                        if (this.user.is_moderator) {
+                            this.loadModerators();
+                        } else {
+                            this.loading = false;
+                        }
+                    } else {
+                        this.loading = false;
+                    }
+                },
+                
+                signInWithDiscord() {
+                    // Same Discord auth as main app
+                    if (CONFIG.debugMode) {
+                        console.log('Debug mode - using fake auth');
+                        const fakeUser = {
+                            id: `discord_debug_${Math.random().toString(36).substring(7)}`,
+                            username: `DebugModerator`,
+                            discriminator: '0001',
+                            avatar: `https://cdn.discordapp.com/embed/avatars/0.png`,
+                            email: `moderator@debug.local`,
+                            is_moderator: true, // Make debug user a moderator for testing
+                            is_banned: false
+                        };
+                        
+                        fetch(`${this.apiUrl}/discord/callback`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                code: 'debug_code',
+                                state: 'debug_state',
+                                debugMode: true,
+                                debugUser: fakeUser
+                            })
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.user) {
+                                this.user = data.user;
+                                localStorage.setItem('user', JSON.stringify(this.user));
+                                if (this.user.is_moderator) {
+                                    this.loadModerators();
+                                }
+                            }
+                        });
+                        return;
+                    }
+                    
+                    // Normal Discord OAuth flow
+                    const state = Math.random().toString(36).substring(7);
+                    localStorage.setItem('discord_state', state);
+                    const clientId = '1377826318456193094';
+                    const redirectUri = encodeURIComponent('https://christianblevens.github.io/CommentSectionWebApp/oauth-callback.html');
+                    const scope = 'identify';
+                    const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&state=${state}`;
+                    
+                    const width = 500;
+                    const height = 700;
+                    const left = (window.screen.width - width) / 2;
+                    const top = (window.screen.height - height) / 2;
+                    
+                    window.open(
+                        discordAuthUrl,
+                        'discord-auth',
+                        `width=${width},height=${height},left=${left},top=${top}`
+                    );
+                },
+                
+                async loadModerators() {
+                    this.loading = true;
+                    try {
+                        const response = await fetch(`${this.apiUrl}/moderators?userId=${this.user.id}`);
+                        if (response.ok) {
+                            this.moderators = await response.json();
+                            console.log(`Loaded ${this.moderators.length} moderators`);
+                        }
+                    } catch (error) {
+                        console.error('Error loading moderators:', error);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                
+                async addModerator() {
+                    if (!this.newModeratorId.trim()) return;
+                    
+                    try {
+                        const response = await fetch(`${this.apiUrl}/users/${this.newModeratorId}/moderator`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                userId: this.user.id,
+                                isModerator: true
+                            })
+                        });
+                        
+                        if (response.ok) {
+                            alert('Moderator added successfully');
+                            this.newModeratorId = '';
+                            await this.loadModerators();
+                        } else {
+                            const error = await response.json();
+                            alert(error.error || 'Failed to add moderator');
+                        }
+                    } catch (error) {
+                        console.error('Error adding moderator:', error);
+                        alert('Failed to add moderator');
+                    }
+                },
+                
+                async removeModerator(modId, modName) {
+                    if (modId === this.user.id) {
+                        alert('You cannot remove yourself as a moderator');
+                        return;
+                    }
+                    
+                    if (!confirm(`Remove ${modName} as a moderator?`)) {
+                        return;
+                    }
+                    
+                    try {
+                        const response = await fetch(`${this.apiUrl}/users/${modId}/moderator`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                userId: this.user.id,
+                                isModerator: false
+                            })
+                        });
+                        
+                        if (response.ok) {
+                            alert('Moderator removed successfully');
+                            await this.loadModerators();
+                        } else {
+                            alert('Failed to remove moderator');
+                        }
+                    } catch (error) {
+                        console.error('Error removing moderator:', error);
+                        alert('Failed to remove moderator');
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>

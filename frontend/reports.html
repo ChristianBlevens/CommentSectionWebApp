@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>All Reports - Moderation Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.12.0/dist/cdn.min.js" defer></script>
+</head>
+<body class="bg-gray-100">
+    <div x-data="reportsApp()" x-init="init()" class="container mx-auto p-4 max-w-6xl">
+        <!-- Header -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h1 class="text-2xl font-bold mb-4">
+                <i class="fas fa-flag mr-2 text-red-600"></i>
+                Global Reports Dashboard
+            </h1>
+            
+            <!-- Auth check -->
+            <div x-show="!user" class="text-center py-8">
+                <i class="fas fa-lock text-4xl text-gray-400 mb-4"></i>
+                <p class="text-gray-600 mb-4">Please sign in to access this page</p>
+                <button @click="signInWithDiscord()" 
+                        class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md">
+                    <svg class="w-5 h-5 mr-2 inline" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M20.317 4.492c-1.53-.69-3.17-1.2-4.885-1.49a.075.075 0 0 0-.079.036c-.21.369-.444.85-.608 1.23a18.566 18.566 0 0 0-5.487 0 12.36 12.36 0 0 0-.617-1.23A.077.077 0 0 0 8.562 3c-1.714.29-3.354.8-4.885 1.491a.07.07 0 0 0-.032.027C.533 9.093-.32 13.555.099 17.961a.08.08 0 0 0 .031.055 20.03 20.03 0 0 0 5.993 2.98.078.078 0 0 0 .084-.026 13.83 13.83 0 0 0 1.226-1.963.074.074 0 0 0-.041-.104 13.175 13.175 0 0 1-1.872-.878.075.075 0 0 1-.008-.125 10.775 10.775 0 0 0 .372-.291.072.072 0 0 1 .077-.01c3.927 1.764 8.18 1.764 12.061 0a.071.071 0 0 1 .078.009c.12.098.246.198.373.292a.075.075 0 0 1-.006.125c-.598.344-1.22.635-1.873.877a.075.075 0 0 0-.041.105c.36.687.772 1.341 1.225 1.962a.077.077 0 0 0 .084.028 19.963 19.963 0 0 0 6.002-2.981.076.076 0 0 0 .032-.054c.5-5.094-.838-9.52-3.549-13.442a.06.06 0 0 0-.031-.028zM8.02 15.278c-1.182 0-2.157-1.069-2.157-2.38 0-1.312.956-2.38 2.157-2.38 1.21 0 2.176 1.077 2.157 2.38 0 1.312-.956 2.38-2.157 2.38zm7.975 0c-1.183 0-2.157-1.069-2.157-2.38 0-1.312.955-2.38 2.157-2.38 1.21 0 2.176 1.077 2.157 2.38 0 1.312-.946 2.38-2.157 2.38z"/>
+                    </svg>
+                    Sign in with Discord
+                </button>
+            </div>
+            
+            <!-- Not moderator message -->
+            <div x-show="user && !user.is_moderator" class="text-center py-8">
+                <i class="fas fa-exclamation-triangle text-4xl text-yellow-500 mb-4"></i>
+                <p class="text-gray-600">You do not have permission to access this page</p>
+            </div>
+            
+            <!-- Reports panel -->
+            <div x-show="user && user.is_moderator">
+                <div class="mb-4 flex justify-between items-center">
+                    <p class="text-gray-600">
+                        Showing <span class="font-semibold" x-text="reports.length"></span> pending reports from all pages
+                    </p>
+                    <button @click="loadReports()" 
+                            class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">
+                        <i class="fas fa-sync-alt mr-2"></i>Refresh
+                    </button>
+                </div>
+                
+                <!-- Loading state -->
+                <div x-show="loading" class="text-center py-8">
+                    <i class="fas fa-spinner fa-spin text-4xl text-gray-400"></i>
+                    <p class="mt-4 text-gray-600">Loading reports...</p>
+                </div>
+                
+                <!-- No reports -->
+                <div x-show="!loading && reports.length === 0" class="text-center py-8">
+                    <i class="fas fa-check-circle text-4xl text-green-500 mb-4"></i>
+                    <p class="text-gray-600">No pending reports</p>
+                </div>
+                
+                <!-- Reports list -->
+                <div x-show="!loading && reports.length > 0" class="space-y-4">
+                    <template x-for="report in reports" :key="report.id">
+                        <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-red-500">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                <div>
+                                    <p class="text-sm text-gray-600">
+                                        <i class="fas fa-file-alt mr-1"></i>
+                                        Page: <span class="font-medium" x-text="report.page_id"></span>
+                                    </p>
+                                    <p class="text-sm text-gray-600">
+                                        <i class="fas fa-user mr-1"></i>
+                                        Reported by: <span class="font-medium" x-text="report.reporter_name"></span>
+                                    </p>
+                                    <p class="text-sm text-gray-600">
+                                        <i class="fas fa-user-times mr-1"></i>
+                                        Comment by: <span class="font-medium" x-text="report.comment_user_name"></span>
+                                    </p>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-600">
+                                        <i class="fas fa-calendar mr-1"></i>
+                                        Reported: <span x-text="new Date(report.created_at).toLocaleString()"></span>
+                                    </p>
+                                    <p class="text-sm text-gray-600">
+                                        <i class="fas fa-exclamation-circle mr-1"></i>
+                                        Reason: <span class="font-medium" x-text="report.reason"></span>
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <!-- Comment content -->
+                            <div class="bg-gray-50 rounded-lg p-4 mb-4">
+                                <p class="text-sm font-medium text-gray-700 mb-2">Reported Comment:</p>
+                                <div class="bg-white rounded p-3 border border-gray-200">
+                                    <p x-text="report.content"></p>
+                                </div>
+                            </div>
+                            
+                            <!-- Actions -->
+                            <div class="flex flex-wrap gap-2">
+                                <a :href="`index.html?pageId=${report.page_id}#comment-${report.comment_id}`" 
+                                   target="_blank"
+                                   class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md text-sm">
+                                    <i class="fas fa-external-link-alt mr-1"></i>View in Context
+                                </a>
+                                <button @click="deleteComment(report)" 
+                                        class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm">
+                                    <i class="fas fa-trash mr-1"></i>Delete Comment
+                                </button>
+                                <button @click="dismissReport(report.id)" 
+                                        class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md text-sm">
+                                    <i class="fas fa-times mr-1"></i>Dismiss Report
+                                </button>
+                                <button @click="banUser(report.comment_user_id, report.comment_user_name)" 
+                                        class="bg-red-800 hover:bg-red-900 text-white px-4 py-2 rounded-md text-sm">
+                                    <i class="fas fa-ban mr-1"></i>Ban User
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Configuration
+        const CONFIG = {
+            backendUrl: 'http://localhost:3000',
+            debugMode: true
+        };
+        
+        function reportsApp() {
+            return {
+                user: null,
+                reports: [],
+                loading: true,
+                apiUrl: CONFIG.backendUrl + '/api',
+                
+                init() {
+                    console.log('Reports app initializing...');
+                    this.checkExistingSession();
+                    
+                    // Listen for login messages
+                    window.addEventListener('message', (event) => {
+                        if (event.data && event.data.type === 'discord-login-success') {
+                            console.log('Received Discord login success');
+                            this.user = event.data.user;
+                            localStorage.setItem('user', JSON.stringify(this.user));
+                            if (this.user.is_moderator) {
+                                this.loadReports();
+                            }
+                        }
+                    });
+                },
+                
+                checkExistingSession() {
+                    const savedUser = localStorage.getItem('user');
+                    if (savedUser) {
+                        this.user = JSON.parse(savedUser);
+                        console.log('Found existing session:', this.user.username);
+                        if (this.user.is_moderator) {
+                            this.loadReports();
+                        } else {
+                            this.loading = false;
+                        }
+                    } else {
+                        this.loading = false;
+                    }
+                },
+                
+                signInWithDiscord() {
+                    // Same Discord auth as main app
+                    if (CONFIG.debugMode) {
+                        console.log('Debug mode - using fake auth');
+                        const fakeUser = {
+                            id: `discord_debug_${Math.random().toString(36).substring(7)}`,
+                            username: `DebugModerator`,
+                            discriminator: '0001',
+                            avatar: `https://cdn.discordapp.com/embed/avatars/0.png`,
+                            email: `moderator@debug.local`,
+                            is_moderator: true, // Make debug user a moderator for testing
+                            is_banned: false
+                        };
+                        
+                        fetch(`${this.apiUrl}/discord/callback`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                code: 'debug_code',
+                                state: 'debug_state',
+                                debugMode: true,
+                                debugUser: fakeUser
+                            })
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.user) {
+                                this.user = data.user;
+                                localStorage.setItem('user', JSON.stringify(this.user));
+                                if (this.user.is_moderator) {
+                                    this.loadReports();
+                                }
+                            }
+                        });
+                        return;
+                    }
+                    
+                    // Normal Discord OAuth flow
+                    const state = Math.random().toString(36).substring(7);
+                    localStorage.setItem('discord_state', state);
+                    const clientId = '1377826318456193094';
+                    const redirectUri = encodeURIComponent('https://christianblevens.github.io/CommentSectionWebApp/oauth-callback.html');
+                    const scope = 'identify';
+                    const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&state=${state}`;
+                    
+                    const width = 500;
+                    const height = 700;
+                    const left = (window.screen.width - width) / 2;
+                    const top = (window.screen.height - height) / 2;
+                    
+                    window.open(
+                        discordAuthUrl,
+                        'discord-auth',
+                        `width=${width},height=${height},left=${left},top=${top}`
+                    );
+                },
+                
+                async loadReports() {
+                    this.loading = true;
+                    try {
+                        const response = await fetch(`${this.apiUrl}/reports?userId=${this.user.id}`);
+                        if (response.ok) {
+                            this.reports = await response.json();
+                            console.log(`Loaded ${this.reports.length} reports`);
+                        }
+                    } catch (error) {
+                        console.error('Error loading reports:', error);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                
+                async deleteComment(report) {
+                    if (!confirm('Delete this reported comment?')) {
+                        return;
+                    }
+                    
+                    try {
+                        // Delete the comment
+                        const deleteResponse = await fetch(`${this.apiUrl}/comments/${report.comment_id}`, {
+                            method: 'DELETE',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ userId: this.user.id })
+                        });
+                        
+                        if (!deleteResponse.ok) {
+                            throw new Error('Failed to delete comment');
+                        }
+                        
+                        // Resolve the report
+                        await fetch(`${this.apiUrl}/reports/${report.id}/resolve`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ 
+                                userId: this.user.id,
+                                action: 'resolved'
+                            })
+                        });
+                        
+                        // Remove from list
+                        this.reports = this.reports.filter(r => r.id !== report.id);
+                        alert('Comment deleted successfully');
+                        
+                    } catch (error) {
+                        console.error('Error deleting comment:', error);
+                        alert('Failed to delete comment');
+                    }
+                },
+                
+                async dismissReport(reportId) {
+                    if (!confirm('Dismiss this report?')) {
+                        return;
+                    }
+                    
+                    try {
+                        const response = await fetch(`${this.apiUrl}/reports/${reportId}/resolve`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ 
+                                userId: this.user.id,
+                                action: 'dismissed'
+                            })
+                        });
+                        
+                        if (response.ok) {
+                            this.reports = this.reports.filter(r => r.id !== reportId);
+                            alert('Report dismissed');
+                        }
+                    } catch (error) {
+                        console.error('Error dismissing report:', error);
+                        alert('Failed to dismiss report');
+                    }
+                },
+                
+                async banUser(userId, userName) {
+                    if (!confirm(`Ban user ${userName}? This will delete all their comments.`)) {
+                        return;
+                    }
+                    
+                    try {
+                        const response = await fetch(`${this.apiUrl}/users/${userId}/ban`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ userId: this.user.id })
+                        });
+                        
+                        if (response.ok) {
+                            alert(`User ${userName} has been banned`);
+                            // Reload reports to reflect changes
+                            await this.loadReports();
+                        }
+                    } catch (error) {
+                        console.error('Error banning user:', error);
+                        alert('Failed to ban user');
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>
