@@ -73,6 +73,7 @@ services:
       DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET}
       DISCORD_REDIRECT_URI: ${DISCORD_REDIRECT_URI:-http://localhost:8080/oauth-callback.html}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:8080}
+      INITIAL_MODERATORS: ${INITIAL_MODERATORS:-}
     ports:
       - "${API_PORT:-3000}:${API_PORT:-3000}"
     depends_on:

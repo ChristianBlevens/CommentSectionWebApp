@@ -344,16 +344,24 @@ app.post('/api/discord/callback', async (req, res) => {
             email: discordUser.email || `${discordUser.id}@discord.user`
         };
         
+        // Check if this user should be an initial moderator
+        const initialModerators = process.env.INITIAL_MODERATORS?.split(',').map(id => id.trim()) || [];
+        const isInitialModerator = initialModerators.includes(user.id);
+        
         // Upsert user in database
         console.log('Saving user to database...');
         await pgPool.query(
-            `INSERT INTO users (id, email, name, picture) 
-             VALUES ($1, $2, $3, $4) 
+            `INSERT INTO users (id, email, name, picture, is_moderator) 
+             VALUES ($1, $2, $3, $4, $5) 
              ON CONFLICT (id) DO UPDATE 
              SET name = EXCLUDED.name, 
                  picture = EXCLUDED.picture, 
+                 is_moderator = CASE 
+                     WHEN users.is_moderator = true THEN true 
+                     ELSE EXCLUDED.is_moderator 
+                 END,
                  updated_at = CURRENT_TIMESTAMP`,
-            [user.id, user.email, user.username, user.avatar]
+            [user.id, user.email, user.username, user.avatar, isInitialModerator]
         );
         
         // Get user with moderator and ban status
@@ -365,6 +373,10 @@ app.post('/api/discord/callback', async (req, res) => {
         if (userResult.rows.length > 0) {
             user.is_moderator = userResult.rows[0].is_moderator;
             user.is_banned = userResult.rows[0].is_banned;
+            
+            if (isInitialModerator && user.is_moderator) {
+                console.log('Initial moderator logged in:', user.username);
+            }
         }
         
         console.log('User authenticated successfully:', user.username, 'Moderator:', user.is_moderator);

@@ -138,6 +138,30 @@ User → Frontend → Backend API → Redis (cache) → PostgreSQL (if miss)
    - Backend API: http://localhost:3000
    - Moderation API: http://localhost:3001
 
+4. **Configure initial moderators (if needed):**
+   
+   Set Discord user IDs in your `.env` file before first deployment:
+   ```env
+   INITIAL_MODERATORS=123456789012345678,987654321098765432
+   ```
+   
+   These users will automatically become moderators when they first log in.
+   
+   To find a Discord user ID:
+   - Enable Developer Mode in Discord (Settings → Advanced → Developer Mode)
+   - Right-click on a user and select "Copy User ID"
+   
+   Alternatively, after a user logs in, you can manually promote them:
+   ```bash
+   # List all users
+   docker exec -it comment-postgres psql -U postgres comments_db \
+     -c "SELECT id, name, email, is_moderator FROM users;"
+   
+   # Make a user moderator
+   docker exec -it comment-postgres psql -U postgres comments_db \
+     -c "UPDATE users SET is_moderator = true WHERE id = 'DISCORD_USER_ID';"
+   ```
+
 ### Debug Mode
 
 For local development without Discord OAuth:
@@ -165,6 +189,10 @@ DISCORD_REDIRECT_URI=http://localhost:8080/oauth-callback.html
 
 # Moderation Admin Key (Required)
 ADMIN_KEY=change_this_to_a_secure_random_string
+
+# Initial Moderators (Optional)
+# Comma-separated Discord user IDs who will become moderators on first login
+INITIAL_MODERATORS=123456789012345678,987654321098765432
 
 # Database Configuration
 DB_USER=postgres
@@ -395,8 +423,9 @@ trusted_users (
 
 ### moderators.html - Moderator Management
 - Add/remove moderators by Discord ID
-- View current moderator list
+- View current moderator list with avatars
 - Requires moderator privileges
+- First moderator must be set via INITIAL_MODERATORS env variable
 
 ### reports.html - Global Reports Dashboard
 - View all pending reports across all pages
@@ -630,6 +659,15 @@ netstat -tulpn | grep 8080
 - Review blocked words list
 - Verify admin key is set
 - Check moderation service logs
+
+**Can't Access Moderator Pages:**
+- Ensure INITIAL_MODERATORS is set in .env before first login
+- Verify the Discord user ID is correct (18-digit number)
+- Check if user is marked as moderator:
+  ```bash
+  docker exec -it comment-postgres psql -U postgres comments_db \
+    -c "SELECT id, name, is_moderator FROM users WHERE is_moderator = true;"
+  ```
 
 ### Debug Commands
 

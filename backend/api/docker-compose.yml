@@ -17,6 +17,7 @@ services:
       - DISCORD_CLIENT_ID=${DISCORD_CLIENT_ID}
       - DISCORD_CLIENT_SECRET=${DISCORD_CLIENT_SECRET}
       - DISCORD_REDIRECT_URI=${DISCORD_REDIRECT_URI:-http://localhost:8080}
+      - INITIAL_MODERATORS=${INITIAL_MODERATORS:-}
     ports:
       - "0.0.0.0:3000:3000"  # Bind to all interfaces for public access
     depends_on:
