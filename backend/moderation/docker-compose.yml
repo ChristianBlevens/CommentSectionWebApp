@@ -6,14 +6,15 @@ services:
     build: .
     container_name: comment-moderation-api
     environment:
-      - NODE_ENV=production
-      - PORT=3001
+      - NODE_ENV=${NODE_ENV:-production}
+      - PORT=${PORT:-3001}
       - DB_HOST=postgres
       - DB_PORT=5432
-      - DB_USER=postgres
-      - DB_PASSWORD=${DB_PASSWORD:-postgres_password}
-      - DB_NAME=moderation_db
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres123}
+      - DB_NAME=${DB_NAME:-moderation_db}
       - ADMIN_KEY=${ADMIN_KEY}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:8080}
     ports:
       - "0.0.0.0:3001:3001"  # Bind to all interfaces for public access
     depends_on:

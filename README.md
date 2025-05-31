@@ -73,7 +73,6 @@ CommentSectionWebApp/
 │   └── nginx.conf             # Nginx reverse proxy config
 │
 ├── docker-compose.yml         # Full system orchestration
-├── .env.example              # Environment variables template
 ├── .gitignore               # Git ignore rules
 ├── LICENSE                  # MIT License
 └── README.md               # This file
@@ -115,11 +114,13 @@ User → Frontend → Backend API → Redis (cache) → PostgreSQL (if miss)
    git clone <repository-url>
    cd CommentSectionWebApp
    
-   # Copy environment template
-   cp .env.example .env
+   # Copy environment templates
+   cp backend/api/.env.example backend/api/.env
+   cp backend/moderation/.env.example backend/moderation/.env
    
-   # Edit .env with your credentials
-   nano .env
+   # Edit environment files with your credentials
+   nano backend/api/.env        # Discord OAuth, DB credentials, INITIAL_MODERATORS
+   nano backend/moderation/.env # Admin key, DB credentials
    ```
 
 2. **Start all services:**
@@ -179,36 +180,48 @@ const CONFIG = {
 
 ### Environment Variables
 
-Create a `.env` file from `.env.example`:
+The project uses two environment files, one for each backend service:
 
+**1. `backend/api/.env`** - Backend API configuration:
 ```env
 # Discord OAuth (Required)
 DISCORD_CLIENT_ID=your_discord_client_id
 DISCORD_CLIENT_SECRET=your_discord_client_secret
 DISCORD_REDIRECT_URI=http://localhost:8080/oauth-callback.html
 
-# Moderation Admin Key (Required)
-ADMIN_KEY=change_this_to_a_secure_random_string
-
 # Initial Moderators (Optional)
-# Comma-separated Discord user IDs who will become moderators on first login
 INITIAL_MODERATORS=123456789012345678,987654321098765432
 
-# Database Configuration
+# Database
 DB_USER=postgres
 DB_PASSWORD=postgres123
 DB_NAME=comments_db
-MODERATION_DB_NAME=moderation_db
 
-# Service URLs
-MODERATION_API_URL=http://moderation-service:3001
+# API Configuration
+NODE_ENV=production
+PORT=3000
+API_PORT=3000
 ALLOWED_ORIGINS=http://localhost:8080
-
-# Redis
-REDIS_URL=redis://redis:6379
 ```
 
-See `.env.example` for all available options.
+**2. `backend/moderation/.env`** - Moderation service configuration:
+```env
+# Admin Key (Required)
+ADMIN_KEY=change_this_to_a_secure_random_string
+
+# Database
+DB_USER=postgres
+DB_PASSWORD=postgres123
+DB_NAME=moderation_db
+
+# Moderation Configuration
+NODE_ENV=production
+PORT=3001
+MODERATION_PORT=3001
+ALLOWED_ORIGINS=http://localhost:8080
+```
+
+See each `.env.example` file for all available options.
 
 ### Discord OAuth Setup
 
@@ -447,11 +460,13 @@ trusted_users (
 
 ### Individual Service Deployment
 
+When deploying services individually, they use their own `.env` file which contains all necessary variables (no need for the root `.env`).
+
 #### Backend API Only
 ```bash
 cd backend/api
 cp .env.example .env
-# Configure .env
+# Configure .env with Discord OAuth, DB credentials, etc.
 docker-compose up -d
 ```
 
@@ -459,7 +474,7 @@ docker-compose up -d
 ```bash
 cd backend/moderation
 cp .env.example .env
-# Configure .env
+# Configure .env with Admin key, DB credentials, etc.
 docker-compose up -d
 ```
 
