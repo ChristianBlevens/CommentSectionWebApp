@@ -253,20 +253,26 @@ app.post('/api/discord/callback', async (req, res) => {
                 username: debugUser.username,
                 discriminator: debugUser.discriminator,
                 avatar: debugUser.avatar,
-                email: debugUser.email,
-                is_moderator: false,
-                is_banned: false
+                email: debugUser.email
             };
+            
+            // Check if this user should be an initial moderator
+            const initialModerators = process.env.INITIAL_MODERATORS?.split(',').map(id => id.trim()) || [];
+            const isInitialModerator = initialModerators.includes(user.id);
             
             // Upsert debug user in database
             await pgPool.query(
-                `INSERT INTO users (id, email, name, picture) 
-                 VALUES ($1, $2, $3, $4) 
+                `INSERT INTO users (id, email, name, picture, is_moderator) 
+                 VALUES ($1, $2, $3, $4, $5) 
                  ON CONFLICT (id) DO UPDATE 
                  SET name = EXCLUDED.name, 
                      picture = EXCLUDED.picture, 
+                     is_moderator = CASE 
+                         WHEN $5 = true THEN true 
+                         ELSE users.is_moderator 
+                     END,
                      updated_at = CURRENT_TIMESTAMP`,
-                [user.id, user.email, user.username, user.avatar]
+                [user.id, user.email, user.username, user.avatar, isInitialModerator]
             );
             
             // Get user with moderator and ban status
@@ -357,8 +363,8 @@ app.post('/api/discord/callback', async (req, res) => {
              SET name = EXCLUDED.name, 
                  picture = EXCLUDED.picture, 
                  is_moderator = CASE 
-                     WHEN users.is_moderator = true THEN true 
-                     ELSE EXCLUDED.is_moderator 
+                     WHEN $5 = true THEN true 
+                     ELSE users.is_moderator 
                  END,
                  updated_at = CURRENT_TIMESTAMP`,
             [user.id, user.email, user.username, user.avatar, isInitialModerator]
@@ -624,6 +630,20 @@ app.post('/api/comments/:commentId/vote', async (req, res) => {
     try {
         await client.query('BEGIN');
         
+        // Check if user exists and is not banned
+        const userCheck = await client.query(
+            'SELECT id, is_banned FROM users WHERE id = $1',
+            [userId]
+        );
+        
+        if (userCheck.rows.length === 0) {
+            throw new Error('User not authenticated');
+        }
+        
+        if (userCheck.rows[0].is_banned) {
+            throw new Error('User is banned');
+        }
+        
         // Lock the comment row to prevent race conditions
         const commentCheck = await client.query(
             'SELECT id, page_id FROM comments WHERE id = $1 FOR UPDATE',
@@ -723,7 +743,11 @@ app.post('/api/comments/:commentId/vote', async (req, res) => {
         await client.query('ROLLBACK');
         console.error('Vote error:', error);
         
-        if (error.message === 'Comment not found') {
+        if (error.message === 'User not authenticated') {
+            res.status(401).json({ error: 'You must be logged in to vote' });
+        } else if (error.message === 'User is banned') {
+            res.status(403).json({ error: 'You are banned from voting' });
+        } else if (error.message === 'Comment not found') {
             res.status(404).json({ error: 'Comment not found' });
         } else {
             res.status(500).json({ error: 'Failed to process vote' });
