@@ -10,6 +10,9 @@ node_modules/
 */.env
 */.env.local
 */.env.production
+# Keep .env.example files
+!.env.example
+!*/.env.example
 
 # Logs
 logs/
@@ -57,3 +60,25 @@ tmp/
 postgres_main_data/
 postgres_moderation_data/
 redis_data/
+postgres-comments-data/
+postgres-moderation-data/
+nginx-ssl/
+
+# SSL certificates (use volume mounts in production)
+*.pem
+*.crt
+*.key
+ssl/
+docker/ssl/
+
+# Production builds
+dist/
+build/
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Backup files
+*.backup
+*.bak

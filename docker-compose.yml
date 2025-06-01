@@ -3,14 +3,17 @@ services:
   postgres-comments:
     image: postgres:15-alpine
     container_name: comment-postgres
+    restart: always
     environment:
       POSTGRES_DB: ${DB_NAME:-comments_db}
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres123}
     volumes:
       - postgres-comments-data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+    # Remove port exposure in production for security
+    # Uncomment only if you need direct database access
+    # ports:
+    #   - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -22,14 +25,17 @@ services:
   postgres-moderation:
     image: postgres:15-alpine
     container_name: moderation-postgres
+    restart: always
     environment:
       POSTGRES_DB: ${MODERATION_DB_NAME:-moderation_db}
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres123}
     volumes:
       - postgres-moderation-data:/var/lib/postgresql/data
-    ports:
-      - "5433:5432"
+    # Remove port exposure in production for security
+    # Uncomment only if you need direct database access
+    # ports:
+    #   - "5433:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -42,9 +48,14 @@ services:
   redis:
     image: redis:7-alpine
     container_name: comment-redis
-    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
-    ports:
-      - "6379:6379"
+    restart: always
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru --save 60 1000 --appendonly yes
+    volumes:
+      - redis-data:/data
+    # Remove port exposure in production for security
+    # Uncomment only if you need direct Redis access
+    # ports:
+    #   - "6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -57,15 +68,19 @@ services:
   backend-api:
     build: ./backend/api
     container_name: comment-backend-api
+    restart: always
     env_file:
       - ./backend/api/.env
     environment:
+      NODE_ENV: production
       DB_HOST: postgres-comments
       DB_PORT: 5432
       REDIS_URL: redis://redis:6379
       MODERATION_API_URL: http://moderation-service:3001
-    ports:
-      - "${API_PORT:-3000}:${API_PORT:-3000}"
+    # Remove port exposure in production for security
+    # API should only be accessible through nginx proxy
+    # ports:
+    #   - "${API_PORT:-3000}:${API_PORT:-3000}"
     depends_on:
       postgres-comments:
         condition: service_healthy
@@ -84,13 +99,17 @@ services:
   moderation-service:
     build: ./backend/moderation
     container_name: comment-moderation-service
+    restart: always
     env_file:
       - ./backend/moderation/.env
     environment:
+      NODE_ENV: production
       DB_HOST: postgres-moderation
       DB_PORT: 5432
-    ports:
-      - "${MODERATION_PORT:-3001}:${MODERATION_PORT:-3001}"
+    # Remove port exposure in production for security
+    # Service should only be accessible through nginx proxy
+    # ports:
+    #   - "${MODERATION_PORT:-3001}:${MODERATION_PORT:-3001}"
     depends_on:
       postgres-moderation:
         condition: service_healthy
@@ -107,25 +126,37 @@ services:
   frontend:
     image: nginx:alpine
     container_name: comment-frontend
+    restart: always
     volumes:
       - ./frontend:/usr/share/nginx/html:ro
       - ./docker/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/generate-dhparam.sh:/docker-entrypoint.d/10-dhparam.sh:ro
+      - nginx-ssl:/etc/nginx/ssl
     ports:
-      - "8080:80"
+      - "80:80"
+      - "443:443"
     depends_on:
       - backend-api
       - moderation-service
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "--no-check-certificate", "https://localhost:443"]
       interval: 30s
       timeout: 10s
       retries: 3
     networks:
       - comment-network
+    environment:
+      - SSL_DOMAIN=${SSL_DOMAIN:-localhost}
 
 volumes:
   postgres-comments-data:
+    driver: local
   postgres-moderation-data:
+    driver: local
+  redis-data:
+    driver: local
+  nginx-ssl:
+    driver: local
 
 networks:
   comment-network:

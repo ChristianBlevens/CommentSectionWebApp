@@ -237,14 +237,31 @@
     </div>
 
     <script>
-        // CONFIGURATION
-        const CONFIG = {
-            // Update these URLs to match your local setup
-            backendUrl: 'http://localhost:3000',
-            moderationUrl: 'http://localhost:3001',
-            // Debug mode for local testing
-            debugMode: true
+        // Configuration will be loaded dynamically
+        let CONFIG = {
+            backendUrl: window.location.origin,
+            moderationUrl: window.location.origin,
+            discordClientId: '',
+            discordRedirectUri: ''
         };
+        
+        // Load configuration from backend
+        async function loadConfig() {
+            try {
+                const response = await fetch('/api/config');
+                if (response.ok) {
+                    const config = await response.json();
+                    CONFIG.discordClientId = config.discordClientId;
+                    CONFIG.discordRedirectUri = config.discordRedirectUri;
+                    console.log('Configuration loaded');
+                }
+            } catch (error) {
+                console.error('Failed to load configuration:', error);
+            }
+        }
+        
+        // Load config immediately
+        loadConfig();
         
         function commentApp() {
             return {
@@ -260,14 +277,14 @@
                 sortBy: 'likes',
                 pageId: '',
                 md: null,
-                // API URLs
-                apiUrl: CONFIG.backendUrl + '/api',
-                moderationUrl: CONFIG.moderationUrl + '/api',
+                // API URLs - use relative paths
+                apiUrl: '/api',
+                moderationUrl: '/moderation/api',
 
                 init() {
                     // Initialize app instance
                     window.commentAppInstance = this;
-                    console.log('Comment app initializing...', { debugMode: CONFIG.debugMode });
+                    console.log('Comment app initializing...');
                     
                     // Get page ID
                     this.pageId = this.getPageId();
@@ -291,6 +308,9 @@
                             console.log('Received Discord login success message');
                             this.user = event.data.user;
                             localStorage.setItem('user', JSON.stringify(this.user));
+                            if (event.data.sessionToken) {
+                                localStorage.setItem('sessionToken', event.data.sessionToken);
+                            }
                             this.loadComments(); // Reload to get user-specific data
                         }
                     });
@@ -311,69 +331,13 @@
                 signInWithDiscord() {
                     console.log('Sign in with Discord clicked');
                     
-                    // Check if debug mode is enabled
-                    if (CONFIG.debugMode) {
-                        console.log('Debug mode enabled - using fake Discord auth');
-                        
-                        // Generate fake Discord user
-                        const fakeUser = {
-                            id: `discord_debug_${Math.random().toString(36).substring(7)}`,
-                            username: `DebugUser${Math.floor(Math.random() * 1000)}`,
-                            discriminator: Math.floor(Math.random() * 10000).toString().padStart(4, '0'),
-                            avatar: `https://cdn.discordapp.com/embed/avatars/${Math.floor(Math.random() * 5)}.png`,
-                            email: `debug${Math.floor(Math.random() * 1000)}@test.local`
-                        };
-                        
-                        console.log('Generated fake user:', fakeUser);
-                        
-                        // Call backend with debug flag
-                        fetch(`${this.apiUrl}/discord/callback`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                code: 'debug_code',
-                                state: 'debug_state',
-                                debugMode: true,
-                                debugUser: fakeUser
-                            })
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            console.log('Debug auth response:', data);
-                            if (data.user) {
-                                this.user = data.user;
-                                localStorage.setItem('user', JSON.stringify(this.user));
-                                this.loadComments();
-                                console.log('Debug user logged in successfully');
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Debug auth error:', error);
-                            alert('Debug authentication failed. Please check console.');
-                        });
-                        
-                        return;
-                    }
-                    
-                    // Normal Discord OAuth flow
-                    console.log('Using real Discord OAuth flow');
-                    
                     // Generate state for CSRF protection
                     const state = Math.random().toString(36).substring(7);
                     localStorage.setItem('discord_state', state);
                     
-                    // Discord OAuth URL
-                    const clientId = '1377826318456193094'; // Replace with your Discord app ID
-                    
-                    // IMPORTANT: This redirect URI must match EXACTLY what's configured in Discord
-                    // For GitHub Pages: https://christianblevens.github.io/CommentSectionWebApp/oauth-callback.html
-                    const fullRedirectUri = 'https://christianblevens.github.io/CommentSectionWebApp/oauth-callback.html';
-                    
-                    // Debug logging
-                    console.log('OAuth Redirect URI:', fullRedirectUri);
-                    console.log('Make sure this EXACT URL is added to Discord:', fullRedirectUri);
-                    
-                    const redirectUri = encodeURIComponent(fullRedirectUri);
+                    // Discord OAuth URL from configuration
+                    const clientId = CONFIG.discordClientId;
+                    const redirectUri = encodeURIComponent(CONFIG.discordRedirectUri);
                     const scope = 'identify';
                     
                     const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&state=${state}`;
@@ -498,19 +462,43 @@
                 checkExistingSession() {
                     // Check for saved user in localStorage
                     const savedUser = localStorage.getItem('user');
-                    if (savedUser) {
+                    const sessionToken = localStorage.getItem('sessionToken');
+                    
+                    if (savedUser && sessionToken) {
                         this.user = JSON.parse(savedUser);
                         console.log('Found existing user session:', this.user.username);
+                        // Note: We rely on server-side validation for all privileged operations
+                        // The moderator UI visibility is just for UX - actual authorization happens server-side
                     } else {
                         console.log('No existing user session found');
+                        // Clear any partial data
+                        localStorage.removeItem('user');
+                        localStorage.removeItem('sessionToken');
                     }
                 },
 
-                signOut() {
+                async signOut() {
                     console.log('User signing out:', this.user?.username);
+                    
+                    // Call logout endpoint if we have a session token
+                    const sessionToken = localStorage.getItem('sessionToken');
+                    if (sessionToken) {
+                        try {
+                            await fetch(`${this.apiUrl}/logout`, {
+                                method: 'POST',
+                                headers: {
+                                    'Authorization': `Bearer ${sessionToken}`
+                                }
+                            });
+                        } catch (error) {
+                            console.error('Logout API call failed:', error);
+                        }
+                    }
+                    
                     // Clear user data
                     this.user = null;
                     localStorage.removeItem('user');
+                    localStorage.removeItem('sessionToken');
                     console.log('User session cleared');
                 },
 
@@ -733,18 +721,26 @@
 
                         // If approved, submit to database
                         console.log('Comment approved, submitting to backend...');
+                        
+                        const sessionToken = localStorage.getItem('sessionToken');
+                        if (!sessionToken) {
+                            console.error('No session token found');
+                            alert('Please sign in again');
+                            return;
+                        }
+                        
                         const commentData = {
                             pageId: this.pageId,
-                            userId: this.user.id,
                             content: content,
-                            parentId: parentId,
-                            userName: this.user.username,
-                            userPicture: this.user.avatar
+                            parentId: parentId
                         };
 
                         const response = await fetch(`${this.apiUrl}/comments`, {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${sessionToken}`
+                            },
                             body: JSON.stringify(commentData)
                         });
 
@@ -807,13 +803,22 @@
                     
                     console.log('Voting on comment:', { commentId, voteType });
 
+                    const sessionToken = localStorage.getItem('sessionToken');
+                    if (!sessionToken) {
+                        console.error('No session token found');
+                        alert('Please sign in again');
+                        return;
+                    }
+                    
                     try {
                         // Submit vote to backend
                         const response = await fetch(`${this.apiUrl}/comments/${commentId}/vote`, {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${sessionToken}`
+                            },
                             body: JSON.stringify({
-                                userId: this.user.id,
                                 voteType: voteType
                             })
                         });
@@ -1039,11 +1044,21 @@
                     
                     console.log('Deleting comment:', commentId);
                     
+                    const sessionToken = localStorage.getItem('sessionToken');
+                    if (!sessionToken) {
+                        console.error('No session token found');
+                        alert('Please sign in again');
+                        return;
+                    }
+                    
                     try {
                         const response = await fetch(`${this.apiUrl}/comments/${commentId}`, {
                             method: 'DELETE',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ userId: this.user.id })
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${sessionToken}`
+                            },
+                            body: JSON.stringify({})
                         });
                         
                         if (!response.ok) {
@@ -1090,12 +1105,21 @@
                     
                     console.log('Reporting comment:', commentId);
                     
+                    const sessionToken = localStorage.getItem('sessionToken');
+                    if (!sessionToken) {
+                        console.error('No session token found');
+                        alert('Please sign in again');
+                        return;
+                    }
+                    
                     try {
                         const response = await fetch(`${this.apiUrl}/comments/${commentId}/report`, {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${sessionToken}`
+                            },
                             body: JSON.stringify({ 
-                                userId: this.user.id,
                                 reason: reason || 'No reason provided'
                             })
                         });
@@ -1135,13 +1159,30 @@
                     const scope = this.$el.querySelector('[x-data*="showReports"]').__x.$data;
                     scope.loadingReports = true;
                     
+                    const sessionToken = localStorage.getItem('sessionToken');
+                    if (!sessionToken) {
+                        console.error('No session token found');
+                        scope.loadingReports = false;
+                        return;
+                    }
+                    
                     try {
-                        const response = await fetch(`${this.apiUrl}/reports/${this.pageId}?userId=${this.user.id}`);
-                        const data = await response.json();
+                        const response = await fetch(`${this.apiUrl}/reports/${this.pageId}`, {
+                            headers: {
+                                'Authorization': `Bearer ${sessionToken}`
+                            }
+                        });
                         
                         if (response.ok) {
+                            const data = await response.json();
                             scope.reports = data;
                             console.log(`Loaded ${data.length} reports`);
+                        } else if (response.status === 403) {
+                            // User is not a moderator
+                            console.log('User is not a moderator');
+                            // Hide moderator UI
+                            this.user.is_moderator = false;
+                            localStorage.setItem('user', JSON.stringify(this.user));
                         }
                     } catch (error) {
                         console.error('Error loading reports:', error);
@@ -1166,6 +1207,12 @@
                         return;
                     }
                     
+                    const sessionToken = localStorage.getItem('sessionToken');
+                    if (!sessionToken) {
+                        console.error('No session token found');
+                        return;
+                    }
+                    
                     try {
                         // Delete the comment
                         await this.deleteComment(report.comment_id);
@@ -1173,9 +1220,11 @@
                         // Resolve the report
                         await fetch(`${this.apiUrl}/reports/${report.id}/resolve`, {
                             method: 'PUT',
-                            headers: { 'Content-Type': 'application/json' },
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${sessionToken}`
+                            },
                             body: JSON.stringify({ 
-                                userId: this.user.id,
                                 action: 'resolved'
                             })
                         });
@@ -1195,12 +1244,20 @@
                         return;
                     }
                     
+                    const sessionToken = localStorage.getItem('sessionToken');
+                    if (!sessionToken) {
+                        console.error('No session token found');
+                        return;
+                    }
+                    
                     try {
                         const response = await fetch(`${this.apiUrl}/reports/${reportId}/resolve`, {
                             method: 'PUT',
-                            headers: { 'Content-Type': 'application/json' },
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${sessionToken}`
+                            },
                             body: JSON.stringify({ 
-                                userId: this.user.id,
                                 action: 'dismissed'
                             })
                         });
@@ -1222,11 +1279,20 @@
                         return;
                     }
                     
+                    const sessionToken = localStorage.getItem('sessionToken');
+                    if (!sessionToken) {
+                        console.error('No session token found');
+                        return;
+                    }
+                    
                     try {
                         const response = await fetch(`${this.apiUrl}/users/${userId}/ban`, {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ userId: this.user.id })
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${sessionToken}`
+                            },
+                            body: JSON.stringify({})
                         });
                         
                         if (response.ok) {

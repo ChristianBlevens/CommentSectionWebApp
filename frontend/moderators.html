@@ -91,11 +91,33 @@
     </div>
     
     <script>
-        // Configuration
-        const CONFIG = {
-            backendUrl: 'http://localhost:3000',
-            debugMode: true
-        };
+        // Dynamic configuration
+        let CONFIG = {};
+        
+        async function loadConfig() {
+            try {
+                const response = await fetch('/api/config');
+                if (response.ok) {
+                    CONFIG = await response.json();
+                    console.log('Configuration loaded:', CONFIG);
+                } else {
+                    console.error('Failed to load configuration');
+                    CONFIG = {
+                        discordClientId: '',
+                        discordRedirectUri: window.location.origin + '/oauth-callback.html'
+                    };
+                }
+            } catch (error) {
+                console.error('Error loading configuration:', error);
+                CONFIG = {
+                    discordClientId: '',
+                    discordRedirectUri: window.location.origin + '/oauth-callback.html'
+                };
+            }
+        }
+        
+        // Load config immediately
+        loadConfig();
         
         function moderatorApp() {
             return {
@@ -103,7 +125,7 @@
                 moderators: [],
                 loading: true,
                 newModeratorId: '',
-                apiUrl: CONFIG.backendUrl + '/api',
+                apiUrl: '/api',
                 
                 init() {
                     console.log('Moderator app initializing...');
@@ -115,6 +137,9 @@
                             console.log('Received Discord login success');
                             this.user = event.data.user;
                             localStorage.setItem('user', JSON.stringify(this.user));
+                            if (event.data.sessionToken) {
+                                localStorage.setItem('sessionToken', event.data.sessionToken);
+                            }
                             if (this.user.is_moderator) {
                                 this.loadModerators();
                             }
@@ -124,61 +149,33 @@
                 
                 checkExistingSession() {
                     const savedUser = localStorage.getItem('user');
-                    if (savedUser) {
+                    const sessionToken = localStorage.getItem('sessionToken');
+                    
+                    if (savedUser && sessionToken) {
                         this.user = JSON.parse(savedUser);
                         console.log('Found existing session:', this.user.username);
+                        
+                        // Try to load moderators - server will verify permissions
                         if (this.user.is_moderator) {
                             this.loadModerators();
                         } else {
                             this.loading = false;
                         }
                     } else {
+                        console.log('No existing user session found');
+                        // Clear any partial data
+                        localStorage.removeItem('user');
+                        localStorage.removeItem('sessionToken');
                         this.loading = false;
                     }
                 },
                 
                 signInWithDiscord() {
-                    // Same Discord auth as main app
-                    if (CONFIG.debugMode) {
-                        console.log('Debug mode - using fake auth');
-                        const fakeUser = {
-                            id: `discord_debug_${Math.random().toString(36).substring(7)}`,
-                            username: `DebugModerator`,
-                            discriminator: '0001',
-                            avatar: `https://cdn.discordapp.com/embed/avatars/0.png`,
-                            email: `moderator@debug.local`,
-                            is_moderator: true, // Make debug user a moderator for testing
-                            is_banned: false
-                        };
-                        
-                        fetch(`${this.apiUrl}/discord/callback`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                code: 'debug_code',
-                                state: 'debug_state',
-                                debugMode: true,
-                                debugUser: fakeUser
-                            })
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.user) {
-                                this.user = data.user;
-                                localStorage.setItem('user', JSON.stringify(this.user));
-                                if (this.user.is_moderator) {
-                                    this.loadModerators();
-                                }
-                            }
-                        });
-                        return;
-                    }
-                    
-                    // Normal Discord OAuth flow
+                    // Discord OAuth flow
                     const state = Math.random().toString(36).substring(7);
                     localStorage.setItem('discord_state', state);
-                    const clientId = '1377826318456193094';
-                    const redirectUri = encodeURIComponent('https://christianblevens.github.io/CommentSectionWebApp/oauth-callback.html');
+                    const clientId = CONFIG.discordClientId;
+                    const redirectUri = encodeURIComponent(CONFIG.discordRedirectUri);
                     const scope = 'identify';
                     const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&state=${state}`;
                     
@@ -196,14 +193,41 @@
                 
                 async loadModerators() {
                     this.loading = true;
+                    const sessionToken = localStorage.getItem('sessionToken');
+                    
+                    if (!sessionToken) {
+                        console.error('No session token found');
+                        alert('Please sign in again');
+                        this.loading = false;
+                        return;
+                    }
+                    
                     try {
-                        const response = await fetch(`${this.apiUrl}/moderators?userId=${this.user.id}`);
+                        const response = await fetch(`${this.apiUrl}/moderators`, {
+                            headers: {
+                                'Authorization': `Bearer ${sessionToken}`
+                            }
+                        });
+                        
                         if (response.ok) {
                             this.moderators = await response.json();
                             console.log(`Loaded ${this.moderators.length} moderators`);
+                        } else if (response.status === 401) {
+                            console.error('Unauthorized: Invalid or expired session');
+                            alert('Your session has expired. Please sign in again.');
+                            localStorage.removeItem('sessionToken');
+                            localStorage.removeItem('user');
+                            this.user = null;
+                        } else if (response.status === 403) {
+                            console.error('Forbidden: Not a moderator');
+                            alert('You do not have permission to view moderators');
+                        } else {
+                            console.error('Error loading moderators:', response.status);
+                            alert('Failed to load moderators');
                         }
                     } catch (error) {
                         console.error('Error loading moderators:', error);
+                        alert('Network error. Please try again.');
                     } finally {
                         this.loading = false;
                     }
@@ -212,12 +236,22 @@
                 async addModerator() {
                     if (!this.newModeratorId.trim()) return;
                     
+                    const sessionToken = localStorage.getItem('sessionToken');
+                    
+                    if (!sessionToken) {
+                        console.error('No session token found');
+                        alert('Please sign in again');
+                        return;
+                    }
+                    
                     try {
                         const response = await fetch(`${this.apiUrl}/users/${this.newModeratorId}/moderator`, {
                             method: 'PUT',
-                            headers: { 'Content-Type': 'application/json' },
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${sessionToken}`
+                            },
                             body: JSON.stringify({
-                                userId: this.user.id,
                                 isModerator: true
                             })
                         });
@@ -226,13 +260,24 @@
                             alert('Moderator added successfully');
                             this.newModeratorId = '';
                             await this.loadModerators();
+                        } else if (response.status === 401) {
+                            console.error('Unauthorized: Invalid or expired session');
+                            alert('Your session has expired. Please sign in again.');
+                            localStorage.removeItem('sessionToken');
+                            localStorage.removeItem('user');
+                            this.user = null;
+                        } else if (response.status === 403) {
+                            console.error('Forbidden: Not a moderator');
+                            alert('You do not have permission to add moderators');
+                        } else if (response.status === 404) {
+                            alert('User not found');
                         } else {
                             const error = await response.json();
                             alert(error.error || 'Failed to add moderator');
                         }
                     } catch (error) {
                         console.error('Error adding moderator:', error);
-                        alert('Failed to add moderator');
+                        alert('Network error. Please try again.');
                     }
                 },
                 
@@ -246,12 +291,22 @@
                         return;
                     }
                     
+                    const sessionToken = localStorage.getItem('sessionToken');
+                    
+                    if (!sessionToken) {
+                        console.error('No session token found');
+                        alert('Please sign in again');
+                        return;
+                    }
+                    
                     try {
                         const response = await fetch(`${this.apiUrl}/users/${modId}/moderator`, {
                             method: 'PUT',
-                            headers: { 'Content-Type': 'application/json' },
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${sessionToken}`
+                            },
                             body: JSON.stringify({
-                                userId: this.user.id,
                                 isModerator: false
                             })
                         });
@@ -259,12 +314,23 @@
                         if (response.ok) {
                             alert('Moderator removed successfully');
                             await this.loadModerators();
+                        } else if (response.status === 401) {
+                            console.error('Unauthorized: Invalid or expired session');
+                            alert('Your session has expired. Please sign in again.');
+                            localStorage.removeItem('sessionToken');
+                            localStorage.removeItem('user');
+                            this.user = null;
+                        } else if (response.status === 403) {
+                            console.error('Forbidden: Not a moderator');
+                            alert('You do not have permission to remove moderators');
+                        } else if (response.status === 404) {
+                            alert('User not found');
                         } else {
                             alert('Failed to remove moderator');
                         }
                     } catch (error) {
                         console.error('Error removing moderator:', error);
-                        alert('Failed to remove moderator');
+                        alert('Network error. Please try again.');
                     }
                 }
             }

@@ -127,18 +127,40 @@
     </div>
     
     <script>
-        // Configuration
-        const CONFIG = {
-            backendUrl: 'http://localhost:3000',
-            debugMode: true
-        };
+        // Dynamic configuration
+        let CONFIG = {};
+        
+        async function loadConfig() {
+            try {
+                const response = await fetch('/api/config');
+                if (response.ok) {
+                    CONFIG = await response.json();
+                    console.log('Configuration loaded:', CONFIG);
+                } else {
+                    console.error('Failed to load configuration');
+                    CONFIG = {
+                        discordClientId: '',
+                        discordRedirectUri: window.location.origin + '/oauth-callback.html'
+                    };
+                }
+            } catch (error) {
+                console.error('Error loading configuration:', error);
+                CONFIG = {
+                    discordClientId: '',
+                    discordRedirectUri: window.location.origin + '/oauth-callback.html'
+                };
+            }
+        }
+        
+        // Load config immediately
+        loadConfig();
         
         function reportsApp() {
             return {
                 user: null,
                 reports: [],
                 loading: true,
-                apiUrl: CONFIG.backendUrl + '/api',
+                apiUrl: '/api',
                 
                 init() {
                     console.log('Reports app initializing...');
@@ -150,6 +172,9 @@
                             console.log('Received Discord login success');
                             this.user = event.data.user;
                             localStorage.setItem('user', JSON.stringify(this.user));
+                            if (event.data.sessionToken) {
+                                localStorage.setItem('sessionToken', event.data.sessionToken);
+                            }
                             if (this.user.is_moderator) {
                                 this.loadReports();
                             }
@@ -159,61 +184,33 @@
                 
                 checkExistingSession() {
                     const savedUser = localStorage.getItem('user');
-                    if (savedUser) {
+                    const sessionToken = localStorage.getItem('sessionToken');
+                    
+                    if (savedUser && sessionToken) {
                         this.user = JSON.parse(savedUser);
                         console.log('Found existing session:', this.user.username);
+                        
+                        // Try to load reports - server will verify permissions
                         if (this.user.is_moderator) {
                             this.loadReports();
                         } else {
                             this.loading = false;
                         }
                     } else {
+                        console.log('No existing user session found');
+                        // Clear any partial data
+                        localStorage.removeItem('user');
+                        localStorage.removeItem('sessionToken');
                         this.loading = false;
                     }
                 },
                 
                 signInWithDiscord() {
-                    // Same Discord auth as main app
-                    if (CONFIG.debugMode) {
-                        console.log('Debug mode - using fake auth');
-                        const fakeUser = {
-                            id: `discord_debug_${Math.random().toString(36).substring(7)}`,
-                            username: `DebugModerator`,
-                            discriminator: '0001',
-                            avatar: `https://cdn.discordapp.com/embed/avatars/0.png`,
-                            email: `moderator@debug.local`,
-                            is_moderator: true, // Make debug user a moderator for testing
-                            is_banned: false
-                        };
-                        
-                        fetch(`${this.apiUrl}/discord/callback`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                code: 'debug_code',
-                                state: 'debug_state',
-                                debugMode: true,
-                                debugUser: fakeUser
-                            })
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.user) {
-                                this.user = data.user;
-                                localStorage.setItem('user', JSON.stringify(this.user));
-                                if (this.user.is_moderator) {
-                                    this.loadReports();
-                                }
-                            }
-                        });
-                        return;
-                    }
-                    
                     // Normal Discord OAuth flow
                     const state = Math.random().toString(36).substring(7);
                     localStorage.setItem('discord_state', state);
-                    const clientId = '1377826318456193094';
-                    const redirectUri = encodeURIComponent('https://christianblevens.github.io/CommentSectionWebApp/oauth-callback.html');
+                    const clientId = CONFIG.discordClientId;
+                    const redirectUri = encodeURIComponent(CONFIG.discordRedirectUri);
                     const scope = 'identify';
                     const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&state=${state}`;
                     
@@ -231,11 +228,34 @@
                 
                 async loadReports() {
                     this.loading = true;
+                    const sessionToken = localStorage.getItem('sessionToken');
+                    
+                    if (!sessionToken) {
+                        console.error('No session token found');
+                        this.loading = false;
+                        this.user = null;
+                        localStorage.removeItem('user');
+                        return;
+                    }
+                    
                     try {
-                        const response = await fetch(`${this.apiUrl}/reports?userId=${this.user.id}`);
+                        const response = await fetch(`${this.apiUrl}/reports`, {
+                            headers: { 
+                                'Authorization': `Bearer ${sessionToken}`
+                            }
+                        });
+                        
                         if (response.ok) {
                             this.reports = await response.json();
                             console.log(`Loaded ${this.reports.length} reports`);
+                        } else if (response.status === 401) {
+                            console.error('Session expired or invalid');
+                            this.user = null;
+                            localStorage.removeItem('user');
+                            localStorage.removeItem('sessionToken');
+                        } else if (response.status === 403) {
+                            console.error('Not authorized to view reports');
+                            this.user.is_moderator = false;
                         }
                     } catch (error) {
                         console.error('Error loading reports:', error);
@@ -249,13 +269,32 @@
                         return;
                     }
                     
+                    const sessionToken = localStorage.getItem('sessionToken');
+                    if (!sessionToken) {
+                        alert('Session expired. Please sign in again.');
+                        this.user = null;
+                        localStorage.removeItem('user');
+                        localStorage.removeItem('sessionToken');
+                        return;
+                    }
+                    
                     try {
                         // Delete the comment
                         const deleteResponse = await fetch(`${this.apiUrl}/comments/${report.comment_id}`, {
                             method: 'DELETE',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ userId: this.user.id })
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${sessionToken}`
+                            }
                         });
+                        
+                        if (deleteResponse.status === 401) {
+                            alert('Session expired. Please sign in again.');
+                            this.user = null;
+                            localStorage.removeItem('user');
+                            localStorage.removeItem('sessionToken');
+                            return;
+                        }
                         
                         if (!deleteResponse.ok) {
                             throw new Error('Failed to delete comment');
@@ -264,9 +303,11 @@
                         // Resolve the report
                         await fetch(`${this.apiUrl}/reports/${report.id}/resolve`, {
                             method: 'PUT',
-                            headers: { 'Content-Type': 'application/json' },
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${sessionToken}`
+                            },
                             body: JSON.stringify({ 
-                                userId: this.user.id,
                                 action: 'resolved'
                             })
                         });
@@ -286,19 +327,40 @@
                         return;
                     }
                     
+                    const sessionToken = localStorage.getItem('sessionToken');
+                    if (!sessionToken) {
+                        alert('Session expired. Please sign in again.');
+                        this.user = null;
+                        localStorage.removeItem('user');
+                        localStorage.removeItem('sessionToken');
+                        return;
+                    }
+                    
                     try {
                         const response = await fetch(`${this.apiUrl}/reports/${reportId}/resolve`, {
                             method: 'PUT',
-                            headers: { 'Content-Type': 'application/json' },
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${sessionToken}`
+                            },
                             body: JSON.stringify({ 
-                                userId: this.user.id,
                                 action: 'dismissed'
                             })
                         });
                         
+                        if (response.status === 401) {
+                            alert('Session expired. Please sign in again.');
+                            this.user = null;
+                            localStorage.removeItem('user');
+                            localStorage.removeItem('sessionToken');
+                            return;
+                        }
+                        
                         if (response.ok) {
                             this.reports = this.reports.filter(r => r.id !== reportId);
                             alert('Report dismissed');
+                        } else {
+                            throw new Error('Failed to dismiss report');
                         }
                     } catch (error) {
                         console.error('Error dismissing report:', error);
@@ -311,17 +373,38 @@
                         return;
                     }
                     
+                    const sessionToken = localStorage.getItem('sessionToken');
+                    if (!sessionToken) {
+                        alert('Session expired. Please sign in again.');
+                        this.user = null;
+                        localStorage.removeItem('user');
+                        localStorage.removeItem('sessionToken');
+                        return;
+                    }
+                    
                     try {
                         const response = await fetch(`${this.apiUrl}/users/${userId}/ban`, {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ userId: this.user.id })
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${sessionToken}`
+                            }
                         });
+                        
+                        if (response.status === 401) {
+                            alert('Session expired. Please sign in again.');
+                            this.user = null;
+                            localStorage.removeItem('user');
+                            localStorage.removeItem('sessionToken');
+                            return;
+                        }
                         
                         if (response.ok) {
                             alert(`User ${userName} has been banned`);
                             // Reload reports to reflect changes
                             await this.loadReports();
+                        } else {
+                            throw new Error('Failed to ban user');
                         }
                     } catch (error) {
                         console.error('Error banning user:', error);

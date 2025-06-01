@@ -43,10 +43,6 @@
     </div>
 
     <script>
-        // CONFIGURATION
-        const CONFIG = {
-            backendUrl: 'http://24.22.137.234:3000'
-        };
         
         // OAuth callback handler
         async function handleOAuthCallback() {
@@ -86,10 +82,10 @@
             
             try {
                 // Exchange code for user info
-                console.log('Attempting to call backend at:', `${CONFIG.backendUrl}/api/discord/callback`);
+                console.log('Attempting to call backend at:', '/api/discord/callback');
                 console.log('With code:', code.substring(0, 10) + '...');
                     
-                const response = await fetch(`${CONFIG.backendUrl}/api/discord/callback`, {
+                const response = await fetch('/api/discord/callback', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ code, state })
@@ -109,6 +105,9 @@
                 if (data.user) {
                     // Store user data
                     localStorage.setItem('user', JSON.stringify(data.user));
+                    if (data.sessionToken) {
+                        localStorage.setItem('sessionToken', data.sessionToken);
+                    }
                     localStorage.removeItem('discord_state');
                     
                     if (isPopup) {
@@ -116,7 +115,8 @@
                         if (window.opener) {
                             window.opener.postMessage({ 
                                 type: 'discord-login-success', 
-                                user: data.user 
+                                user: data.user,
+                                sessionToken: data.sessionToken
                             }, window.location.origin);
                         }
                         

@@ -4,6 +4,8 @@ const bodyParser = require('body-parser');
 const { Pool } = require('pg');
 const redis = require('redis');
 const axios = require('axios');
+const rateLimit = require('express-rate-limit');
+const helmet = require('helmet');
 
 // Initialize Express app
 const app = express();
@@ -30,10 +32,20 @@ const corsOptions = {
     credentials: true
 };
 
+// Apply Helmet for security headers
+app.use(helmet({
+    contentSecurityPolicy: false, // We'll handle CSP separately if needed
+    hsts: {
+        maxAge: 31536000,
+        includeSubDomains: true,
+        preload: true
+    }
+}));
+
 // Apply middleware
 app.use(cors(corsOptions));
-app.use(bodyParser.json({ limit: '10mb' })); // Limit request size
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json({ limit: '1mb' })); // Limit request size for security
+app.use(bodyParser.urlencoded({ extended: true, limit: '1mb' }));
 
 // PostgreSQL connection pool with error handling
 const pgPool = new Pool({
@@ -80,6 +92,31 @@ redisClient.connect().catch(err => {
     console.error('Redis connection failed:', err);
     // Continue without cache if Redis fails
 });
+
+// Rate limiting configuration - moved after Redis client initialization
+const createRateLimiter = (windowMs, max, message) => {
+    return rateLimit({
+        windowMs,
+        max,
+        message,
+        standardHeaders: true,
+        legacyHeaders: false,
+        // Use Redis store in production
+        store: process.env.NODE_ENV === 'production' && redisClient.isReady ? 
+            new (require('rate-limit-redis'))({
+                client: redisClient,
+                prefix: 'rate-limit:'
+            }) : undefined
+    });
+};
+
+// Apply different rate limits to different endpoints
+const authLimiter = createRateLimiter(15 * 60 * 1000, 5, 'Too many authentication attempts');
+const generalLimiter = createRateLimiter(15 * 60 * 1000, 100, 'Too many requests');
+const strictLimiter = createRateLimiter(60 * 60 * 1000, 10, 'Too many requests');
+
+// Apply general rate limit to all routes
+app.use(generalLimiter);
 
 // Initialize database schema
 const initDatabase = async () => {
@@ -221,6 +258,62 @@ const safeRedisOp = async (operation, fallback = null) => {
     }
 };
 
+// Generate a secure session token
+const generateSessionToken = () => {
+    return require('crypto').randomBytes(32).toString('hex');
+};
+
+// Middleware to verify user authentication and permissions
+const authenticateUser = async (req, res, next) => {
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    const token = authHeader.substring(7);
+    
+    try {
+        // Get user ID from Redis session
+        const userId = await safeRedisOp(() => redisClient.get(`session:${token}`));
+        
+        if (!userId) {
+            return res.status(401).json({ error: 'Invalid or expired session' });
+        }
+        
+        // Get user from database
+        const userResult = await pgPool.query(
+            'SELECT id, name, is_moderator, is_banned FROM users WHERE id = $1',
+            [userId]
+        );
+        
+        if (userResult.rows.length === 0) {
+            return res.status(401).json({ error: 'User not found' });
+        }
+        
+        const user = userResult.rows[0];
+        
+        if (user.is_banned) {
+            return res.status(403).json({ error: 'User is banned' });
+        }
+        
+        // Attach user to request
+        req.user = user;
+        next();
+    } catch (error) {
+        console.error('Authentication error:', error);
+        res.status(500).json({ error: 'Authentication failed' });
+    }
+};
+
+// Middleware to require moderator permissions
+const requireModerator = async (req, res, next) => {
+    if (!req.user || !req.user.is_moderator) {
+        return res.status(403).json({ error: 'Moderator access required' });
+    }
+    next();
+};
+
 // Validation middleware
 const validateRequest = (schema) => {
     return (req, res, next) => {
@@ -236,68 +329,11 @@ const validateRequest = (schema) => {
 };
 
 // Discord OAuth callback endpoint
-app.post('/api/discord/callback', async (req, res) => {
-    const { code, state, debugMode, debugUser } = req.body;
+app.post('/api/discord/callback', authLimiter, async (req, res) => {
+    const { code, state } = req.body;
     
     // Log incoming request
-    console.log('Discord callback received:', { debugMode, hasDebugUser: !!debugUser });
-    
-    // Handle debug mode
-    if (debugMode && debugUser) {
-        console.log('Debug mode authentication:', debugUser.username);
-        
-        try {
-            // Use debug user data
-            const user = {
-                id: debugUser.id,
-                username: debugUser.username,
-                discriminator: debugUser.discriminator,
-                avatar: debugUser.avatar,
-                email: debugUser.email
-            };
-            
-            // Check if this user should be an initial moderator
-            const initialModerators = process.env.INITIAL_MODERATORS?.split(',').map(id => id.trim()) || [];
-            const isInitialModerator = initialModerators.includes(user.id);
-            
-            // Upsert debug user in database
-            await pgPool.query(
-                `INSERT INTO users (id, email, name, picture, is_moderator) 
-                 VALUES ($1, $2, $3, $4, $5) 
-                 ON CONFLICT (id) DO UPDATE 
-                 SET name = EXCLUDED.name, 
-                     picture = EXCLUDED.picture, 
-                     is_moderator = CASE 
-                         WHEN $5 = true THEN true 
-                         ELSE users.is_moderator 
-                     END,
-                     updated_at = CURRENT_TIMESTAMP`,
-                [user.id, user.email, user.username, user.avatar, isInitialModerator]
-            );
-            
-            // Get user with moderator and ban status
-            const userResult = await pgPool.query(
-                'SELECT is_moderator, is_banned FROM users WHERE id = $1',
-                [user.id]
-            );
-            
-            if (userResult.rows.length > 0) {
-                user.is_moderator = userResult.rows[0].is_moderator;
-                user.is_banned = userResult.rows[0].is_banned;
-            }
-            
-            console.log('Debug user created/updated in database');
-            res.json({ user });
-            return;
-        } catch (error) {
-            console.error('Debug mode authentication error:', error);
-            res.status(500).json({ error: 'Debug authentication failed' });
-            return;
-        }
-    }
-    
-    // Normal Discord OAuth flow
-    console.log('Processing real Discord OAuth callback');
+    console.log('Discord callback received');
     
     // Validate input
     if (!code || !state) {
@@ -386,7 +422,16 @@ app.post('/api/discord/callback', async (req, res) => {
         }
         
         console.log('User authenticated successfully:', user.username, 'Moderator:', user.is_moderator);
-        res.json({ user });
+        
+        // Generate session token
+        const sessionToken = generateSessionToken();
+        
+        // Store session in Redis (expires in 24 hours)
+        await safeRedisOp(() => 
+            redisClient.setEx(`session:${sessionToken}`, 86400, user.id)
+        );
+        
+        res.json({ user, sessionToken });
     } catch (error) {
         console.error('Discord OAuth error:', error.response?.data || error.message);
         
@@ -399,30 +444,60 @@ app.post('/api/discord/callback', async (req, res) => {
     }
 });
 
-// Legacy user registration endpoint
-app.post('/api/users/register', async (req, res) => {
-    const { id, email, name, picture } = req.body;
+// Note: User registration is handled through Discord OAuth only
+// The old /api/users/register endpoint has been removed for security
+
+// Get user data by ID - requires authentication and only returns own data
+app.get('/api/users/:userId', authenticateUser, async (req, res) => {
+    const { userId } = req.params;
     
-    // Validate required fields
-    if (!id || !email || !name) {
-        return res.status(400).json({ error: 'Missing required fields' });
+    console.log('Getting user data for:', userId, 'Requested by:', req.user.id);
+    
+    // Users can only get their own data (prevents user enumeration)
+    if (userId !== req.user.id) {
+        return res.status(403).json({ error: 'Unauthorized' });
     }
     
     try {
-        await pgPool.query(
-            `INSERT INTO users (id, email, name, picture) 
-             VALUES ($1, $2, $3, $4) 
-             ON CONFLICT (id) DO UPDATE 
-             SET name = EXCLUDED.name, 
-                 picture = EXCLUDED.picture, 
-                 updated_at = CURRENT_TIMESTAMP`,
-            [id, email, name, picture]
+        const result = await pgPool.query(
+            'SELECT id, email, name, picture, is_moderator, is_banned FROM users WHERE id = $1',
+            [userId]
         );
         
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        
+        const user = result.rows[0];
+        console.log('User found:', user.name, 'Moderator:', user.is_moderator);
+        
+        res.json({
+            id: user.id,
+            username: user.name,
+            email: user.email,
+            avatar: user.picture,
+            is_moderator: user.is_moderator,
+            is_banned: user.is_banned
+        });
+    } catch (error) {
+        console.error('Get user error:', error);
+        res.status(500).json({ error: 'Failed to get user data' });
+    }
+});
+
+// Logout endpoint
+app.post('/api/logout', authenticateUser, async (req, res) => {
+    const authHeader = req.headers.authorization;
+    const token = authHeader.substring(7);
+    
+    try {
+        // Remove session from Redis
+        await safeRedisOp(() => redisClient.del(`session:${token}`));
+        console.log('User logged out:', req.user.id);
         res.json({ success: true });
     } catch (error) {
-        console.error('User registration error:', error);
-        res.status(500).json({ error: 'Failed to register user' });
+        console.error('Logout error:', error);
+        res.status(500).json({ error: 'Logout failed' });
     }
 });
 
@@ -499,13 +574,15 @@ app.get('/api/comments/:pageId', async (req, res) => {
 });
 
 // Create a new comment
-app.post('/api/comments', async (req, res) => {
-    const { pageId, userId, content, parentId, userName, userPicture } = req.body;
+app.post('/api/comments', authenticateUser, async (req, res) => {
+    const { pageId, content, parentId } = req.body;
+    const userId = req.user.id;
+    const userName = req.user.name;
     
     console.log('Creating new comment:', { pageId, userId, parentId, contentLength: content?.length });
     
     // Validate required fields
-    if (!pageId || !userId || !content) {
+    if (!pageId || !content) {
         console.error('Missing required fields for comment');
         return res.status(400).json({ error: 'Missing required fields' });
     }
@@ -521,19 +598,17 @@ app.post('/api/comments', async (req, res) => {
     try {
         await client.query('BEGIN');
         
-        // Verify user exists and is not banned
-        const userCheck = await client.query(
-            'SELECT id, is_banned FROM users WHERE id = $1',
-            [userId]
-        );
-        
-        if (userCheck.rows.length === 0) {
-            throw new Error('User not found');
-        }
-        
-        if (userCheck.rows[0].is_banned) {
+        // User is already authenticated, just check if banned
+        if (req.user.is_banned) {
             throw new Error('User is banned');
         }
+        
+        // Get user picture for response
+        const userResult = await client.query(
+            'SELECT picture FROM users WHERE id = $1',
+            [userId]
+        );
+        const userPicture = userResult.rows[0]?.picture;
         
         // Verify parent comment exists if parentId provided
         if (parentId) {
@@ -601,16 +676,17 @@ app.post('/api/comments', async (req, res) => {
 });
 
 // Vote on a comment
-app.post('/api/comments/:commentId/vote', async (req, res) => {
+app.post('/api/comments/:commentId/vote', authenticateUser, async (req, res) => {
     const { commentId } = req.params;
-    const { userId, voteType } = req.body;
+    const { voteType } = req.body;
+    const userId = req.user.id;
     
     console.log('Vote request:', { commentId, userId, voteType });
     
     // Validate input
-    if (!userId || !voteType) {
-        console.error('Missing required fields for vote');
-        return res.status(400).json({ error: 'Missing required fields' });
+    if (!voteType) {
+        console.error('Missing vote type');
+        return res.status(400).json({ error: 'Missing vote type' });
     }
     
     if (!['like', 'dislike'].includes(voteType)) {
@@ -630,17 +706,8 @@ app.post('/api/comments/:commentId/vote', async (req, res) => {
     try {
         await client.query('BEGIN');
         
-        // Check if user exists and is not banned
-        const userCheck = await client.query(
-            'SELECT id, is_banned FROM users WHERE id = $1',
-            [userId]
-        );
-        
-        if (userCheck.rows.length === 0) {
-            throw new Error('User not authenticated');
-        }
-        
-        if (userCheck.rows[0].is_banned) {
+        // User is already authenticated, just check if banned
+        if (req.user.is_banned) {
             throw new Error('User is banned');
         }
         
@@ -758,17 +825,12 @@ app.post('/api/comments/:commentId/vote', async (req, res) => {
 });
 
 // Delete comment endpoint
-app.delete('/api/comments/:commentId', async (req, res) => {
+app.delete('/api/comments/:commentId', authenticateUser, async (req, res) => {
     const { commentId } = req.params;
-    const { userId } = req.body;
+    const userId = req.user.id;
+    const isUserModerator = req.user.is_moderator;
     
     console.log('Delete comment request:', { commentId, userId });
-    
-    // Validate input
-    if (!userId) {
-        console.error('Missing user ID for delete');
-        return res.status(400).json({ error: 'User ID required' });
-    }
     
     const commentIdNum = parseInt(commentId);
     if (isNaN(commentIdNum)) {
@@ -781,10 +843,10 @@ app.delete('/api/comments/:commentId', async (req, res) => {
     try {
         await client.query('BEGIN');
         
-        // Get comment and user info
+        // Get comment info
         const commentResult = await client.query(
-            'SELECT c.*, u.is_moderator FROM comments c JOIN users u ON u.id = $2 WHERE c.id = $1',
-            [commentIdNum, userId]
+            'SELECT * FROM comments WHERE id = $1',
+            [commentIdNum]
         );
         
         if (commentResult.rows.length === 0) {
@@ -794,7 +856,7 @@ app.delete('/api/comments/:commentId', async (req, res) => {
         const comment = commentResult.rows[0];
         
         // Check if user can delete (owner or moderator)
-        if (comment.user_id !== userId && !comment.is_moderator) {
+        if (comment.user_id !== userId && !isUserModerator) {
             throw new Error('Unauthorized to delete this comment');
         }
         
@@ -827,16 +889,12 @@ app.delete('/api/comments/:commentId', async (req, res) => {
 });
 
 // Report comment endpoint
-app.post('/api/comments/:commentId/report', async (req, res) => {
+app.post('/api/comments/:commentId/report', authenticateUser, async (req, res) => {
     const { commentId } = req.params;
-    const { userId, reason } = req.body;
+    const { reason } = req.body;
+    const userId = req.user.id;
     
     console.log('Report comment request:', { commentId, userId });
-    
-    // Validate input
-    if (!userId) {
-        return res.status(400).json({ error: 'User ID required' });
-    }
     
     const commentIdNum = parseInt(commentId);
     if (isNaN(commentIdNum)) {
@@ -848,14 +906,9 @@ app.post('/api/comments/:commentId/report', async (req, res) => {
     try {
         await client.query('BEGIN');
         
-        // Check if user is banned
-        const userCheck = await client.query(
-            'SELECT is_banned FROM users WHERE id = $1',
-            [userId]
-        );
-        
-        if (userCheck.rows.length === 0 || userCheck.rows[0].is_banned) {
-            throw new Error('User banned or not found');
+        // User is already authenticated, just check if banned
+        if (req.user.is_banned) {
+            throw new Error('User is banned');
         }
         
         // Check rate limit (5 reports per hour)
@@ -935,26 +988,12 @@ app.post('/api/comments/:commentId/report', async (req, res) => {
 });
 
 // Get reports for a page (moderators only)
-app.get('/api/reports/:pageId', async (req, res) => {
+app.get('/api/reports/:pageId', authenticateUser, requireModerator, async (req, res) => {
     const { pageId } = req.params;
-    const { userId } = req.query;
     
-    console.log('Get reports request:', { pageId, userId });
-    
-    if (!userId) {
-        return res.status(400).json({ error: 'User ID required' });
-    }
+    console.log('Get reports request:', { pageId, userId: req.user.id });
     
     try {
-        // Check if user is moderator
-        const userResult = await pgPool.query(
-            'SELECT is_moderator FROM users WHERE id = $1',
-            [userId]
-        );
-        
-        if (userResult.rows.length === 0 || !userResult.rows[0].is_moderator) {
-            return res.status(403).json({ error: 'Moderators only' });
-        }
         
         // Get reports with comment details
         const reports = await pgPool.query(
@@ -978,25 +1017,10 @@ app.get('/api/reports/:pageId', async (req, res) => {
 });
 
 // Get all reports (moderators only)
-app.get('/api/reports', async (req, res) => {
-    const { userId } = req.query;
-    
-    console.log('Get all reports request:', { userId });
-    
-    if (!userId) {
-        return res.status(400).json({ error: 'User ID required' });
-    }
+app.get('/api/reports', authenticateUser, requireModerator, async (req, res) => {
+    console.log('Get all reports request:', { userId: req.user.id });
     
     try {
-        // Check if user is moderator
-        const userResult = await pgPool.query(
-            'SELECT is_moderator FROM users WHERE id = $1',
-            [userId]
-        );
-        
-        if (userResult.rows.length === 0 || !userResult.rows[0].is_moderator) {
-            return res.status(403).json({ error: 'Moderators only' });
-        }
         
         // Get all pending reports
         const reports = await pgPool.query(
@@ -1019,14 +1043,15 @@ app.get('/api/reports', async (req, res) => {
 });
 
 // Resolve report (moderators only)
-app.put('/api/reports/:reportId/resolve', async (req, res) => {
+app.put('/api/reports/:reportId/resolve', authenticateUser, requireModerator, async (req, res) => {
     const { reportId } = req.params;
-    const { userId, action } = req.body;
+    const { action } = req.body;
+    const userId = req.user.id; // Get userId from authenticated user
     
     console.log('Resolve report request:', { reportId, userId, action });
     
-    if (!userId || !action) {
-        return res.status(400).json({ error: 'User ID and action required' });
+    if (!action) {
+        return res.status(400).json({ error: 'Action required' });
     }
     
     if (!['resolved', 'dismissed'].includes(action)) {
@@ -1034,16 +1059,6 @@ app.put('/api/reports/:reportId/resolve', async (req, res) => {
     }
     
     try {
-        // Check if user is moderator
-        const userResult = await pgPool.query(
-            'SELECT is_moderator FROM users WHERE id = $1',
-            [userId]
-        );
-        
-        if (userResult.rows.length === 0 || !userResult.rows[0].is_moderator) {
-            return res.status(403).json({ error: 'Moderators only' });
-        }
-        
         // Update report status
         await pgPool.query(
             `UPDATE reports 
@@ -1061,30 +1076,16 @@ app.put('/api/reports/:reportId/resolve', async (req, res) => {
 });
 
 // Ban user (moderators only)
-app.post('/api/users/:targetUserId/ban', async (req, res) => {
+app.post('/api/users/:targetUserId/ban', authenticateUser, requireModerator, async (req, res) => {
     const { targetUserId } = req.params;
-    const { userId } = req.body;
+    const userId = req.user.id; // Get userId from authenticated user
     
     console.log('Ban user request:', { targetUserId, userId });
-    
-    if (!userId) {
-        return res.status(400).json({ error: 'User ID required' });
-    }
     
     const client = await pgPool.connect();
     
     try {
         await client.query('BEGIN');
-        
-        // Check if user is moderator
-        const userResult = await client.query(
-            'SELECT is_moderator FROM users WHERE id = $1',
-            [userId]
-        );
-        
-        if (userResult.rows.length === 0 || !userResult.rows[0].is_moderator) {
-            throw new Error('Moderators only');
-        }
         
         // Ban the user
         await client.query(
@@ -1116,38 +1117,19 @@ app.post('/api/users/:targetUserId/ban', async (req, res) => {
     } catch (error) {
         await client.query('ROLLBACK');
         console.error('Ban user error:', error);
-        
-        if (error.message === 'Moderators only') {
-            res.status(403).json({ error: 'Moderators only' });
-        } else {
-            res.status(500).json({ error: 'Failed to ban user' });
-        }
+        res.status(500).json({ error: 'Failed to ban user' });
     } finally {
         client.release();
     }
 });
 
 // Get moderators list (moderators only)
-app.get('/api/moderators', async (req, res) => {
-    const { userId } = req.query;
+app.get('/api/moderators', authenticateUser, requireModerator, async (req, res) => {
+    const userId = req.user.id; // Get userId from authenticated user
     
     console.log('Get moderators request:', { userId });
     
-    if (!userId) {
-        return res.status(400).json({ error: 'User ID required' });
-    }
-    
     try {
-        // Check if user is moderator
-        const userResult = await pgPool.query(
-            'SELECT is_moderator FROM users WHERE id = $1',
-            [userId]
-        );
-        
-        if (userResult.rows.length === 0 || !userResult.rows[0].is_moderator) {
-            return res.status(403).json({ error: 'Moderators only' });
-        }
-        
         // Get all moderators
         const moderators = await pgPool.query(
             'SELECT id, name, picture, email FROM users WHERE is_moderator = TRUE ORDER BY name'
@@ -1162,27 +1144,18 @@ app.get('/api/moderators', async (req, res) => {
 });
 
 // Set moderator status (moderators only)
-app.put('/api/users/:targetUserId/moderator', async (req, res) => {
+app.put('/api/users/:targetUserId/moderator', authenticateUser, requireModerator, async (req, res) => {
     const { targetUserId } = req.params;
-    const { userId, isModerator } = req.body;
+    const { isModerator } = req.body;
+    const userId = req.user.id; // Get userId from authenticated user
     
     console.log('Set moderator request:', { targetUserId, userId, isModerator });
     
-    if (!userId || isModerator === undefined) {
-        return res.status(400).json({ error: 'User ID and moderator status required' });
+    if (isModerator === undefined) {
+        return res.status(400).json({ error: 'Moderator status required' });
     }
     
     try {
-        // Check if user is moderator
-        const userResult = await pgPool.query(
-            'SELECT is_moderator FROM users WHERE id = $1',
-            [userId]
-        );
-        
-        if (userResult.rows.length === 0 || !userResult.rows[0].is_moderator) {
-            return res.status(403).json({ error: 'Moderators only' });
-        }
-        
         // Update moderator status
         await pgPool.query(
             'UPDATE users SET is_moderator = $1 WHERE id = $2',
@@ -1195,6 +1168,14 @@ app.put('/api/users/:targetUserId/moderator', async (req, res) => {
         console.error('Set moderator error:', error);
         res.status(500).json({ error: 'Failed to update moderator status' });
     }
+});
+
+// Public configuration endpoint (only exposes necessary frontend config)
+app.get('/api/config', (req, res) => {
+    res.json({
+        discordClientId: process.env.DISCORD_CLIENT_ID,
+        discordRedirectUri: process.env.DISCORD_REDIRECT_URI || 'http://localhost:8080/oauth-callback.html'
+    });
 });
 
 // Health check endpoint
