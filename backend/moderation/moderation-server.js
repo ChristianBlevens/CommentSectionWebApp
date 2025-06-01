@@ -395,15 +395,6 @@ class ContentModerator {
         // Remove markdown video embeds
         filteredContent = filteredContent.replace(/!video\[.*?\]\(.*?\)/g, '');
         
-        // Remove HTML img tags
-        filteredContent = filteredContent.replace(/<img[^>]*>/gi, '');
-        
-        // Remove HTML video tags
-        filteredContent = filteredContent.replace(/<video[^>]*>[\s\S]*?<\/video>/gi, '');
-        
-        // Remove iframe tags
-        filteredContent = filteredContent.replace(/<iframe[^>]*>[\s\S]*?<\/iframe>/gi, '');
-        
         // Check for remaining URLs
         const urlPattern = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|([^\s]+\.(com|org|net|io|co|uk|ca|de|fr|jp|au|us|ru|ch|it|nl|se|no|es|mil|edu|gov)[^\s]*)/gi;
         return urlPattern.test(filteredContent);
