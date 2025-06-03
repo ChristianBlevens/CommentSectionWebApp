@@ -75,6 +75,9 @@ services:
       NODE_ENV: production
       DB_HOST: postgres-comments
       DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-comments_db}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres123}
       REDIS_URL: redis://redis:6379
       MODERATION_API_URL: http://moderation-service:3001
     # Remove port exposure in production for security
@@ -106,6 +109,9 @@ services:
       NODE_ENV: production
       DB_HOST: postgres-moderation
       DB_PORT: 5432
+      DB_NAME: ${MODERATION_DB_NAME:-moderation_db}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres123}
     # Remove port exposure in production for security
     # Service should only be accessible through nginx proxy
     # ports:
