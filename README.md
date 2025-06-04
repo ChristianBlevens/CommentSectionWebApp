@@ -441,38 +441,41 @@ chmod +x docker/*.sh
 
 ### For Windows
 
-#### A. Install Certbot
+Since Certbot no longer officially supports Windows, you have to use WSL2 (Windows Subsystem for Linux)
 
-1. **Download Certbot**
-   - Go to https://certbot.eff.org/instructions
-   - Select "Other" for Software and "Windows" for System
-   - Download the Windows installer
-
-2. **Install Certbot**
-   - Run the downloaded installer
-   - Follow installation prompts
-   - Certbot will be installed to `C:\Program Files\Certbot\`
-
-#### B. Generate Certificate
-
-1. **Check Port 80 Availability**
+1. **Install WSL2** (if not already installed, should have come with Docker Desktop)
    ```powershell
-   netstat -ano | findstr :80
-   ```
-   If something is using it (like IIS), stop that service temporarily.
-
-2. **Run Certbot** (PowerShell as Administrator)
-   ```powershell
-   certbot certonly --standalone -d mycomments.duckdns.org
+   # Run as Administrator
+   wsl --install
+   # Restart your computer when prompted
    ```
 
-3. **Create SSL Directory and Copy Certificates**
+2. **Open WSL2 Terminal**
    ```powershell
-   cd C:\Projects\CommentSectionWebApp
-   mkdir docker\ssl
-   copy C:\Certbot\live\mycomments.duckdns.org\fullchain.pem docker\ssl\
-   copy C:\Certbot\live\mycomments.duckdns.org\privkey.pem docker\ssl\
-   copy C:\Certbot\live\mycomments.duckdns.org\chain.pem docker\ssl\
+   wsl
+   ```
+
+3. **Install Certbot in WSL2**
+   ```bash
+   sudo apt update
+   sudo apt install certbot -y
+   ```
+
+4. **Generate Certificate**
+   ```bash
+   # Make sure port 80 is available
+   sudo certbot certonly --standalone -d mycomments.duckdns.org
+   ```
+
+5. **Copy Certificates to Windows** (from WSL2)
+   ```bash
+   # Create directory in Windows filesystem
+   mkdir -p /mnt/c/Projects/CommentSectionWebApp/docker/ssl
+   
+   # Copy certificates
+   sudo cp /etc/letsencrypt/live/mycomments.duckdns.org/fullchain.pem /mnt/c/Projects/CommentSectionWebApp/docker/ssl/
+   sudo cp /etc/letsencrypt/live/mycomments.duckdns.org/privkey.pem /mnt/c/Projects/CommentSectionWebApp/docker/ssl/
+   sudo cp /etc/letsencrypt/live/mycomments.duckdns.org/chain.pem /mnt/c/Projects/CommentSectionWebApp/docker/ssl/
    ```
 
 ### For Linux
@@ -531,27 +534,40 @@ Find the `frontend:` section and add this line under `volumes:` (after the nginx
 
 **Windows:**
 
-1. Create `renew-cert.ps1`:
+**For WSL2 Method:**
+1. Create `renew-cert-wsl.ps1`:
    ```powershell
-   # renew-cert.ps1
+   # renew-cert-wsl.ps1
    cd C:\Projects\CommentSectionWebApp
    
    # Stop frontend
    docker-compose stop frontend
    
-   # Renew certificate
-   certbot renew
+   # Renew certificate using WSL2
+   wsl sudo certbot renew
    
-   # Copy new certificates
-   copy C:\Certbot\live\mycomments.duckdns.org\fullchain.pem docker\ssl\
-   copy C:\Certbot\live\mycomments.duckdns.org\privkey.pem docker\ssl\
-   copy C:\Certbot\live\mycomments.duckdns.org\chain.pem docker\ssl\
+   # Copy new certificates from WSL2
+   wsl sudo cp /etc/letsencrypt/live/mycomments.duckdns.org/fullchain.pem /mnt/c/Projects/CommentSectionWebApp/docker/ssl/
+   wsl sudo cp /etc/letsencrypt/live/mycomments.duckdns.org/privkey.pem /mnt/c/Projects/CommentSectionWebApp/docker/ssl/
+   wsl sudo cp /etc/letsencrypt/live/mycomments.duckdns.org/chain.pem /mnt/c/Projects/CommentSectionWebApp/docker/ssl/
    
    # Start frontend
    docker-compose start frontend
    ```
 
-2. Schedule with Task Scheduler (weekly at 3 AM)
+**For win-acme Method:**
+- win-acme automatically sets up scheduled renewal tasks
+- Check Task Scheduler for "win-acme renew" task
+- No manual configuration needed
+
+2. Schedule with Task Scheduler (for WSL2 method)
+   - Open Task Scheduler
+   - Create Basic Task
+   - Name: "Renew SSL Certificates"
+   - Trigger: Weekly, Sunday, 3:00 AM
+   - Action: Start a program
+   - Program: `powershell.exe`
+   - Arguments: `-ExecutionPolicy Bypass -File "C:\Projects\CommentSectionWebApp\renew-cert-wsl.ps1"`
 
 **Linux:**
 
