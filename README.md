@@ -269,7 +269,7 @@ Should return your public IP address.
    - Enable "Developer Mode"
    - Right-click your username anywhere
    - Click "Copy User ID"
-   - Your ID format: `discord_123456789012345678`
+   - Your ID format: `123456789012345678`
 
 ---
 
@@ -323,7 +323,7 @@ cd CommentSectionWebApp
    # PostgreSQL Database Configuration
    DB_USER=postgres
    DB_NAME=comments_db
-   DB_PASSWORD=MySecurePassword123!
+   DB_PASSWORD=ChangeThisSecurePassword123!
 
    # Moderation Database Configuration
    MODERATION_DB_NAME=moderation_db
@@ -349,31 +349,34 @@ cd CommentSectionWebApp
    PORT=3000
 
    # Database configuration - PostgreSQL
-   DB_HOST=postgres-comments
-   DB_PORT=5432
-   DB_NAME=comments_db
-   DB_USER=postgres
-   DB_PASSWORD=MySecurePassword123!  # Same as root .env
+   # These values are set via docker-compose.yml from root .env file
+   # DB_HOST=postgres-comments
+   # DB_PORT=5432
+   # DB_NAME=comments_db
+   # DB_USER=postgres
+   # DB_PASSWORD=(inherited from root .env)
 
    # Redis configuration
-   REDIS_URL=redis://redis:6379
+   # Set via docker-compose.yml
+   # REDIS_URL=redis://redis:6379
 
    # Discord OAuth Configuration
-   DISCORD_CLIENT_ID=1234567890123456789
-   DISCORD_CLIENT_SECRET=your-client-secret-here
+   DISCORD_CLIENT_ID=your-discord-client-id-here
+   DISCORD_CLIENT_SECRET=your-discord-client-secret-here
    DISCORD_REDIRECT_URI=https://mycomments.duckdns.org/oauth-callback.html
 
    # Allowed CORS origins
    ALLOWED_ORIGINS=https://mycomments.duckdns.org
 
-   # Initial moderators (your Discord ID)
-   INITIAL_MODERATORS=discord_987654321098765432
+   # Initial moderators (Discord IDs)
+   INITIAL_MODERATORS=discord_123456789012345678
 
    # Moderation service URL
-   MODERATION_API_URL=http://moderation-service:3001
+   # Set via docker-compose.yml
+   # MODERATION_API_URL=http://moderation-service:3001
 
    # Session configuration
-   SESSION_SECRET=generate64RandomCharactersHere1234567890abcdefghijklmnopqrstuv
+   SESSION_SECRET=generate-a-random-64-character-string-here-for-session-security
    SESSION_DURATION=86400
 
    # Rate limiting
@@ -398,11 +401,12 @@ cd CommentSectionWebApp
    PORT=3001
 
    # Database configuration
-   DB_HOST=postgres-moderation
-   DB_PORT=5432
-   DB_NAME=moderation_db
-   DB_USER=postgres
-   DB_PASSWORD=MySecurePassword123!  # Same as root .env
+   # These values are set via docker-compose.yml from root .env file
+   # DB_HOST=postgres-moderation
+   # DB_PORT=5432
+   # DB_NAME=moderation_db
+   # DB_USER=postgres
+   # DB_PASSWORD=(inherited from root .env)
 
    # Admin key for moderation
    ADMIN_KEY=GenerateAStrongAdminKey123!@#
@@ -434,8 +438,6 @@ chmod +x docker/*.sh
 ---
 
 ## 5. Let's Encrypt Setup
-
-**Note:** We're doing Let's Encrypt setup BEFORE deployment so you have valid certificates from the start!
 
 ### For Windows
 
