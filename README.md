@@ -171,24 +171,6 @@ ip addr show
 curl ifconfig.me
 ```
 
-### Router Port Forwarding Required
-
-For external access to your comment system, you must configure port forwarding on your router. This allows incoming internet traffic to reach your Docker containers.
-
-**Required Ports:**
-- Port 80 (HTTP) - Will redirect to HTTPS
-- Port 443 (HTTPS) - Main application access
-
-**Generic Router Configuration Steps:**
-1. Access your router's admin panel (usually `192.168.1.1` or `192.168.0.1`)
-2. Find "Port Forwarding" section (may be under "Advanced", "NAT", or "Virtual Server")
-3. Create two rules:
-   - HTTP: External Port 80 → Internal Port 80 → Your computer's local IP
-   - HTTPS: External Port 443 → Internal Port 443 → Your computer's local IP
-4. Save and apply changes
-
-> **Note:** Every router is different. Search for "[your router model] port forwarding" for specific instructions. Without port forwarding, your comment system will only work on your local network.
-
 ---
 
 ## 2. DuckDNS Setup
