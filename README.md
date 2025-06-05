@@ -63,6 +63,8 @@ You can deploy this comment system in several ways:
 
 ## 2. Prerequisites Installation
 
+> **VPS Users**: Skip to [VPS Setup](#3-vps-setup-optional)
+
 ### For Windows
 
 #### A. Install Docker Desktop for Windows
@@ -202,13 +204,11 @@ ip addr show
 curl ifconfig.me
 ```
 
-> **VPS Users**: Skip to [VPS Setup](#3-vps-setup-optional)
-
 ---
 
 ## 3. VPS Setup (Optional)
 
-> **Skip this section if deploying on a home server**
+> Continue to [Domain Setup](#4-domain-setup) if you are using a home server.
 
 This section covers deploying on a VPS. We'll use Hetzner Cloud as an example, but these steps apply to any VPS provider.
 
@@ -219,7 +219,7 @@ This section covers deploying on a VPS. We'll use Hetzner Cloud as an example, b
 2. **Create New Server**:
    - Location: Choose nearest to your users
    - Image: **Ubuntu 22.04**
-   - Type: **CX21** (2 vCPU, 4GB RAM) - Recommended
+   - Type: **CX11** (2 vCPU, 2GB RAM) - Recommended
    - SSH Keys: Add your SSH key (recommended) or use password
    - Name: `comment-app-server`
 3. **Note your server's IP** (e.g., 65.108.123.45)
@@ -280,8 +280,6 @@ ufw --force enable
 # Check status
 ufw status
 ```
-
-> **VPS Setup Complete!** Continue to [Domain Setup](#4-domain-setup)
 
 ---
 
@@ -418,36 +416,35 @@ Should return your public IP address.
 cd C:\
 mkdir Projects
 cd Projects
-git clone https://github.com/yourusername/CommentSectionWebApp.git
+git clone https://github.com/ChristianBlevens/CommentSectionWebApp.git
 cd CommentSectionWebApp
 ```
 
-#### For Home Server (Linux) or VPS:
+#### For Home Server (Linux):
 ```bash
-# For home server
 cd ~
 mkdir projects
 cd projects
+git clone https://github.com/ChristianBlevens/CommentSectionWebApp.git
+cd CommentSectionWebApp
+```
 
-# For VPS (as root)
+#### For VPS:
+```bash
+# Connect to your VPS via SSH first, then:
 cd /root
-
-# Clone the repository
-git clone https://github.com/yourusername/CommentSectionWebApp.git comment-app
+git clone https://github.com/ChristianBlevens/CommentSectionWebApp.git comment-app
 cd comment-app
 ```
 
-#### Alternative: Upload from Local Machine to VPS
-```bash
-# From your local machine (not on the VPS)
-# Option 1: Using SCP
-scp -r /path/to/CommentSectionWebApp/* root@YOUR_VPS_IP:/root/comment-app/
-
-# Option 2: Using rsync (better for updates)
-rsync -avz --exclude 'node_modules' --exclude '.git' ./ root@YOUR_VPS_IP:/root/comment-app/
-```
+> **Note**: Git was already installed during VPS setup. If you're using a private repository, you may need to configure SSH keys or use HTTPS with credentials.
 
 ### B. Configure Environment Files
+
+> **Note**: The project includes all necessary scripts and directories. You only need to:
+> 1. Copy the example environment files
+> 2. Configure them with your settings
+> 3. Copy your SSL certificates to `docker/ssl/`
 
 1. **Copy Example Files**
 
@@ -661,23 +658,27 @@ dnf install certbot -y
 
 2. **Run Certbot**
    ```bash
+   # IMPORTANT: Run certbot from your home/root directory, NOT from the project directory
+   
    # For home server (with sudo)
+   cd ~
    sudo certbot certonly --standalone -d mycomments.duckdns.org
    
-   # For VPS (as root)
-   certbot certonly --standalone -d your-domain.com
+   # For VPS (as root) - Run from /root directory
+   cd /root
+   certbot certonly --standalone -d mycomments.duckdns.org
    ```
 
-3. **Create SSL Directory and Copy Certificates**
+3. **Copy Certificates to Project**
    ```bash
    # Navigate to project directory
-   # Home server: cd ~/projects/CommentSectionWebApp
-   # VPS: cd /root/comment-app
+   # Home server:
+   cd ~/projects/CommentSectionWebApp
    
-   # Create SSL directory
-   mkdir -p docker/ssl
+   # VPS:
+   cd /root/comment-app
    
-   # Copy certificates (adjust domain name as needed)
+   # Copy certificates (the SSL directory already exists)
    # For home server:
    sudo cp /etc/letsencrypt/live/mycomments.duckdns.org/fullchain.pem docker/ssl/
    sudo cp /etc/letsencrypt/live/mycomments.duckdns.org/privkey.pem docker/ssl/
@@ -691,47 +692,27 @@ dnf install certbot -y
    chmod 600 docker/ssl/privkey.pem
    ```
 
-### C. Modify docker-compose.yml
+### C. Verify SSL Setup
 
-**Windows:** `notepad docker-compose.yml`  
-**Linux:** `nano docker-compose.yml`
-
-Find the `frontend:` section and add this line under `volumes:` (after the nginx.conf line):
-```yaml
-- ./docker/ssl:/etc/nginx/ssl:ro
-```
+The docker-compose.yml is already configured to use the SSL certificates from `docker/ssl/`. No modifications needed.
 
 ### D. Setup Auto-Renewal
 
 #### Windows Home Server
 
-**For WSL2 Method:**
-1. Create `renew-cert-wsl.ps1`:
+1. **Update the renewal script** (located in docker/ssl/renew-ssl.sh):
+   - The script automatically uses the SSL_DOMAIN from your .env file
+   - No editing needed unless you have special requirements
+
+2. **For WSL2: Create Windows wrapper script**
+   Create `renew-cert-wsl.ps1`:
    ```powershell
    # renew-cert-wsl.ps1
    cd C:\Projects\CommentSectionWebApp
-   
-   # Stop frontend
-   docker-compose stop frontend
-   
-   # Renew certificate using WSL2
-   wsl sudo certbot renew
-   
-   # Copy new certificates from WSL2
-   wsl sudo cp /etc/letsencrypt/live/mycomments.duckdns.org/fullchain.pem /mnt/c/Projects/CommentSectionWebApp/docker/ssl/
-   wsl sudo cp /etc/letsencrypt/live/mycomments.duckdns.org/privkey.pem /mnt/c/Projects/CommentSectionWebApp/docker/ssl/
-   wsl sudo cp /etc/letsencrypt/live/mycomments.duckdns.org/chain.pem /mnt/c/Projects/CommentSectionWebApp/docker/ssl/
-   
-   # Start frontend
-   docker-compose start frontend
+   wsl ./docker/ssl/renew-ssl.sh
    ```
 
-**For win-acme Method:**
-- win-acme automatically sets up scheduled renewal tasks
-- Check Task Scheduler for "win-acme renew" task
-- No manual configuration needed
-
-2. Schedule with Task Scheduler (for WSL2 method)
+3. **Schedule with Task Scheduler**
    - Open Task Scheduler
    - Create Basic Task
    - Name: "Renew SSL Certificates"
@@ -742,24 +723,14 @@ Find the `frontend:` section and add this line under `volumes:` (after the nginx
 
 #### Linux/VPS
 
-1. **Create renewal script**:
+1. **Configure the renewal script** (located in docker/ssl/renew-ssl.sh):
    ```bash
-   # Create the script
-   cat > ~/renew-ssl.sh << 'EOF'
-   #!/bin/bash
-   # Adjust paths based on your setup
-   PROJECT_DIR="/root/comment-app"  # VPS
-   # PROJECT_DIR="$HOME/projects/CommentSectionWebApp"  # Home server
+   # The renewal script is in the docker/ssl directory
+   # Ensure it's executable (it should already be)
+   chmod +x docker/ssl/renew-ssl.sh
    
-   cd $PROJECT_DIR
-   docker-compose stop frontend
-   certbot renew
-   cp /etc/letsencrypt/live/your-domain.com/*.pem $PROJECT_DIR/docker/ssl/
-   docker-compose start frontend
-   EOF
-   
-   # Make it executable
-   chmod +x ~/renew-ssl.sh
+   # Edit .env to set your domain (if not already done)
+   # SSL_DOMAIN=your-domain.com
    ```
 
 2. **Add to crontab**:
@@ -773,7 +744,11 @@ Find the `frontend:` section and add this line under `volumes:` (after the nginx
 
 3. **Add this line**:
    ```cron
-   0 3 * * 0 /root/renew-ssl.sh > /var/log/ssl-renewal.log 2>&1
+   # For VPS
+   0 3 * * 0 /root/comment-app/docker/ssl/renew-ssl.sh > /var/log/ssl-renewal.log 2>&1
+   
+   # For home server
+   0 3 * * 0 /home/username/projects/CommentSectionWebApp/docker/ssl/renew-ssl.sh > /var/log/ssl-renewal.log 2>&1
    ```
 
 ---
@@ -1262,7 +1237,9 @@ CommentSectionWebApp/
 ├── docker/
 │   ├── nginx.conf              # Nginx configuration
 │   ├── generate-dhparam.sh     # DH parameters generator
-│   └── ssl/                    # SSL certificates (created by you)
+│   └── ssl/                    # SSL certificates directory
+│       ├── .gitkeep            # Keeps directory in git
+│       └── renew-ssl.sh        # Certificate renewal script
 ├── docker-compose.yml          # Container orchestration
 ├── .env.example                # Main environment template
 ├── .gitignore                  # Git ignore rules
@@ -1352,6 +1329,12 @@ CommentSectionWebApp/
 
 ## Quick Reference
 
+### Included Files
+- `docker/ssl/` - SSL certificate directory (add your certificates here)
+- `docker/ssl/renew-ssl.sh` - Auto-renewal script for SSL certificates
+- `docker/generate-dhparam.sh` - DH parameter generation (runs automatically)
+- All example environment files with sensible defaults
+
 ### Essential Commands
 ```bash
 # Start services
@@ -1371,6 +1354,9 @@ docker-compose ps
 
 # Enter container
 docker-compose exec backend-api sh
+
+# Renew SSL certificates
+./docker/ssl/renew-ssl.sh
 ```
 
 ### Important URLs
@@ -1395,6 +1381,15 @@ docker-compose exec backend-api sh
 ---
 
 ## 13. File Reference
+
+### Files You Need to Create
+- `.env` (copy from `.env.example`)
+- `backend/api/.env` (copy from `backend/api/.env.example`)
+- `backend/moderation/.env` (copy from `backend/moderation/.env.example`)
+- SSL certificates in `docker/ssl/`:
+  - `fullchain.pem`
+  - `privkey.pem`
+  - `chain.pem`
 
 ### Root Directory Files
 
@@ -1461,13 +1456,25 @@ Template for moderation environment variables. Contains database connection, adm
 Nginx web server configuration. Handles HTTPS/TLS termination, HTTP to HTTPS redirects, rate limiting, security headers, and reverse proxying to backend services. Core of the security infrastructure.
 
 **`/docker/generate-dhparam.sh`**  
-Shell script that generates Diffie-Hellman parameters for enhanced TLS security. Runs automatically on container startup if DH params don't exist.
+Shell script that generates Diffie-Hellman parameters for enhanced TLS security. Runs automatically on container startup if DH params don't exist. Includes automatic installation of OpenSSL if not present in the nginx:alpine image.
 
-**`/docker/ssl/`** (directory you create)  
-Directory for SSL certificates. You'll copy Let's Encrypt or commercial certificates here. Contains:
-- `fullchain.pem` - Certificate chain
-- `privkey.pem` - Private key  
-- `chain.pem` - Intermediate certificates
+**`/docker/ssl/`**  
+Directory for SSL certificates. Copy your Let's Encrypt or commercial certificates here. Contains:
+- `.gitkeep` - Placeholder file to keep directory in version control
+- `renew-ssl.sh` - Automated certificate renewal script that handles stopping/starting services and copying certificates
+- `fullchain.pem` - Certificate chain (you add this)
+- `privkey.pem` - Private key (you add this)
+- `chain.pem` - Intermediate certificates (you add this)
+
+**`/docker/ssl/renew-ssl.sh`**  
+Automated SSL certificate renewal script. Features:
+- Automatically uses SSL_DOMAIN from root .env file
+- Stops frontend container to free port 80 for renewal
+- Runs certbot renewal
+- Copies new certificates to the SSL directory
+- Sets proper permissions
+- Restarts frontend container
+- Can be run manually or via cron job
 
 ### Docker Compose Services
 

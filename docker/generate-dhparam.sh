@@ -17,6 +17,12 @@ if [ -f "${DHPARAM_FILE}" ]; then
     exit 0
 fi
 
+# Check if openssl is available, install if not (nginx:alpine doesn't include it)
+if ! command -v openssl > /dev/null 2>&1; then
+    echo "Installing openssl..."
+    apk add --no-cache openssl
+fi
+
 echo "Generating 2048-bit DH parameters (this may take a few minutes)..."
 openssl dhparam -out ${DHPARAM_FILE} 2048
 
