@@ -17,6 +17,13 @@ if [ -f "${DHPARAM_FILE}" ]; then
     exit 0
 fi
 
+# Check if SSL directory is writable
+if [ ! -w "${SSL_DIR}" ]; then
+    echo "Warning: SSL directory is not writable. Skipping DH parameter generation."
+    echo "DH parameters will need to be generated manually."
+    exit 0
+fi
+
 # Check if openssl is available, install if not (nginx:alpine doesn't include it)
 if ! command -v openssl > /dev/null 2>&1; then
     echo "Installing openssl..."

@@ -685,18 +685,14 @@ dnf install certbot -y
    sudo cp /etc/letsencrypt/live/mycomments.duckdns.org/chain.pem docker/ssl/
    
    # For VPS:
-   cp /etc/letsencrypt/live/your-domain.com/*.pem docker/ssl/
+   cp /etc/letsencrypt/live/mycomments.duckdns.org/*.pem docker/ssl/
    
    # Set proper permissions
    chmod 644 docker/ssl/*.pem
    chmod 600 docker/ssl/privkey.pem
    ```
 
-### C. Verify SSL Setup
-
-The docker-compose.yml is already configured to use the SSL certificates from `docker/ssl/`. No modifications needed.
-
-### D. Setup Auto-Renewal
+### C. Setup Auto-Renewal
 
 #### Windows Home Server
 
@@ -730,7 +726,7 @@ The docker-compose.yml is already configured to use the SSL certificates from `d
    chmod +x docker/ssl/renew-ssl.sh
    
    # Edit .env to set your domain (if not already done)
-   # SSL_DOMAIN=your-domain.com
+   # SSL_DOMAIN=mycomments.duckdns.org
    ```
 
 2. **Add to crontab**:
@@ -1399,7 +1395,11 @@ Main orchestration file that defines all services (databases, Redis, backend API
 Template for root environment variables. Contains Docker-level configurations like database passwords, SSL domain, and project name. Copy to `.env` for use.
 
 **`/.gitignore`**  
-Git ignore file, currently empty but preserved for users who may fork and modify the repository. Contains comments suggesting common patterns to ignore like .env files, certificates, and node_modules.
+Git ignore file that prevents sensitive files from being tracked. Ignores:
+- Generated `dhparam.pem` file (unique per deployment)
+- SSL certificates (fullchain.pem, privkey.pem, chain.pem)
+- Environment files (.env files containing secrets)
+- Contains comments suggesting additional patterns users might want to add
 
 **`/LICENSE`**  
 MIT License file allowing free use, modification, and distribution of this software.
@@ -1455,11 +1455,16 @@ Template for moderation environment variables. Contains database connection, adm
 Nginx web server configuration. Handles HTTPS/TLS termination, HTTP to HTTPS redirects, rate limiting, security headers, and reverse proxying to backend services. Core of the security infrastructure.
 
 **`/docker/generate-dhparam.sh`**  
-Shell script that generates Diffie-Hellman parameters for enhanced TLS security. Runs automatically on container startup if DH params don't exist. Includes automatic installation of OpenSSL if not present in the nginx:alpine image.
+Shell script that generates Diffie-Hellman parameters for enhanced TLS security. Runs automatically on container startup if DH params don't exist. Features:
+- Installs OpenSSL automatically if not present in nginx:alpine image
+- Checks if SSL directory is writable before attempting generation
+- Generates 2048-bit DH parameters for enhanced security
+- Only runs once (skips if dhparam.pem already exists)
 
 **`/docker/ssl/`**  
-Directory for SSL certificates. Copy your Let's Encrypt or commercial certificates here. Contains:
+Directory for SSL certificates and security files. This directory is writable by the container. Contains:
 - `renew-ssl.sh` - Automated certificate renewal script that handles stopping/starting services and copying certificates
+- `dhparam.pem` - Diffie-Hellman parameters (generated automatically on first run)
 - `fullchain.pem` - Certificate chain (you add this)
 - `privkey.pem` - Private key (you add this)
 - `chain.pem` - Intermediate certificates (you add this)

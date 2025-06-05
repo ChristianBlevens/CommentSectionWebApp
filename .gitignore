@@ -1,7 +1,19 @@
 # Git ignore file
-# Currently empty - add patterns as needed
-# Common patterns to consider:
-# .env
-# *.pem
+
+# Generated DH parameters (unique per deployment)
+docker/ssl/dhparam.pem
+
+# SSL certificates (add these when you get them)
+docker/ssl/fullchain.pem
+docker/ssl/privkey.pem
+docker/ssl/chain.pem
+
+# Environment files (contain secrets)
+.env
+backend/api/.env
+backend/moderation/.env
+
+# Common patterns to consider adding:
 # node_modules/
 # .DS_Store
+# *.log
