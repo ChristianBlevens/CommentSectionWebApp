@@ -517,7 +517,7 @@ cd comment-app
    # Allowed CORS origins
    ALLOWED_ORIGINS=https://mycomments.duckdns.org
 
-   # Initial moderators (Discord IDs)
+   # Initial moderators (Discord IDs, use discord_ as a prefix)
    INITIAL_MODERATORS=discord_123456789012345678
 
    # Moderation service URL
