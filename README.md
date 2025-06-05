@@ -1238,7 +1238,6 @@ CommentSectionWebApp/
 │   ├── nginx.conf              # Nginx configuration
 │   ├── generate-dhparam.sh     # DH parameters generator
 │   └── ssl/                    # SSL certificates directory
-│       ├── .gitkeep            # Keeps directory in git
 │       └── renew-ssl.sh        # Certificate renewal script
 ├── docker-compose.yml          # Container orchestration
 ├── .env.example                # Main environment template
@@ -1400,7 +1399,7 @@ Main orchestration file that defines all services (databases, Redis, backend API
 Template for root environment variables. Contains Docker-level configurations like database passwords, SSL domain, and project name. Copy to `.env` for use.
 
 **`/.gitignore`**  
-Specifies which files Git should ignore. Includes node_modules, .env files, SSL certificates, and Docker volumes to keep sensitive data out of version control.
+Git ignore file, currently empty but preserved for users who may fork and modify the repository. Contains comments suggesting common patterns to ignore like .env files, certificates, and node_modules.
 
 **`/LICENSE`**  
 MIT License file allowing free use, modification, and distribution of this software.
@@ -1460,7 +1459,6 @@ Shell script that generates Diffie-Hellman parameters for enhanced TLS security.
 
 **`/docker/ssl/`**  
 Directory for SSL certificates. Copy your Let's Encrypt or commercial certificates here. Contains:
-- `.gitkeep` - Placeholder file to keep directory in version control
 - `renew-ssl.sh` - Automated certificate renewal script that handles stopping/starting services and copying certificates
 - `fullchain.pem` - Certificate chain (you add this)
 - `privkey.pem` - Private key (you add this)
