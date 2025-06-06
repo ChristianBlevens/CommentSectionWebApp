@@ -115,8 +115,59 @@ const authLimiter = createRateLimiter(15 * 60 * 1000, 5, 'Too many authenticatio
 const generalLimiter = createRateLimiter(15 * 60 * 1000, 100, 'Too many requests');
 const strictLimiter = createRateLimiter(60 * 60 * 1000, 10, 'Too many requests');
 
-// Apply general rate limit to all routes
-app.use(generalLimiter);
+// Middleware to conditionally apply rate limiting (skip for moderators)
+const conditionalRateLimit = (limiter) => {
+    return async (req, res, next) => {
+        // If user is authenticated and is a moderator, skip rate limiting
+        if (req.user && req.user.is_moderator) {
+            return next();
+        }
+        // Otherwise apply the rate limiter
+        return limiter(req, res, next);
+    };
+};
+
+// Custom middleware to skip rate limiting for moderators
+app.use(async (req, res, next) => {
+    // Try to get user from session if Authorization header exists
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        const sessionToken = authHeader.split(' ')[1];
+        
+        try {
+            // Get user ID from Redis session
+            const userId = await safeRedisOp(() => redisClient.get(`session:${sessionToken}`));
+            
+            if (userId) {
+                // Get user from database
+                const userResult = await pgPool.query(
+                    'SELECT id, name, picture, is_moderator, is_banned FROM users WHERE id = $1',
+                    [userId]
+                );
+                
+                if (userResult.rows.length > 0) {
+                    const user = userResult.rows[0];
+                    // If user is a moderator, mark request to skip rate limiting
+                    if (user.is_moderator) {
+                        req.skipRateLimit = true;
+                    }
+                }
+            }
+        } catch (error) {
+            // Continue without skipping rate limit if any error
+            console.error('Error checking moderator status for rate limiting:', error);
+        }
+    }
+    next();
+});
+
+// Apply general rate limit to all routes (but skip for moderators)
+app.use((req, res, next) => {
+    if (req.skipRateLimit) {
+        return next();
+    }
+    return generalLimiter(req, res, next);
+});
 
 // Initialize database schema
 const initDatabase = async () => {
@@ -573,7 +624,7 @@ app.get('/api/comments/:pageId', async (req, res) => {
     }
 });
 
-// Create a new comment
+// Create a new comment (with conditional rate limiting for non-moderators)
 app.post('/api/comments', authenticateUser, async (req, res) => {
     const { pageId, content, parentId } = req.body;
     const userId = req.user.id;
@@ -1027,38 +1078,40 @@ app.post('/api/comments/:commentId/report', authenticateUser, async (req, res) =
             throw new Error('User is banned');
         }
         
-        // Check rate limit (5 reports per hour)
-        const now = new Date();
-        const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
-        
-        // Get or create rate limit record
-        await client.query(
-            `INSERT INTO report_rate_limits (user_id, report_count, window_start) 
-             VALUES ($1, 0, $2) 
-             ON CONFLICT (user_id) DO NOTHING`,
-            [userId, now]
-        );
-        
-        // Check and update rate limit
-        const rateLimitResult = await client.query(
-            `UPDATE report_rate_limits 
-             SET report_count = CASE 
-                 WHEN window_start < $2 THEN 1 
-                 ELSE report_count + 1 
-             END,
-             window_start = CASE 
-                 WHEN window_start < $2 THEN $3 
-                 ELSE window_start 
-             END
-             WHERE user_id = $1 AND (
-                 window_start >= $2 OR report_count < 5
-             )
-             RETURNING report_count`,
-            [userId, oneHourAgo, now]
-        );
-        
-        if (rateLimitResult.rows.length === 0) {
-            throw new Error('Rate limit exceeded');
+        // Check rate limit (5 reports per hour) - skip for moderators
+        if (!req.user.is_moderator) {
+            const now = new Date();
+            const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+            
+            // Get or create rate limit record
+            await client.query(
+                `INSERT INTO report_rate_limits (user_id, report_count, window_start) 
+                 VALUES ($1, 0, $2) 
+                 ON CONFLICT (user_id) DO NOTHING`,
+                [userId, now]
+            );
+            
+            // Check and update rate limit
+            const rateLimitResult = await client.query(
+                `UPDATE report_rate_limits 
+                 SET report_count = CASE 
+                     WHEN window_start < $2 THEN 1 
+                     ELSE report_count + 1 
+                 END,
+                 window_start = CASE 
+                     WHEN window_start < $2 THEN $3 
+                     ELSE window_start 
+                 END
+                 WHERE user_id = $1 AND (
+                     window_start >= $2 OR report_count < 5
+                 )
+                 RETURNING report_count`,
+                [userId, oneHourAgo, now]
+            );
+            
+            if (rateLimitResult.rows.length === 0) {
+                throw new Error('Rate limit exceeded');
+            }
         }
         
         // Get comment info
