@@ -137,7 +137,7 @@ services:
       - ./frontend:/usr/share/nginx/html:ro
       - ./docker/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./docker/generate-dhparam.sh:/docker-entrypoint.d/10-dhparam.sh:ro
-      - nginx-ssl:/etc/nginx/ssl
+      - ./docker/ssl:/etc/nginx/ssl
     ports:
       - "80:80"
       - "443:443"
@@ -160,8 +160,6 @@ volumes:
   postgres-moderation-data:
     driver: local
   redis-data:
-    driver: local
-  nginx-ssl:
     driver: local
 
 networks:

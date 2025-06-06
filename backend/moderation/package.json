@@ -2,10 +2,11 @@
   "name": "comment-moderation-service",
   "version": "1.0.0",
   "description": "Content moderation service for comment system",
-  "main": "moderation-server.js",
+  "main": "src/server.js",
   "scripts": {
-    "start": "node moderation-server.js",
-    "dev": "nodemon moderation-server.js"
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "start:legacy": "node moderation-server.js"
   },
   "dependencies": {
     "express": "^4.18.2",

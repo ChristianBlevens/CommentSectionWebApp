@@ -16,21 +16,54 @@ A **production-ready** comment system with Discord OAuth authentication, AI-powe
 - **📊 Trust System** - User reputation scoring based on behavior
 
 ## Table of Contents
-1. [Prerequisites Installation](#1-prerequisites-installation)
-2. [DuckDNS Setup](#2-duckdns-setup)
-3. [Discord OAuth Setup](#3-discord-oauth-setup)
-4. [Download and Configure Project](#4-download-and-configure-project)
-5. [Let's Encrypt Setup](#5-lets-encrypt-setup)
-6. [Initial Deployment](#6-initial-deployment)
-7. [Testing the Application](#7-testing-the-application)
-8. [Using as an iFrame](#8-using-as-an-iframe)
-9. [Maintenance and Troubleshooting](#9-maintenance-and-troubleshooting)
-10. [Project Architecture](#10-project-architecture)
-11. [File Reference](#11-file-reference)
+1. [Deployment Options](#1-deployment-options)
+2. [Prerequisites Installation](#2-prerequisites-installation)
+3. [VPS Setup (Optional)](#3-vps-setup-optional)
+4. [Domain Setup](#4-domain-setup)
+5. [Discord OAuth Setup](#5-discord-oauth-setup)
+6. [Download and Configure Project](#6-download-and-configure-project)
+7. [SSL/TLS Certificate Setup](#7-ssltls-certificate-setup)
+8. [Initial Deployment](#8-initial-deployment)
+9. [Testing the Application](#9-testing-the-application)
+10. [Using as an iFrame](#10-using-as-an-iframe)
+11. [Maintenance and Troubleshooting](#11-maintenance-and-troubleshooting)
+12. [Project Architecture](#12-project-architecture)
+13. [File Reference](#13-file-reference)
 
 ---
 
-## 1. Prerequisites Installation
+## 1. Deployment Options
+
+You can deploy this comment system in several ways:
+
+### A. Home Server / Local Machine
+- **Cost**: Free (uses your existing internet and hardware)
+- **Pros**: Full control, no monthly fees
+- **Cons**: Requires port forwarding, always-on computer, residential IP
+- **Best for**: Testing, small personal projects
+
+### B. VPS (Virtual Private Server) - Recommended
+- **Cost**: ~$5-10/month
+- **Pros**: Professional hosting, static IP, better uptime, no home network exposure
+- **Cons**: Monthly cost
+- **Best for**: Production deployments
+- **Popular providers**: 
+  - **Hetzner Cloud** (~€6/month) - Excellent value, EU-based
+  - **DigitalOcean** (~$6/month) - User-friendly, global locations
+  - **Linode** (~$5/month) - Good performance
+  - **Vultr** (~$6/month) - Many locations
+
+> **Note**: This guide includes specific instructions for VPS deployment. We use Hetzner Cloud as an example due to its competitive pricing and reliability, but the steps work with any VPS provider.
+
+### C. Choose Your Path
+- **For Home Server**: Continue with [Prerequisites Installation](#2-prerequisites-installation)
+- **For VPS Deployment**: Skip to [VPS Setup](#3-vps-setup-optional)
+
+---
+
+## 2. Prerequisites Installation
+
+> **VPS Users**: Skip to [VPS Setup](#3-vps-setup-optional)
 
 ### For Windows
 
@@ -173,9 +206,92 @@ curl ifconfig.me
 
 ---
 
-## 2. DuckDNS Setup
+## 3. VPS Setup (Optional)
 
-### A. Create DuckDNS Account
+> Continue to [Domain Setup](#4-domain-setup) if you are using a home server.
+
+This section covers deploying on a VPS. We'll use Hetzner Cloud as an example, but these steps apply to any VPS provider.
+
+### A. Create a VPS Instance
+
+#### For Hetzner Cloud:
+1. **Sign up** at https://www.hetzner.com/cloud
+2. **Create New Server**:
+   - Location: Choose nearest to your users
+   - Image: **Ubuntu 22.04**
+   - Type: **CX11** (2 vCPU, 2GB RAM) - Recommended
+   - SSH Keys: Add your SSH key (recommended) or use password
+   - Name: `comment-app-server`
+3. **Note your server's IP** (e.g., 65.108.123.45)
+
+#### For Other Providers:
+- **DigitalOcean**: Create a Droplet with Ubuntu 22.04, 2GB+ RAM
+- **Linode**: Create a Linode with Ubuntu 22.04, 2GB+ RAM
+- **Vultr**: Deploy a Cloud Compute instance with Ubuntu 22.04
+
+### B. Connect to Your VPS
+
+```bash
+# Using SSH key (recommended)
+ssh root@YOUR_SERVER_IP
+
+# Using password
+ssh root@YOUR_SERVER_IP
+# Enter the password provided by your VPS provider
+```
+
+### C. Install Docker and Prerequisites
+
+```bash
+# Update system
+apt update && apt upgrade -y
+
+# Install required packages
+apt install apt-transport-https ca-certificates curl software-properties-common git -y
+
+# Install Docker
+curl -fsSL https://get.docker.com | sh
+
+# Install Docker Compose
+curl -L "https://github.com/docker/compose/releases/download/v2.24.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+chmod +x /usr/local/bin/docker-compose
+
+# Verify installations
+docker --version
+docker-compose --version
+```
+
+### D. Configure Firewall
+
+```bash
+# Install UFW if not already installed
+apt install ufw -y
+
+# Allow SSH (important!)
+ufw allow 22/tcp
+
+# Allow HTTP and HTTPS
+ufw allow 80/tcp
+ufw allow 443/tcp
+
+# Enable firewall
+ufw --force enable
+
+# Check status
+ufw status
+```
+
+---
+
+## 4. Domain Setup
+
+You have two options for domain setup:
+
+### Option A: DuckDNS (Free Dynamic DNS)
+
+> **Recommended for**: Home servers, testing, or if you don't want to buy a domain
+
+#### 1. Create DuckDNS Account
 
 1. **Sign Up**
    - Go to https://www.duckdns.org/
@@ -196,7 +312,9 @@ curl ifconfig.me
    - Copy your token from the top of the page
    - Save it in a text file - you'll need it later
 
-### B. Configure Router Port Forwarding
+#### 2. Configure Router Port Forwarding (Home Server Only)
+
+> **VPS Users**: Skip this step - your VPS already has public ports
 
 1. **Access Your Router**
    - Open browser, go to `192.168.1.1` or `192.168.0.1`
@@ -223,7 +341,7 @@ curl ifconfig.me
 
 4. **Save and Apply Changes**
 
-### C. Test DuckDNS is Working
+#### 3. Test Domain Resolution
 
 **Windows:**
 ```powershell
@@ -239,9 +357,25 @@ nslookup mycomments.duckdns.org
 
 Should return your public IP address.
 
+### Option B: Custom Domain (Recommended for Production)
+
+> **For VPS deployments with a professional appearance**
+
+1. **Purchase a domain** from providers like:
+   - Namecheap (~$10/year)
+   - Google Domains (~$12/year)
+   - Cloudflare (~$10/year)
+
+2. **Point domain to your server**:
+   - Add an A record pointing to your server's IP
+   - Example: `@` → `65.108.123.45`
+   - Example: `www` → `65.108.123.45`
+
+3. **Wait for DNS propagation** (5-30 minutes)
+
 ---
 
-## 3. Discord OAuth Setup
+## 5. Discord OAuth Setup
 
 ### A. Create Discord Application
 
@@ -269,44 +403,59 @@ Should return your public IP address.
    - Enable "Developer Mode"
    - Right-click your username anywhere
    - Click "Copy User ID"
-   - Your ID format: `discord_123456789012345678`
+   - Your ID format: `123456789012345678`
 
 ---
 
-## 4. Download and Configure Project
+## 6. Download and Configure Project
 
-### A. Clone the Repository
+### A. Get the Project Files
 
-**Windows:**
+#### For Home Server (Windows):
 ```powershell
 cd C:\
 mkdir Projects
 cd Projects
-git clone https://github.com/yourusername/CommentSectionWebApp.git
+git clone https://github.com/ChristianBlevens/CommentSectionWebApp.git
 cd CommentSectionWebApp
 ```
 
-**Linux:**
+#### For Home Server (Linux):
 ```bash
 cd ~
 mkdir projects
 cd projects
-git clone https://github.com/yourusername/CommentSectionWebApp.git
+git clone https://github.com/ChristianBlevens/CommentSectionWebApp.git
 cd CommentSectionWebApp
 ```
 
+#### For VPS:
+```bash
+# Connect to your VPS via SSH first, then:
+cd /root
+git clone https://github.com/ChristianBlevens/CommentSectionWebApp.git comment-app
+cd comment-app
+```
+
+> **Note**: Git was already installed during VPS setup. If you're using a private repository, you may need to configure SSH keys or use HTTPS with credentials.
+
 ### B. Configure Environment Files
+
+> **Note**: The project includes all necessary scripts and directories. You only need to:
+> 1. Copy the example environment files
+> 2. Configure them with your settings
+> 3. Copy your SSL certificates to `docker/ssl/`
 
 1. **Copy Example Files**
 
-   **Windows:**
+   **Windows (PowerShell):**
    ```powershell
    copy .env.example .env
    copy backend\api\.env.example backend\api\.env
    copy backend\moderation\.env.example backend\moderation\.env
    ```
 
-   **Linux:**
+   **Linux/VPS:**
    ```bash
    cp .env.example .env
    cp backend/api/.env.example backend/api/.env
@@ -323,7 +472,7 @@ cd CommentSectionWebApp
    # PostgreSQL Database Configuration
    DB_USER=postgres
    DB_NAME=comments_db
-   DB_PASSWORD=MySecurePassword123!
+   DB_PASSWORD=ChangeThisSecurePassword123!
 
    # Moderation Database Configuration
    MODERATION_DB_NAME=moderation_db
@@ -349,31 +498,34 @@ cd CommentSectionWebApp
    PORT=3000
 
    # Database configuration - PostgreSQL
-   DB_HOST=postgres-comments
-   DB_PORT=5432
-   DB_NAME=comments_db
-   DB_USER=postgres
-   DB_PASSWORD=MySecurePassword123!  # Same as root .env
+   # These values are set via docker-compose.yml from root .env file
+   # DB_HOST=postgres-comments
+   # DB_PORT=5432
+   # DB_NAME=comments_db
+   # DB_USER=postgres
+   # DB_PASSWORD=(inherited from root .env)
 
    # Redis configuration
-   REDIS_URL=redis://redis:6379
+   # Set via docker-compose.yml
+   # REDIS_URL=redis://redis:6379
 
    # Discord OAuth Configuration
-   DISCORD_CLIENT_ID=1234567890123456789
-   DISCORD_CLIENT_SECRET=your-client-secret-here
+   DISCORD_CLIENT_ID=your-discord-client-id-here
+   DISCORD_CLIENT_SECRET=your-discord-client-secret-here
    DISCORD_REDIRECT_URI=https://mycomments.duckdns.org/oauth-callback.html
 
    # Allowed CORS origins
    ALLOWED_ORIGINS=https://mycomments.duckdns.org
 
-   # Initial moderators (your Discord ID)
-   INITIAL_MODERATORS=discord_987654321098765432
+   # Initial moderators (Discord IDs, use discord_ as a prefix)
+   INITIAL_MODERATORS=discord_123456789012345678
 
    # Moderation service URL
-   MODERATION_API_URL=http://moderation-service:3001
+   # Set via docker-compose.yml
+   # MODERATION_API_URL=http://moderation-service:3001
 
    # Session configuration
-   SESSION_SECRET=generate64RandomCharactersHere1234567890abcdefghijklmnopqrstuv
+   SESSION_SECRET=generate-a-random-64-character-string-here-for-session-security
    SESSION_DURATION=86400
 
    # Rate limiting
@@ -398,11 +550,12 @@ cd CommentSectionWebApp
    PORT=3001
 
    # Database configuration
-   DB_HOST=postgres-moderation
-   DB_PORT=5432
-   DB_NAME=moderation_db
-   DB_USER=postgres
-   DB_PASSWORD=MySecurePassword123!  # Same as root .env
+   # These values are set via docker-compose.yml from root .env file
+   # DB_HOST=postgres-moderation
+   # DB_PORT=5432
+   # DB_NAME=moderation_db
+   # DB_USER=postgres
+   # DB_PASSWORD=(inherited from root .env)
 
    # Admin key for moderation
    ADMIN_KEY=GenerateAStrongAdminKey123!@#
@@ -421,7 +574,7 @@ cd CommentSectionWebApp
    LOG_LEVEL=info
    ```
 
-### C. Set File Permissions (Linux Only)
+### C. Set File Permissions (Linux/VPS Only)
 
 ```bash
 # Secure the environment files
@@ -433,151 +586,188 @@ chmod +x docker/*.sh
 
 ---
 
-## 5. Let's Encrypt Setup
+## 7. SSL/TLS Certificate Setup
 
-**Note:** We're doing Let's Encrypt setup BEFORE deployment so you have valid certificates from the start!
+### For Windows Home Server
 
-### For Windows
+Since Certbot no longer officially supports Windows, you have to use WSL2 (Windows Subsystem for Linux)
 
-#### A. Install Certbot
-
-1. **Download Certbot**
-   - Go to https://certbot.eff.org/instructions
-   - Select "Other" for Software and "Windows" for System
-   - Download the Windows installer
-
-2. **Install Certbot**
-   - Run the downloaded installer
-   - Follow installation prompts
-   - Certbot will be installed to `C:\Program Files\Certbot\`
-
-#### B. Generate Certificate
-
-1. **Check Port 80 Availability**
+1. **Install WSL2** (if not already installed, should have come with Docker Desktop)
    ```powershell
-   netstat -ano | findstr :80
-   ```
-   If something is using it (like IIS), stop that service temporarily.
-
-2. **Run Certbot** (PowerShell as Administrator)
-   ```powershell
-   certbot certonly --standalone -d mycomments.duckdns.org
+   # Run as Administrator
+   wsl --install
+   # Restart your computer when prompted
    ```
 
-3. **Create SSL Directory and Copy Certificates**
+2. **Open PowerShell and Create WSL2 Instance for Ubuntu 22.04**
    ```powershell
-   cd C:\Projects\CommentSectionWebApp
-   mkdir docker\ssl
-   copy C:\Certbot\live\mycomments.duckdns.org\fullchain.pem docker\ssl\
-   copy C:\Certbot\live\mycomments.duckdns.org\privkey.pem docker\ssl\
-   copy C:\Certbot\live\mycomments.duckdns.org\chain.pem docker\ssl\
+   wsl --install -d Ubuntu-22.04
    ```
 
-### For Linux
+3. **Open WSL2 Terminal With The New Instance**
+   ```powershell
+   wsl --distribution Ubuntu-22.04
+   ```
 
-#### A. Install Certbot
-
-**Ubuntu/Debian:**
-```bash
-sudo apt update
-sudo apt install certbot -y
-```
-
-**CentOS/RHEL/Fedora:**
-```bash
-sudo dnf install certbot -y
-```
-
-#### B. Generate Certificate
-
-1. **Check Port 80 Availability**
+4. **Install Certbot in WSL2**
    ```bash
-   sudo lsof -i :80
+   sudo apt update
+   sudo apt install certbot -y
    ```
-   If something is using it, stop that service temporarily.
 
-2. **Run Certbot**
+5. **Generate Certificate**
    ```bash
+   # Make sure port 80 is available
    sudo certbot certonly --standalone -d mycomments.duckdns.org
    ```
 
-3. **Create SSL Directory and Copy Certificates**
+6. **Copy Certificates to Windows** (from WSL2)
    ```bash
+   # Create directory in Windows filesystem
+   mkdir -p /mnt/c/Projects/CommentSectionWebApp/docker/ssl
+   
+   # Copy certificates
+   sudo cp /etc/letsencrypt/live/mycomments.duckdns.org/fullchain.pem /mnt/c/Projects/CommentSectionWebApp/docker/ssl/
+   sudo cp /etc/letsencrypt/live/mycomments.duckdns.org/privkey.pem /mnt/c/Projects/CommentSectionWebApp/docker/ssl/
+   sudo cp /etc/letsencrypt/live/mycomments.duckdns.org/chain.pem /mnt/c/Projects/CommentSectionWebApp/docker/ssl/
+   ```
+
+### For Linux/VPS
+
+#### A. Install Certbot
+
+```bash
+# For Ubuntu/Debian (includes VPS)
+apt update
+apt install certbot -y
+
+# For CentOS/RHEL/Fedora
+dnf install certbot -y
+```
+
+#### B. Generate Certificate
+
+1. **Stop any services using port 80**
+   ```bash
+   # Check what's using port 80
+   lsof -i :80
+   
+   # If Docker is running, stop it temporarily
+   docker-compose down 2>/dev/null || true
+   ```
+
+2. **Run Certbot**
+   ```bash
+   # IMPORTANT: Run certbot from your home/root directory, NOT from the project directory
+   
+   # For home server (with sudo)
+   cd ~
+   sudo certbot certonly --standalone -d mycomments.duckdns.org
+   
+   # For VPS (as root) - Run from /root directory
+   cd /root
+   certbot certonly --standalone -d mycomments.duckdns.org
+   ```
+
+3. **Copy Certificates to Project**
+   ```bash
+   # Navigate to project directory
+   # Home server:
    cd ~/projects/CommentSectionWebApp
-   mkdir -p docker/ssl
+   
+   # VPS:
+   cd /root/comment-app
+   
+   # Copy certificates (the SSL directory already exists)
+   # For home server:
    sudo cp /etc/letsencrypt/live/mycomments.duckdns.org/fullchain.pem docker/ssl/
    sudo cp /etc/letsencrypt/live/mycomments.duckdns.org/privkey.pem docker/ssl/
    sudo cp /etc/letsencrypt/live/mycomments.duckdns.org/chain.pem docker/ssl/
    
-   # Set proper ownership
-   sudo chown -R $USER:$USER docker/ssl
+   # For VPS:
+   cp /etc/letsencrypt/live/mycomments.duckdns.org/*.pem docker/ssl/
+   
+   # Set proper permissions
    chmod 644 docker/ssl/*.pem
    chmod 600 docker/ssl/privkey.pem
    ```
 
-### C. Modify docker-compose.yml
+### C. Setup Auto-Renewal
 
-**Windows:** `notepad docker-compose.yml`  
-**Linux:** `nano docker-compose.yml`
+#### Windows Home Server
 
-Find the `frontend:` section and add this line under `volumes:` (after the nginx.conf line):
-```yaml
-- ./docker/ssl:/etc/nginx/ssl:ro
-```
+1. **Update the renewal script** (located in docker/ssl/renew-ssl.sh):
+   - The script automatically uses the SSL_DOMAIN from your .env file
+   - No editing needed unless you have special requirements
 
-### D. Setup Auto-Renewal
-
-**Windows:**
-
-1. Create `renew-cert.ps1`:
+2. **For WSL2: Create Windows wrapper script**
+   Create `renew-cert-wsl.ps1`:
    ```powershell
-   # renew-cert.ps1
+   # renew-cert-wsl.ps1
    cd C:\Projects\CommentSectionWebApp
-   
-   # Stop frontend
-   docker-compose stop frontend
-   
-   # Renew certificate
-   certbot renew
-   
-   # Copy new certificates
-   copy C:\Certbot\live\mycomments.duckdns.org\fullchain.pem docker\ssl\
-   copy C:\Certbot\live\mycomments.duckdns.org\privkey.pem docker\ssl\
-   copy C:\Certbot\live\mycomments.duckdns.org\chain.pem docker\ssl\
-   
-   # Start frontend
-   docker-compose start frontend
+   wsl ./docker/ssl/renew-ssl.sh
    ```
 
-2. Schedule with Task Scheduler (weekly at 3 AM)
+3. **Schedule with Task Scheduler**
+   - Open Task Scheduler
+   - Create Basic Task
+   - Name: "Renew SSL Certificates"
+   - Trigger: Weekly, Sunday, 3:00 AM
+   - Action: Start a program
+   - Program: `powershell.exe`
+   - Arguments: `-ExecutionPolicy Bypass -File "C:\Projects\CommentSectionWebApp\renew-cert-wsl.ps1"`
 
-**Linux:**
+#### Linux/VPS
 
-1. Add to root's crontab:
+1. **Configure the renewal script** (located in docker/ssl/renew-ssl.sh):
    ```bash
+   # The renewal script is in the docker/ssl directory
+   # Ensure it's executable (it should already be)
+   chmod +x docker/ssl/renew-ssl.sh
+   
+   # Edit .env to set your domain (if not already done)
+   # SSL_DOMAIN=mycomments.duckdns.org
+   ```
+
+2. **Add to crontab**:
+   ```bash
+   # For VPS (as root)
+   crontab -e
+   
+   # For home server
    sudo crontab -e
    ```
 
-2. Add this line:
+3. **Add this line**:
    ```cron
-   0 3 * * 0 certbot renew --pre-hook "cd /home/username/projects/CommentSectionWebApp && docker-compose stop frontend" --post-hook "cd /home/username/projects/CommentSectionWebApp && docker-compose start frontend && cp /etc/letsencrypt/live/mycomments.duckdns.org/*.pem /home/username/projects/CommentSectionWebApp/docker/ssl/"
+   # For VPS
+   0 3 * * 0 /root/comment-app/docker/ssl/renew-ssl.sh > /var/log/ssl-renewal.log 2>&1
+   
+   # For home server
+   0 3 * * 0 /home/username/projects/CommentSectionWebApp/docker/ssl/renew-ssl.sh > /var/log/ssl-renewal.log 2>&1
    ```
 
 ---
 
-## 6. Initial Deployment
+## 8. Initial Deployment
 
 ### A. Start the Application
 
-**Windows:**
+**Windows Home Server:**
 ```powershell
 cd C:\Projects\CommentSectionWebApp
 docker-compose up -d
 ```
 
-**Linux:**
+**Linux Home Server:**
 ```bash
 cd ~/projects/CommentSectionWebApp
+docker-compose up -d
+```
+
+**VPS:**
+```bash
+cd /root/comment-app
 docker-compose up -d
 ```
 
@@ -612,7 +802,7 @@ docker-compose logs frontend
 
 ---
 
-## 7. Testing the Application
+## 9. Testing the Application
 
 ### A. Test Comment System Features
 
@@ -668,7 +858,7 @@ docker-compose logs frontend
 
 ---
 
-## 8. Using as an iFrame
+## 10. Using as an iFrame
 
 ### A. Basic iFrame Implementation
 
@@ -785,7 +975,7 @@ add_shortcode('comments', 'comments_iframe_shortcode');
 
 ---
 
-## 9. Maintenance and Troubleshooting
+## 11. Maintenance and Troubleshooting
 
 ### A. Daily Maintenance
 
@@ -837,7 +1027,9 @@ docker system prune -a
 
 ### C. Backup Procedures
 
-**Windows:** Create `backup.ps1`:
+#### Windows Home Server
+
+Create `backup.ps1`:
 ```powershell
 $date = Get-Date -Format "yyyyMMdd_HHmmss"
 $backupDir = "C:\Backups\CommentSystem\$date"
@@ -857,14 +1049,24 @@ Copy-Item backend\moderation\.env "$backupDir\moderation.env"
 Write-Host "Backup completed to $backupDir"
 ```
 
-**Linux:** Create `backup.sh`:
+#### Linux/VPS
+
+Create `backup.sh`:
 ```bash
 #!/bin/bash
 DATE=$(date +%Y%m%d_%H%M%S)
-BACKUP_DIR="$HOME/backups/comment-system/$DATE"
-mkdir -p "$BACKUP_DIR"
 
-cd ~/projects/CommentSectionWebApp
+# Set paths based on deployment type
+# For VPS:
+PROJECT_DIR="/root/comment-app"
+BACKUP_DIR="/root/backups/$DATE"
+
+# For home server:
+# PROJECT_DIR="$HOME/projects/CommentSectionWebApp"
+# BACKUP_DIR="$HOME/backups/comment-system/$DATE"
+
+mkdir -p "$BACKUP_DIR"
+cd $PROJECT_DIR
 
 # Backup databases
 docker-compose exec -T postgres-comments pg_dump -U postgres comments_db > "$BACKUP_DIR/comments_db.sql"
@@ -876,6 +1078,11 @@ cp backend/api/.env "$BACKUP_DIR/api.env"
 cp backend/moderation/.env "$BACKUP_DIR/moderation.env"
 
 echo "Backup completed to $BACKUP_DIR"
+```
+
+Make it executable:
+```bash
+chmod +x backup.sh
 ```
 
 ### D. Updates and Upgrades
@@ -919,9 +1126,45 @@ docker run --rm -v comment-system_redis-data:/data -v $(pwd):/backup alpine tar 
 docker-compose start
 ```
 
+### F. VPS-Specific Maintenance
+
+#### Monitor Resources
+```bash
+# Check disk usage
+df -h
+
+# Check memory usage
+free -h
+
+# Monitor real-time resource usage
+htop  # Install with: apt install htop
+
+# Check Docker resource usage
+docker stats
+```
+
+#### Security Updates
+```bash
+# Keep system updated (VPS)
+apt update && apt upgrade -y
+
+# Auto-remove unused packages
+apt autoremove -y
+
+# Optional: Install fail2ban for additional security
+apt install fail2ban -y
+```
+
+#### Cost Monitoring
+- **Hetzner**: ~€6/month for CX21
+- **DigitalOcean**: ~$6/month for Basic Droplet
+- **Domain**: ~$10-15/year (if using custom domain)
+- **SSL**: Free with Let's Encrypt
+- **Total**: ~$6-10/month
+
 ---
 
-## 10. Project Architecture
+## 12. Project Architecture
 
 ### System Components
 
@@ -990,7 +1233,8 @@ CommentSectionWebApp/
 ├── docker/
 │   ├── nginx.conf              # Nginx configuration
 │   ├── generate-dhparam.sh     # DH parameters generator
-│   └── ssl/                    # SSL certificates (created by you)
+│   └── ssl/                    # SSL certificates directory
+│       └── renew-ssl.sh        # Certificate renewal script
 ├── docker-compose.yml          # Container orchestration
 ├── .env.example                # Main environment template
 ├── .gitignore                  # Git ignore rules
@@ -1080,6 +1324,12 @@ CommentSectionWebApp/
 
 ## Quick Reference
 
+### Included Files
+- `docker/ssl/` - SSL certificate directory (add your certificates here)
+- `docker/ssl/renew-ssl.sh` - Auto-renewal script for SSL certificates
+- `docker/generate-dhparam.sh` - DH parameter generation (runs automatically)
+- All example environment files with sensible defaults
+
 ### Essential Commands
 ```bash
 # Start services
@@ -1099,6 +1349,9 @@ docker-compose ps
 
 # Enter container
 docker-compose exec backend-api sh
+
+# Renew SSL certificates
+./docker/ssl/renew-ssl.sh
 ```
 
 ### Important URLs
@@ -1122,7 +1375,16 @@ docker-compose exec backend-api sh
 
 ---
 
-## 11. File Reference
+## 13. File Reference
+
+### Files You Need to Create
+- `.env` (copy from `.env.example`)
+- `backend/api/.env` (copy from `backend/api/.env.example`)
+- `backend/moderation/.env` (copy from `backend/moderation/.env.example`)
+- SSL certificates in `docker/ssl/`:
+  - `fullchain.pem`
+  - `privkey.pem`
+  - `chain.pem`
 
 ### Root Directory Files
 
@@ -1133,7 +1395,11 @@ Main orchestration file that defines all services (databases, Redis, backend API
 Template for root environment variables. Contains Docker-level configurations like database passwords, SSL domain, and project name. Copy to `.env` for use.
 
 **`/.gitignore`**  
-Specifies which files Git should ignore. Includes node_modules, .env files, SSL certificates, and Docker volumes to keep sensitive data out of version control.
+Git ignore file that prevents sensitive files from being tracked. Ignores:
+- Generated `dhparam.pem` file (unique per deployment)
+- SSL certificates (fullchain.pem, privkey.pem, chain.pem)
+- Environment files (.env files containing secrets)
+- Contains comments suggesting additional patterns users might want to add
 
 **`/LICENSE`**  
 MIT License file allowing free use, modification, and distribution of this software.
@@ -1189,13 +1455,29 @@ Template for moderation environment variables. Contains database connection, adm
 Nginx web server configuration. Handles HTTPS/TLS termination, HTTP to HTTPS redirects, rate limiting, security headers, and reverse proxying to backend services. Core of the security infrastructure.
 
 **`/docker/generate-dhparam.sh`**  
-Shell script that generates Diffie-Hellman parameters for enhanced TLS security. Runs automatically on container startup if DH params don't exist.
+Shell script that generates Diffie-Hellman parameters for enhanced TLS security. Runs automatically on container startup if DH params don't exist. Features:
+- Installs OpenSSL automatically if not present in nginx:alpine image
+- Checks if SSL directory is writable before attempting generation
+- Generates 2048-bit DH parameters for enhanced security
+- Only runs once (skips if dhparam.pem already exists)
 
-**`/docker/ssl/`** (directory you create)  
-Directory for SSL certificates. You'll copy Let's Encrypt or commercial certificates here. Contains:
-- `fullchain.pem` - Certificate chain
-- `privkey.pem` - Private key  
-- `chain.pem` - Intermediate certificates
+**`/docker/ssl/`**  
+Directory for SSL certificates and security files. This directory is writable by the container. Contains:
+- `renew-ssl.sh` - Automated certificate renewal script that handles stopping/starting services and copying certificates
+- `dhparam.pem` - Diffie-Hellman parameters (generated automatically on first run)
+- `fullchain.pem` - Certificate chain (you add this)
+- `privkey.pem` - Private key (you add this)
+- `chain.pem` - Intermediate certificates (you add this)
+
+**`/docker/ssl/renew-ssl.sh`**  
+Automated SSL certificate renewal script. Features:
+- Automatically uses SSL_DOMAIN from root .env file
+- Stops frontend container to free port 80 for renewal
+- Runs certbot renewal
+- Copies new certificates to the SSL directory
+- Sets proper permissions
+- Restarts frontend container
+- Can be run manually or via cron job
 
 ### Docker Compose Services
 

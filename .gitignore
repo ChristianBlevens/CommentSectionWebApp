@@ -1,84 +1,19 @@
-# Node modules
-node_modules/
-*/node_modules/
-**/node_modules/
+# Git ignore file
 
-# Environment files
+# Generated DH parameters (unique per deployment)
+docker/ssl/dhparam.pem
+
+# SSL certificates (add these when you get them)
+docker/ssl/fullchain.pem
+docker/ssl/privkey.pem
+docker/ssl/chain.pem
+
+# Environment files (contain secrets)
 .env
-.env.local
-.env.production
-*/.env
-*/.env.local
-*/.env.production
-# Keep .env.example files
-!.env.example
-!*/.env.example
+backend/api/.env
+backend/moderation/.env
 
-# Logs
-logs/
-*.log
-npm-debug.log*
-**/logs/
-**/*.log
-**/npm-debug.log*
-
-# Runtime data
-pids
-*.pid
-*.seed
-*.pid.lock
-**/pids
-**/*.pid
-**/*.seed
-**/*.pid.lock
-
-# OS files
-.DS_Store
-Thumbs.db
-**/.DS_Store
-**/Thumbs.db
-
-# IDE files
-.vscode/
-.idea/
-*.swp
-*.swo
-**/.vscode/
-**/.idea/
-**/*.swp
-**/*.swo
-
-# Temporary files
-temp/
-tmp/
-.cache/
-**/temp/
-**/tmp/
-**/.cache/
-
-# Docker volumes (from root docker-compose if used)
-postgres_main_data/
-postgres_moderation_data/
-redis_data/
-postgres-comments-data/
-postgres-moderation-data/
-nginx-ssl/
-
-# SSL certificates (use volume mounts in production)
-*.pem
-*.crt
-*.key
-ssl/
-docker/ssl/
-
-# Production builds
-dist/
-build/
-
-# Test coverage
-coverage/
-.nyc_output/
-
-# Backup files
-*.backup
-*.bak
+# Common patterns to consider adding:
+# node_modules/
+# .DS_Store
+# *.log

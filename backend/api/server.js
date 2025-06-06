@@ -115,8 +115,59 @@ const authLimiter = createRateLimiter(15 * 60 * 1000, 5, 'Too many authenticatio
 const generalLimiter = createRateLimiter(15 * 60 * 1000, 100, 'Too many requests');
 const strictLimiter = createRateLimiter(60 * 60 * 1000, 10, 'Too many requests');
 
-// Apply general rate limit to all routes
-app.use(generalLimiter);
+// Middleware to conditionally apply rate limiting (skip for moderators)
+const conditionalRateLimit = (limiter) => {
+    return async (req, res, next) => {
+        // If user is authenticated and is a moderator, skip rate limiting
+        if (req.user && req.user.is_moderator) {
+            return next();
+        }
+        // Otherwise apply the rate limiter
+        return limiter(req, res, next);
+    };
+};
+
+// Custom middleware to skip rate limiting for moderators
+app.use(async (req, res, next) => {
+    // Try to get user from session if Authorization header exists
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        const sessionToken = authHeader.split(' ')[1];
+        
+        try {
+            // Get user ID from Redis session
+            const userId = await safeRedisOp(() => redisClient.get(`session:${sessionToken}`));
+            
+            if (userId) {
+                // Get user from database
+                const userResult = await pgPool.query(
+                    'SELECT id, name, picture, is_moderator, is_banned FROM users WHERE id = $1',
+                    [userId]
+                );
+                
+                if (userResult.rows.length > 0) {
+                    const user = userResult.rows[0];
+                    // If user is a moderator, mark request to skip rate limiting
+                    if (user.is_moderator) {
+                        req.skipRateLimit = true;
+                    }
+                }
+            }
+        } catch (error) {
+            // Continue without skipping rate limit if any error
+            console.error('Error checking moderator status for rate limiting:', error);
+        }
+    }
+    next();
+});
+
+// Apply general rate limit to all routes (but skip for moderators)
+app.use((req, res, next) => {
+    if (req.skipRateLimit) {
+        return next();
+    }
+    return generalLimiter(req, res, next);
+});
 
 // Initialize database schema
 const initDatabase = async () => {
@@ -573,7 +624,7 @@ app.get('/api/comments/:pageId', async (req, res) => {
     }
 });
 
-// Create a new comment
+// Create a new comment (with conditional rate limiting for non-moderators)
 app.post('/api/comments', authenticateUser, async (req, res) => {
     const { pageId, content, parentId } = req.body;
     const userId = req.user.id;
@@ -824,6 +875,37 @@ app.post('/api/comments/:commentId/vote', authenticateUser, async (req, res) => 
     }
 });
 
+// Helper function to clean up orphaned deleted comments
+async function cleanupOrphanedDeletedComments(client, parentId) {
+    if (!parentId) return;
+    
+    // Check if parent is a deleted placeholder
+    const parentCheck = await client.query(
+        'SELECT id, content, parent_id FROM comments WHERE id = $1',
+        [parentId]
+    );
+    
+    if (parentCheck.rows.length === 0) return;
+    
+    const parent = parentCheck.rows[0];
+    
+    // If parent is deleted placeholder, check if it has any remaining children
+    if (parent.content === '[deleted]') {
+        const childrenCount = await client.query(
+            'SELECT COUNT(*) as count FROM comments WHERE parent_id = $1',
+            [parent.id]
+        );
+        
+        if (parseInt(childrenCount.rows[0].count) === 0) {
+            // No children left, delete the placeholder
+            await client.query('DELETE FROM comments WHERE id = $1', [parent.id]);
+            
+            // Recursively check parent's parent
+            await cleanupOrphanedDeletedComments(client, parent.parent_id);
+        }
+    }
+}
+
 // Delete comment endpoint
 app.delete('/api/comments/:commentId', authenticateUser, async (req, res) => {
     const { commentId } = req.params;
@@ -860,8 +942,27 @@ app.delete('/api/comments/:commentId', authenticateUser, async (req, res) => {
             throw new Error('Unauthorized to delete this comment');
         }
         
-        // Delete comment (cascade will handle children)
-        await client.query('DELETE FROM comments WHERE id = $1', [commentIdNum]);
+        // Check if comment has children
+        const childrenCheck = await client.query(
+            'SELECT COUNT(*) as count FROM comments WHERE parent_id = $1',
+            [commentIdNum]
+        );
+        
+        const hasChildren = parseInt(childrenCheck.rows[0].count) > 0;
+        
+        if (hasChildren) {
+            // Mark as deleted instead of removing (to preserve children)
+            await client.query(
+                'UPDATE comments SET content = $1, user_id = $2 WHERE id = $3',
+                ['[deleted]', userId, commentIdNum]
+            );
+        } else {
+            // No children, safe to delete completely
+            await client.query('DELETE FROM comments WHERE id = $1', [commentIdNum]);
+            
+            // Clean up orphaned deleted placeholders
+            await cleanupOrphanedDeletedComments(client, comment.parent_id);
+        }
         
         await client.query('COMMIT');
         
@@ -883,6 +984,72 @@ app.delete('/api/comments/:commentId', authenticateUser, async (req, res) => {
         } else {
             res.status(500).json({ error: 'Failed to delete comment' });
         }
+    } finally {
+        client.release();
+    }
+});
+
+// Delete all comments for a page (moderator only)
+app.delete('/api/comments/page/:pageId/all', authenticateUser, async (req, res) => {
+    const { pageId } = req.params;
+    const isUserModerator = req.user.is_moderator;
+    
+    console.log('Delete all comments request:', { pageId, userId: req.user.id, isModerator: isUserModerator });
+    
+    // Check if user is a moderator
+    if (!isUserModerator) {
+        console.error('Non-moderator attempted to delete all comments');
+        return res.status(403).json({ error: 'Only moderators can delete all comments' });
+    }
+    
+    // Validate page ID
+    if (!pageId || pageId.length > 255) {
+        console.error('Invalid page ID:', pageId);
+        return res.status(400).json({ error: 'Invalid page ID' });
+    }
+    
+    const client = await pgPool.connect();
+    
+    try {
+        await client.query('BEGIN');
+        
+        // Count comments before deletion
+        const countResult = await client.query(
+            'SELECT COUNT(*) as count FROM comments WHERE page_id = $1',
+            [pageId]
+        );
+        
+        const deletedCount = parseInt(countResult.rows[0].count);
+        
+        if (deletedCount === 0) {
+            await client.query('COMMIT');
+            return res.json({ success: true, deletedCount: 0, message: 'No comments to delete' });
+        }
+        
+        // Delete all comments for the page (cascade will handle votes and reports)
+        await client.query('DELETE FROM comments WHERE page_id = $1', [pageId]);
+        
+        // Also delete any reports for this page
+        await client.query('DELETE FROM reports WHERE page_id = $1', [pageId]);
+        
+        await client.query('COMMIT');
+        
+        // Clear cache
+        await safeRedisOp(() => 
+            redisClient.del(getCacheKey('comments', pageId))
+        );
+        
+        console.log(`Deleted ${deletedCount} comments for page ${pageId}`);
+        res.json({ 
+            success: true, 
+            deletedCount, 
+            message: `Successfully deleted ${deletedCount} comment${deletedCount !== 1 ? 's' : ''}`
+        });
+        
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Delete all comments error:', error);
+        res.status(500).json({ error: 'Failed to delete comments' });
     } finally {
         client.release();
     }
@@ -911,38 +1078,40 @@ app.post('/api/comments/:commentId/report', authenticateUser, async (req, res) =
             throw new Error('User is banned');
         }
         
-        // Check rate limit (5 reports per hour)
-        const now = new Date();
-        const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
-        
-        // Get or create rate limit record
-        await client.query(
-            `INSERT INTO report_rate_limits (user_id, report_count, window_start) 
-             VALUES ($1, 0, $2) 
-             ON CONFLICT (user_id) DO NOTHING`,
-            [userId, now]
-        );
-        
-        // Check and update rate limit
-        const rateLimitResult = await client.query(
-            `UPDATE report_rate_limits 
-             SET report_count = CASE 
-                 WHEN window_start < $2 THEN 1 
-                 ELSE report_count + 1 
-             END,
-             window_start = CASE 
-                 WHEN window_start < $2 THEN $3 
-                 ELSE window_start 
-             END
-             WHERE user_id = $1 AND (
-                 window_start >= $2 OR report_count < 5
-             )
-             RETURNING report_count`,
-            [userId, oneHourAgo, now]
-        );
-        
-        if (rateLimitResult.rows.length === 0) {
-            throw new Error('Rate limit exceeded');
+        // Check rate limit (5 reports per hour) - skip for moderators
+        if (!req.user.is_moderator) {
+            const now = new Date();
+            const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+            
+            // Get or create rate limit record
+            await client.query(
+                `INSERT INTO report_rate_limits (user_id, report_count, window_start) 
+                 VALUES ($1, 0, $2) 
+                 ON CONFLICT (user_id) DO NOTHING`,
+                [userId, now]
+            );
+            
+            // Check and update rate limit
+            const rateLimitResult = await client.query(
+                `UPDATE report_rate_limits 
+                 SET report_count = CASE 
+                     WHEN window_start < $2 THEN 1 
+                     ELSE report_count + 1 
+                 END,
+                 window_start = CASE 
+                     WHEN window_start < $2 THEN $3 
+                     ELSE window_start 
+                 END
+                 WHERE user_id = $1 AND (
+                     window_start >= $2 OR report_count < 5
+                 )
+                 RETURNING report_count`,
+                [userId, oneHourAgo, now]
+            );
+            
+            if (rateLimitResult.rows.length === 0) {
+                throw new Error('Rate limit exceeded');
+            }
         }
         
         // Get comment info
@@ -995,14 +1164,17 @@ app.get('/api/reports/:pageId', authenticateUser, requireModerator, async (req, 
     
     try {
         
-        // Get reports with comment details
+        // Get reports with comment details (use LEFT JOIN in case comment was deleted)
         const reports = await pgPool.query(
-            `SELECT r.*, c.content, c.user_id as comment_user_id, 
-                    u1.name as reporter_name, u2.name as comment_user_name
+            `SELECT r.*, 
+                    COALESCE(c.content, '[Comment deleted]') as content, 
+                    c.user_id as comment_user_id, 
+                    u1.name as reporter_name, 
+                    COALESCE(u2.name, '[Deleted User]') as comment_user_name
              FROM reports r
-             JOIN comments c ON r.comment_id = c.id
+             LEFT JOIN comments c ON r.comment_id = c.id
              JOIN users u1 ON r.reporter_id = u1.id
-             JOIN users u2 ON c.user_id = u2.id
+             LEFT JOIN users u2 ON c.user_id = u2.id
              WHERE r.page_id = $1 AND r.status = 'pending'
              ORDER BY r.created_at DESC`,
             [pageId]
