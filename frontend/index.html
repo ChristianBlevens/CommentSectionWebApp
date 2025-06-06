@@ -389,15 +389,24 @@
                     </h2>
                     
                     <!-- Moderator Actions -->
-                    <div class="flex gap-3 mb-3">
-                        <!-- Reports dropdown -->
-                        <div x-data="{ showReports: false, reports: [], loadingReports: false }">
-                            <button @click="showReports = !showReports; if(showReports && reports.length === 0) window.commentAppInstance.loadReports()" 
+                    <div x-data="{ showReports: false, reports: [], loadingReports: false }">
+                        <div class="flex gap-3 mb-3">
+                            <!-- Reports button -->
+                            <button @click="showReports = !showReports; if(showReports && reports.length === 0) window.commentAppInstance.loadReports($el.closest('[x-data]'))" 
                                     class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">
                                 <i class="fas fa-flag mr-2"></i>
                                 View Reports (<span x-text="reports.length"></span>)
                             </button>
+                            
+                            <!-- Delete All Comments Button -->
+                            <button @click="deleteAllComments()" 
+                                    class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md">
+                                <i class="fas fa-trash-alt mr-2"></i>
+                                Delete All Comments
+                            </button>
+                        </div>
                         
+                        <!-- Reports dropdown -->
                         <div x-show="showReports" class="mt-3">
                             <div x-show="loadingReports" class="text-center py-4">
                                 <i class="fas fa-spinner fa-spin"></i> Loading reports...
@@ -450,14 +459,6 @@
                                 </template>
                             </div>
                         </div>
-                        </div>
-                        
-                        <!-- Delete All Comments Button -->
-                        <button @click="deleteAllComments()" 
-                                class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md">
-                            <i class="fas fa-trash-alt mr-2"></i>
-                            Delete All Comments
-                        </button>
                     </div>
                 </div>
             </div>
@@ -1639,8 +1640,8 @@
                 },
                 
                 // Moderator functions
-                async loadReports() {
-                    const scope = this.$el.querySelector('[x-data*="showReports"]').__x.$data;
+                async loadReports(scopeElement) {
+                    const scope = scopeElement ? scopeElement.__x.$data : this.$el.querySelector('[x-data*="showReports"]').__x.$data;
                     scope.loadingReports = true;
                     
                     const sessionToken = localStorage.getItem('sessionToken');
