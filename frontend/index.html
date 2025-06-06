@@ -9,15 +9,269 @@
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.12.0/dist/cdn.min.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/markdown-it/dist/markdown-it.min.js"></script>
     <style>
-        .comment-indent { margin-left: 2rem; }
-        .markdown-content img { max-width: 100%; height: auto; }
-        .markdown-content video { max-width: 100%; height: auto; }
-        .embed-responsive { position: relative; display: block; width: 100%; padding: 0; overflow: hidden; }
-        .embed-responsive-16by9::before { display: block; content: ""; padding-top: 56.25%; }
-        .embed-responsive-item { position: absolute; top: 0; bottom: 0; left: 0; width: 100%; height: 100%; border: 0; }
-        .spoiler { background-color: #000; color: #000; cursor: pointer; padding: 0 4px; }
-        .spoiler.revealed { background-color: transparent; color: inherit; }
-        .markdown-toolbar { position: absolute; bottom: 8px; right: 8px; }
+        /* Reddit-style comment system */
+        :root {
+            --comment-line-color: #dae0e6;
+            --comment-hover-line-color: #0079d3;
+            --comment-padding: clamp(0.75rem, 2vw, 1rem);
+            --comment-indent: clamp(1rem, 3vw, 1.5rem);
+            --max-nest-depth: 10;
+        }
+        
+        .comment-thread {
+            position: relative;
+        }
+        
+        .comment-container {
+            position: relative;
+            padding-left: var(--comment-indent);
+        }
+        
+        .comment-container:not(.focused-chain) > .comment-line {
+            position: absolute;
+            left: 0.5rem;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background-color: var(--comment-line-color);
+            transition: background-color 0.2s ease;
+            cursor: pointer;
+        }
+        
+        .comment-container:hover > .comment-line {
+            background-color: var(--comment-hover-line-color);
+        }
+        
+        .comment-container.collapsed > .comment-line {
+            bottom: 2rem;
+        }
+        
+        .comment-content {
+            background: white;
+            border-radius: 0.5rem;
+            padding: var(--comment-padding);
+            margin-bottom: 0.5rem;
+            position: relative;
+            transition: box-shadow 0.2s ease;
+        }
+        
+        .comment-content:hover {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .comment-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        
+        .comment-avatar {
+            width: clamp(1.5rem, 4vw, 2rem);
+            height: clamp(1.5rem, 4vw, 2rem);
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        
+        .comment-meta {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            font-size: clamp(0.75rem, 2vw, 0.875rem);
+        }
+        
+        .comment-author {
+            font-weight: 600;
+            color: #1a1a1b;
+        }
+        
+        .comment-time {
+            color: #7c7c7d;
+        }
+        
+        .comment-body {
+            color: #1a1a1b;
+            line-height: 1.5;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        
+        .comment-actions {
+            display: flex;
+            align-items: center;
+            gap: clamp(0.5rem, 2vw, 1rem);
+            margin-top: 0.5rem;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+        
+        .comment-action {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            background: transparent;
+            border: none;
+            color: #878a8c;
+            font-size: clamp(0.75rem, 2vw, 0.875rem);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+        
+        .comment-action:hover {
+            background-color: #f6f7f8;
+            color: #1a1a1b;
+        }
+        
+        .comment-action.active-like {
+            color: #ff4500;
+        }
+        
+        .comment-action.active-dislike {
+            color: #7193ff;
+        }
+        
+        .comment-collapse-indicator {
+            position: absolute;
+            left: -0.75rem;
+            top: 0.5rem;
+            width: 0.5rem;
+            height: 0.5rem;
+            background-color: #878a8c;
+            border-radius: 50%;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            cursor: pointer;
+        }
+        
+        .comment-container:hover > .comment-content > .comment-collapse-indicator {
+            opacity: 1;
+        }
+        
+        .comment-container.collapsed .comment-children {
+            display: none;
+        }
+        
+        .comment-container.collapsed .comment-collapse-indicator {
+            background-color: #0079d3;
+            opacity: 1;
+        }
+        
+        .comment-deleted {
+            color: #7c7c7d;
+            font-style: italic;
+            padding: 0.5rem;
+        }
+        
+        .load-more-container {
+            margin-left: var(--comment-indent);
+            margin-bottom: 0.5rem;
+        }
+        
+        .load-more-btn {
+            background: #0079d3;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.25rem;
+            font-size: clamp(0.75rem, 2vw, 0.875rem);
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        
+        .load-more-btn:hover {
+            background: #1484d6;
+        }
+        
+        .focused-chain-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            background: #f6f7f8;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .unfocus-btn {
+            background: #878a8c;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        
+        .unfocus-btn:hover {
+            background: #636466;
+        }
+        
+        /* Responsive design without media queries */
+        .comment-report-btn {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+        
+        .comment-content:hover .comment-report-btn {
+            opacity: 1;
+        }
+        
+        /* Markdown content responsive styles */
+        .markdown-content img { 
+            max-width: 100%; 
+            height: auto; 
+            display: block;
+            margin: 0.5rem 0;
+        }
+        
+        .markdown-content video { 
+            max-width: 100%; 
+            height: auto; 
+        }
+        
+        .embed-responsive { 
+            position: relative; 
+            display: block; 
+            width: 100%; 
+            padding: 0; 
+            overflow: hidden; 
+        }
+        
+        .embed-responsive-16by9::before { 
+            display: block; 
+            content: ""; 
+            padding-top: 56.25%; 
+        }
+        
+        .embed-responsive-item { 
+            position: absolute; 
+            top: 0; 
+            bottom: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            border: 0; 
+        }
+        
+        .spoiler { 
+            background-color: #000; 
+            color: #000; 
+            cursor: pointer; 
+            padding: 0 4px; 
+        }
+        
+        .spoiler.revealed { 
+            background-color: transparent; 
+            color: inherit; 
+        }
         
         /* Markdown header styles - subtle size increases */
         .markdown-content h1 { font-size: 1.2em; font-weight: 600; margin: 0.5em 0; }
@@ -26,6 +280,98 @@
         .markdown-content h4 { font-size: 1.05em; font-weight: 600; margin: 0.5em 0; }
         .markdown-content h5 { font-size: 1em; font-weight: 600; margin: 0.5em 0; }
         .markdown-content h6 { font-size: 0.95em; font-weight: 600; margin: 0.5em 0; }
+        
+        /* Reply form responsive styles */
+        .reply-form {
+            margin-top: 0.5rem;
+            padding: var(--comment-padding);
+            background: #f6f7f8;
+            border-radius: 0.5rem;
+        }
+        
+        .reply-textarea {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #dae0e6;
+            border-radius: 0.25rem;
+            resize: vertical;
+            min-height: 3rem;
+            font-family: inherit;
+        }
+        
+        .reply-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 0.5rem;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .markdown-buttons {
+            display: flex;
+            gap: 0.25rem;
+            flex-wrap: wrap;
+        }
+        
+        .markdown-btn {
+            padding: 0.25rem 0.5rem;
+            background: white;
+            border: 1px solid #dae0e6;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            font-size: clamp(0.75rem, 2vw, 0.875rem);
+            transition: all 0.2s ease;
+        }
+        
+        .markdown-btn:hover {
+            background: #f6f7f8;
+            border-color: #878a8c;
+        }
+        
+        .reply-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .reply-submit, .reply-cancel {
+            padding: 0.25rem 1rem;
+            border-radius: 0.25rem;
+            border: none;
+            font-size: clamp(0.75rem, 2vw, 0.875rem);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .reply-submit {
+            background: #0079d3;
+            color: white;
+        }
+        
+        .reply-submit:hover {
+            background: #1484d6;
+        }
+        
+        .reply-submit:disabled {
+            background: #dae0e6;
+            cursor: not-allowed;
+        }
+        
+        .reply-cancel {
+            background: #878a8c;
+            color: white;
+        }
+        
+        .reply-cancel:hover {
+            background: #636466;
+        }
+        
+        /* Hide deep nesting beyond threshold */
+        @supports (selector(:has(*))) {
+            .comment-container:has(.comment-depth-10) {
+                --show-load-more: block;
+            }
+        }
     </style>
 </head>
 <body class="bg-gray-100">
@@ -218,9 +564,25 @@
         </div>
 
         <!-- Comments List -->
-        <div class="space-y-4">
-            <template x-for="comment in sortedComments" :key="comment.id">
-                <div x-html="renderComment(comment)"></div>
+        <div class="comment-thread" x-data="{ focusedComment: null }">
+            <!-- Focused chain header -->
+            <div x-show="focusedComment" class="focused-chain-header">
+                <h3 class="font-semibold">Viewing comment thread</h3>
+                <button @click="focusedComment = null" class="unfocus-btn">
+                    <i class="fas fa-arrow-left mr-2"></i>Back to all comments
+                </button>
+            </div>
+            
+            <!-- Comments -->
+            <template x-show="!focusedComment">
+                <template x-for="comment in sortedComments" :key="comment.id">
+                    <div x-html="renderComment(comment, 0, focusedComment)"></div>
+                </template>
+            </template>
+            
+            <!-- Focused comment chain -->
+            <template x-show="focusedComment">
+                <div x-html="renderComment(focusedComment, 0, null, true)"></div>
             </template>
         </div>
 
@@ -919,108 +1281,139 @@
                     this.cancelReply(commentId);
                 },
 
-                renderComment(comment, level = 0) {
-                    const processed = this.preprocessMarkdown(comment.content);
-                    const content = this.md.render(processed);
+                renderComment(comment, depth = 0, focusContext = null, isFocused = false) {
+                    const MAX_DEPTH = 8;
+                    const shouldShowLoadMore = depth >= MAX_DEPTH && comment.children && comment.children.length > 0;
                     
-                    const html = `
-                        <div class="bg-white rounded-lg shadow-md p-4 relative" style="${level > 0 ? `margin-left: ${level * 2}rem;` : ''}" id="comment-${comment.id}">
-                            <!-- Report button (top right) -->
-                            ${this.user ? `
-                                <button onclick="window.commentAppInstance.reportComment('${comment.id}')" 
-                                        class="absolute top-4 right-4 text-gray-400 hover:text-red-600"
-                                        title="Report comment">
-                                    <i class="fas fa-flag"></i>
-                                </button>
-                            ` : ''}
+                    // Check if comment is deleted (content is null or user is deleted)
+                    const isDeleted = !comment.content || comment.content === '[deleted]' || comment.deleted;
+                    const displayContent = isDeleted ? '[Comment deleted]' : comment.content;
+                    const displayAuthor = isDeleted ? '[deleted]' : comment.userName;
+                    
+                    const processed = isDeleted ? '' : this.preprocessMarkdown(displayContent);
+                    const content = isDeleted ? '' : this.md.render(processed);
+                    
+                    let html = `
+                        <div class="comment-container ${depth > 0 ? 'comment-depth-' + depth : ''}" 
+                             data-comment-id="${comment.id}"
+                             ${isFocused ? 'class="focused-chain"' : ''}>
+                            <!-- Vertical connection line -->
+                            ${depth > 0 && !isFocused ? '<div class="comment-line" onclick="window.commentAppInstance.toggleCollapse(event)"></div>' : ''}
                             
-                            <div class="flex items-start mb-3">
-                                <img src="${comment.userPicture}" class="w-10 h-10 rounded-full mr-3">
-                                <div class="flex-1">
-                                    <div class="flex items-center mb-1">
-                                        <span class="font-semibold">${comment.userName}</span>
-                                        <span class="text-gray-500 text-sm ml-2">
-                                            ${new Date(comment.createdAt).toLocaleDateString()}
-                                        </span>
-                                    </div>
-                                    <div class="markdown-content">${content}</div>
-                                </div>
-                            </div>
-                            
-                            <div class="flex items-center space-x-4 mt-3">
-                                <button onclick="window.commentAppInstance.voteComment('${comment.id}', 'like')" 
-                                        class="flex items-center space-x-1 ${comment.userVote === 'like' ? 'text-green-600' : 'text-gray-600'} hover:text-green-600 transition-colors"
-                                        title="${this.user ? (comment.userVote === 'like' ? 'Remove like' : 'Like') : 'Sign in to like'}">
-                                    <i class="fas fa-thumbs-up"></i>
-                                    <span>${comment.likes}</span>
-                                </button>
-                                <button onclick="window.commentAppInstance.voteComment('${comment.id}', 'dislike')" 
-                                        class="flex items-center space-x-1 ${comment.userVote === 'dislike' ? 'text-red-600' : 'text-gray-600'} hover:text-red-600 transition-colors"
-                                        title="${this.user ? (comment.userVote === 'dislike' ? 'Remove dislike' : 'Dislike') : 'Sign in to dislike'}">
-                                    <i class="fas fa-thumbs-down"></i>
-                                    <span>${comment.dislikes}</span>
-                                </button>
-                                <button onclick="window.commentAppInstance.showReplyForm('${comment.id}')" 
-                                        class="text-gray-600 hover:text-blue-600">
-                                    <i class="fas fa-reply mr-1"></i>Reply
-                                </button>
+                            <div class="comment-content" id="comment-${comment.id}">
+                                <!-- Collapse indicator -->
+                                ${comment.children && comment.children.length > 0 ? `
+                                    <div class="comment-collapse-indicator" onclick="window.commentAppInstance.toggleCollapse(event)"></div>
+                                ` : ''}
                                 
-                                <!-- Delete button (bottom right) -->
-                                ${(this.user && (comment.userId === this.user.id || this.user.is_moderator)) ? `
-                                    <button onclick="window.commentAppInstance.deleteComment('${comment.id}')" 
-                                            class="ml-auto text-gray-600 hover:text-red-600">
-                                        <i class="fas fa-trash mr-1"></i>Delete
+                                <!-- Report button -->
+                                ${this.user && !isDeleted ? `
+                                    <button onclick="window.commentAppInstance.reportComment('${comment.id}')" 
+                                            class="comment-report-btn text-gray-400 hover:text-red-600"
+                                            title="Report comment">
+                                        <i class="fas fa-flag text-sm"></i>
                                     </button>
                                 ` : ''}
-                            </div>
-                            
-                            <div id="reply-form-${comment.id}" style="display: none;" class="mt-4">
-                                <textarea id="reply-textarea-${comment.id}" 
-                                          placeholder="Write your reply..."
-                                          class="w-full p-3 border rounded-md focus:ring-2 focus:ring-blue-500"
-                                          rows="3"></textarea>
-                                <div class="flex justify-between items-center mt-2">
-                                    <!-- Markdown Toolbar on the left -->
-                                    <div class="bg-white border rounded-md shadow-sm p-1 flex space-x-1">
-                                        <button onclick="window.commentAppInstance.insertMarkdownForReply('${comment.id}', '**', '**')" title="Bold" class="p-1 hover:bg-gray-100 rounded">
-                                            <i class="fas fa-bold text-xs"></i>
-                                        </button>
-                                        <button onclick="window.commentAppInstance.insertMarkdownForReply('${comment.id}', '*', '*')" title="Italic" class="p-1 hover:bg-gray-100 rounded">
-                                            <i class="fas fa-italic text-xs"></i>
-                                        </button>
-                                        <button onclick="window.commentAppInstance.insertMarkdownForReply('${comment.id}', '~~', '~~')" title="Strikethrough" class="p-1 hover:bg-gray-100 rounded">
-                                            <i class="fas fa-strikethrough text-xs"></i>
-                                        </button>
-                                        <button onclick="window.commentAppInstance.insertMarkdownForReply('${comment.id}', '## ', '')" title="Header" class="p-1 hover:bg-gray-100 rounded">
-                                            <i class="fas fa-heading text-xs"></i>
-                                        </button>
-                                        <button onclick="window.commentAppInstance.insertMarkdownForReply('${comment.id}', '||', '||')" title="Spoiler" class="p-1 hover:bg-gray-100 rounded">
-                                            <i class="fas fa-eye-slash text-xs"></i>
-                                        </button>
-                                        <button onclick="window.commentAppInstance.insertImageForReply('${comment.id}')" title="Image" class="p-1 hover:bg-gray-100 rounded">
-                                            <i class="fas fa-image text-xs"></i>
-                                        </button>
-                                        <button onclick="window.commentAppInstance.insertVideoForReply('${comment.id}')" title="Video" class="p-1 hover:bg-gray-100 rounded">
-                                            <i class="fas fa-video text-xs"></i>
-                                        </button>
+                                
+                                <!-- Comment header -->
+                                <div class="comment-header">
+                                    ${!isDeleted ? `<img src="${comment.userPicture}" class="comment-avatar">` : '<div class="comment-avatar bg-gray-300"></div>'}
+                                    <div class="comment-meta">
+                                        <span class="comment-author">${displayAuthor}</span>
+                                        <span class="comment-time">${this.getRelativeTime(comment.createdAt)}</span>
                                     </div>
-                                    
-                                    <!-- Action buttons on the right -->
-                                    <div class="flex space-x-2">
-                                        <button onclick="window.commentAppInstance.cancelReply('${comment.id}')" 
-                                                class="px-3 py-1 bg-gray-300 rounded-md hover:bg-gray-400">
-                                            Cancel
+                                </div>
+                                
+                                <!-- Comment body -->
+                                <div class="comment-body">
+                                    ${isDeleted ? '<span class="comment-deleted">[Comment deleted]</span>' : `<div class="markdown-content">${content}</div>`}
+                                </div>
+                                
+                                <!-- Comment actions -->
+                                ${!isDeleted ? `
+                                    <div class="comment-actions">
+                                        <button onclick="window.commentAppInstance.voteComment('${comment.id}', 'like')" 
+                                                class="comment-action ${comment.userVote === 'like' ? 'active-like' : ''}"
+                                                title="${this.user ? (comment.userVote === 'like' ? 'Remove upvote' : 'Upvote') : 'Sign in to upvote'}">
+                                            <i class="fas fa-arrow-up"></i>
+                                            <span>${comment.likes}</span>
                                         </button>
-                                        <button onclick="window.commentAppInstance.submitReply('${comment.id}')" 
-                                                class="px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600">
-                                            Reply
+                                        <button onclick="window.commentAppInstance.voteComment('${comment.id}', 'dislike')" 
+                                                class="comment-action ${comment.userVote === 'dislike' ? 'active-dislike' : ''}"
+                                                title="${this.user ? (comment.userVote === 'dislike' ? 'Remove downvote' : 'Downvote') : 'Sign in to downvote'}">
+                                            <i class="fas fa-arrow-down"></i>
+                                            <span>${comment.dislikes}</span>
                                         </button>
+                                        <button onclick="window.commentAppInstance.showReplyForm('${comment.id}')" 
+                                                class="comment-action">
+                                            <i class="fas fa-comment"></i>
+                                            <span>Reply</span>
+                                        </button>
+                                        ${(this.user && (comment.userId === this.user.id || this.user.is_moderator)) ? `
+                                            <button onclick="window.commentAppInstance.deleteComment('${comment.id}')" 
+                                                    class="comment-action">
+                                                <i class="fas fa-trash"></i>
+                                                <span>Delete</span>
+                                            </button>
+                                        ` : ''}
+                                    </div>
+                                ` : ''}
+                                
+                                <!-- Reply form -->
+                                <div id="reply-form-${comment.id}" style="display: none;" class="reply-form">
+                                    <textarea id="reply-textarea-${comment.id}" 
+                                              placeholder="What are your thoughts?"
+                                              class="reply-textarea"></textarea>
+                                    <div class="reply-toolbar">
+                                        <div class="markdown-buttons">
+                                            <button onclick="window.commentAppInstance.insertMarkdownForReply('${comment.id}', '**', '**')" title="Bold" class="markdown-btn">
+                                                <i class="fas fa-bold"></i>
+                                            </button>
+                                            <button onclick="window.commentAppInstance.insertMarkdownForReply('${comment.id}', '*', '*')" title="Italic" class="markdown-btn">
+                                                <i class="fas fa-italic"></i>
+                                            </button>
+                                            <button onclick="window.commentAppInstance.insertMarkdownForReply('${comment.id}', '~~', '~~')" title="Strikethrough" class="markdown-btn">
+                                                <i class="fas fa-strikethrough"></i>
+                                            </button>
+                                            <button onclick="window.commentAppInstance.insertMarkdownForReply('${comment.id}', '## ', '')" title="Header" class="markdown-btn">
+                                                <i class="fas fa-heading"></i>
+                                            </button>
+                                            <button onclick="window.commentAppInstance.insertMarkdownForReply('${comment.id}', '||', '||')" title="Spoiler" class="markdown-btn">
+                                                <i class="fas fa-eye-slash"></i>
+                                            </button>
+                                            <button onclick="window.commentAppInstance.insertImageForReply('${comment.id}')" title="Image" class="markdown-btn">
+                                                <i class="fas fa-image"></i>
+                                            </button>
+                                            <button onclick="window.commentAppInstance.insertVideoForReply('${comment.id}')" title="Video" class="markdown-btn">
+                                                <i class="fas fa-video"></i>
+                                            </button>
+                                        </div>
+                                        <div class="reply-actions">
+                                            <button onclick="window.commentAppInstance.cancelReply('${comment.id}')" 
+                                                    class="reply-cancel">
+                                                Cancel
+                                            </button>
+                                            <button onclick="window.commentAppInstance.submitReply('${comment.id}')" 
+                                                    class="reply-submit">
+                                                Reply
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
+                            
+                            <!-- Children comments or Load More button -->
+                            <div class="comment-children">
+                                ${shouldShowLoadMore ? `
+                                    <div class="load-more-container">
+                                        <button onclick="window.commentAppInstance.focusCommentChain('${comment.id}')" 
+                                                class="load-more-btn">
+                                            <i class="fas fa-plus-circle mr-2"></i>Load more replies (${comment.children.length})
+                                        </button>
+                                    </div>
+                                ` : comment.children.map(child => this.renderComment(child, depth + 1, focusContext, isFocused)).join('')}
+                            </div>
                         </div>
-                        
-                        ${comment.children.map(child => this.renderComment(child, level + 1)).join('')}
                     `;
                     
                     // After rendering, attach spoiler handlers
@@ -1078,20 +1471,30 @@
                 },
                 
                 removeCommentFromTree(commentId) {
-                    const removeFromList = (comments) => {
-                        for (let i = comments.length - 1; i >= 0; i--) {
+                    const markAsDeleted = (comments) => {
+                        for (let i = 0; i < comments.length; i++) {
                             if (comments[i].id == commentId) {
-                                comments.splice(i, 1);
-                                return true;
+                                // If comment has children, mark as deleted instead of removing
+                                if (comments[i].children && comments[i].children.length > 0) {
+                                    comments[i].deleted = true;
+                                    comments[i].content = '[deleted]';
+                                    comments[i].userName = '[deleted]';
+                                    comments[i].userPicture = '';
+                                    return true;
+                                } else {
+                                    // No children, safe to remove completely
+                                    comments.splice(i, 1);
+                                    return true;
+                                }
                             }
-                            if (comments[i].children && removeFromList(comments[i].children)) {
+                            if (comments[i].children && markAsDeleted(comments[i].children)) {
                                 return true;
                             }
                         }
                         return false;
                     };
                     
-                    removeFromList(this.comments);
+                    markAsDeleted(this.comments);
                 },
                 
                 async reportComment(commentId) {
@@ -1152,6 +1555,52 @@
                             this.classList.toggle('revealed');
                         });
                     });
+                },
+                
+                getRelativeTime(dateString) {
+                    const date = new Date(dateString);
+                    const now = new Date();
+                    const seconds = Math.floor((now - date) / 1000);
+                    
+                    const intervals = {
+                        year: 31536000,
+                        month: 2592000,
+                        week: 604800,
+                        day: 86400,
+                        hour: 3600,
+                        minute: 60
+                    };
+                    
+                    for (const [unit, secondsInUnit] of Object.entries(intervals)) {
+                        const interval = Math.floor(seconds / secondsInUnit);
+                        if (interval >= 1) {
+                            return interval === 1 ? `1 ${unit} ago` : `${interval} ${unit}s ago`;
+                        }
+                    }
+                    
+                    return 'just now';
+                },
+                
+                toggleCollapse(event) {
+                    event.stopPropagation();
+                    const container = event.target.closest('.comment-container');
+                    if (container) {
+                        container.classList.toggle('collapsed');
+                    }
+                },
+                
+                focusCommentChain(commentId) {
+                    const comment = this.findComment(commentId, this.comments);
+                    if (comment) {
+                        // Get the Alpine component that manages focusedComment
+                        const threadComponent = document.querySelector('.comment-thread').__x;
+                        if (threadComponent && threadComponent.$data) {
+                            threadComponent.$data.focusedComment = comment;
+                        }
+                        
+                        // Scroll to top of comments section
+                        document.querySelector('.comment-thread').scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
                 },
                 
                 // Moderator functions
