@@ -128,11 +128,11 @@
         }
         
         .comment-action.active-like {
-            color: #ff4500;
+            color: #93C5FD;  /* Light blue */
         }
         
         .comment-action.active-dislike {
-            color: #7193ff;
+            color: #FCA5A5;  /* Light red */
         }
         
         .comment-collapse-indicator {
@@ -1365,13 +1365,13 @@
                                         <button onclick="window.commentAppInstance.voteComment('${comment.id}', 'like')" 
                                                 class="comment-action ${comment.userVote === 'like' ? 'active-like' : ''}"
                                                 title="${this.user ? (comment.userVote === 'like' ? 'Remove upvote' : 'Upvote') : 'Sign in to upvote'}">
-                                            <i class="fas fa-arrow-up"></i>
+                                            <i class="fas fa-thumbs-up"></i>
                                             <span>${comment.likes}</span>
                                         </button>
                                         <button onclick="window.commentAppInstance.voteComment('${comment.id}', 'dislike')" 
                                                 class="comment-action ${comment.userVote === 'dislike' ? 'active-dislike' : ''}"
                                                 title="${this.user ? (comment.userVote === 'dislike' ? 'Remove downvote' : 'Downvote') : 'Sign in to downvote'}">
-                                            <i class="fas fa-arrow-down"></i>
+                                            <i class="fas fa-thumbs-down"></i>
                                             <span>${comment.dislikes}</span>
                                         </button>
                                         <button onclick="window.commentAppInstance.showReplyForm('${comment.id}')" 
