@@ -860,8 +860,24 @@ app.delete('/api/comments/:commentId', authenticateUser, async (req, res) => {
             throw new Error('Unauthorized to delete this comment');
         }
         
-        // Delete comment (cascade will handle children)
-        await client.query('DELETE FROM comments WHERE id = $1', [commentIdNum]);
+        // Check if comment has children
+        const childrenCheck = await client.query(
+            'SELECT COUNT(*) as count FROM comments WHERE parent_id = $1',
+            [commentIdNum]
+        );
+        
+        const hasChildren = parseInt(childrenCheck.rows[0].count) > 0;
+        
+        if (hasChildren) {
+            // Mark as deleted instead of removing (to preserve children)
+            await client.query(
+                'UPDATE comments SET content = $1, user_id = $2 WHERE id = $3',
+                ['[deleted]', userId, commentIdNum]
+            );
+        } else {
+            // No children, safe to delete completely
+            await client.query('DELETE FROM comments WHERE id = $1', [commentIdNum]);
+        }
         
         await client.query('COMMIT');
         

@@ -582,7 +582,7 @@
             
             <!-- Focused comment chain -->
             <div x-show="focusedComment">
-                <div x-html="renderComment(focusedComment, 0, true)"></div>
+                <div x-html="focusedComment ? renderComment(focusedComment, 0, true) : ''"></div>
             </div>
         </div>
 
@@ -1161,8 +1161,8 @@
 
                 findComment(id, comments) {
                     for (const comment of comments) {
-                        if (comment.id === id) return comment;
-                        if (comment.children) {
+                        if (comment.id == id) return comment; // Use == for type coercion
+                        if (comment.children && comment.children.length > 0) {
                             const found = this.findComment(id, comment.children);
                             if (found) return found;
                         }
@@ -1296,6 +1296,12 @@
                 },
 
                 renderComment(comment, depth = 0, isFocused = false) {
+                    // Safety check for null comment
+                    if (!comment) {
+                        console.error('Attempting to render null comment');
+                        return '';
+                    }
+                    
                     const MAX_DEPTH = 4; // Changed from 8 to 4 levels
                     const shouldShowLoadMore = depth >= MAX_DEPTH && comment.children && comment.children.length > 0;
                     
@@ -1603,14 +1609,22 @@
                 },
                 
                 focusCommentChain(commentId) {
+                    console.log('Focusing comment chain:', commentId);
+                    console.log('Current comments:', this.comments);
+                    
                     const comment = this.findComment(commentId, this.comments);
+                    console.log('Found comment:', comment);
+                    
                     if (comment) {
                         this.focusedComment = comment;
+                        console.log('Set focusedComment:', this.focusedComment);
                         
                         // Scroll to top of comments section
                         this.$nextTick(() => {
                             document.querySelector('.comment-thread').scrollIntoView({ behavior: 'smooth', block: 'start' });
                         });
+                    } else {
+                        console.error('Comment not found:', commentId);
                     }
                 },
                 
