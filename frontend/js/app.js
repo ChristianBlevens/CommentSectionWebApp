@@ -78,37 +78,22 @@ class CommentApp {
     }
 
     async signInWithDiscord() {
-        try {
-            // Ensure config is loaded
-            const config = await this.api.loadConfig();
-            
-            if (!config.discordClientId) {
-                alert('Discord authentication is not configured. Please contact the administrator.');
-                console.error('Discord client ID not found in configuration');
-                return;
-            }
-            
-            const authUrl = await this.api.getDiscordAuthUrl();
-            console.log('Discord auth URL:', authUrl);
-            
-            // Open in popup
-            const width = 500;
-            const height = 700;
-            const left = (window.screen.width - width) / 2;
-            const top = (window.screen.height - height) / 2;
-            
-            const authWindow = window.open(
-                authUrl,
-                'discord-auth',
-                `width=${width},height=${height},left=${left},top=${top}`
-            );
-            
-            if (authWindow) {
-                authWindow.focus();
-            }
-        } catch (error) {
-            console.error('Failed to start Discord authentication:', error);
-            alert(error.message || 'Failed to start authentication. Please try again.');
+        const authUrl = await this.api.getDiscordAuthUrl();
+        
+        // Open in popup
+        const width = 500;
+        const height = 700;
+        const left = (window.screen.width - width) / 2;
+        const top = (window.screen.height - height) / 2;
+        
+        const authWindow = window.open(
+            authUrl,
+            'discord-auth',
+            `width=${width},height=${height},left=${left},top=${top}`
+        );
+        
+        if (authWindow) {
+            authWindow.focus();
         }
     }
 

@@ -49,26 +49,14 @@ class HealthController {
   }
   
   async getConfig(req, res) {
-    // Log config request for debugging
-    console.log('Config requested, Discord configured:', config.discord.isConfigured);
-    
     // Return public configuration for frontend
-    const publicConfig = {
+    res.json({
       discordClientId: config.discord.clientId,
       redirectUri: config.discord.redirectUri,
       maxCommentLength: config.security.maxCommentLength,
       maxReportLength: config.security.maxReportLength,
       environment: config.server.env,
-      discordConfigured: config.discord.isConfigured,
-    };
-    
-    // Log what we're sending (without sensitive data)
-    console.log('Sending config:', {
-      ...publicConfig,
-      discordClientId: publicConfig.discordClientId ? 'set' : 'not set',
     });
-    
-    res.json(publicConfig);
   }
   
   async getStats(req, res) {
