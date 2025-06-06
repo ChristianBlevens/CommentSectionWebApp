@@ -564,7 +564,7 @@
         </div>
 
         <!-- Comments List -->
-        <div class="comment-thread" x-data="{ focusedComment: null }">
+        <div class="comment-thread">
             <!-- Focused chain header -->
             <div x-show="focusedComment" class="focused-chain-header">
                 <h3 class="font-semibold">Viewing comment thread</h3>
@@ -574,16 +574,16 @@
             </div>
             
             <!-- Comments -->
-            <template x-show="!focusedComment">
+            <div x-show="!focusedComment">
                 <template x-for="comment in sortedComments" :key="comment.id">
-                    <div x-html="renderComment(comment, 0, focusedComment)"></div>
+                    <div x-html="renderComment(comment, 0)"></div>
                 </template>
-            </template>
+            </div>
             
             <!-- Focused comment chain -->
-            <template x-show="focusedComment">
-                <div x-html="renderComment(focusedComment, 0, null, true)"></div>
-            </template>
+            <div x-show="focusedComment">
+                <div x-html="renderComment(focusedComment, 0, true)"></div>
+            </div>
         </div>
 
         <!-- Loading State -->
@@ -639,6 +639,7 @@
                 sortBy: 'likes',
                 pageId: '',
                 md: null,
+                focusedComment: null,
                 // API URLs - use relative paths
                 apiUrl: '/api',
                 moderationUrl: '/moderation/api',
@@ -968,6 +969,19 @@
                     }
                     return count;
                 },
+                
+                countAllReplies(comment) {
+                    // Count all nested replies for a comment
+                    let count = 0;
+                    const countRecursive = (c) => {
+                        if (c.children && c.children.length > 0) {
+                            count += c.children.length;
+                            c.children.forEach(child => countRecursive(child));
+                        }
+                    };
+                    countRecursive(comment);
+                    return count;
+                },
 
                 updatePreview() {
                     const processed = this.preprocessMarkdown(this.newCommentText);
@@ -1281,8 +1295,8 @@
                     this.cancelReply(commentId);
                 },
 
-                renderComment(comment, depth = 0, focusContext = null, isFocused = false) {
-                    const MAX_DEPTH = 8;
+                renderComment(comment, depth = 0, isFocused = false) {
+                    const MAX_DEPTH = 4; // Changed from 8 to 4 levels
                     const shouldShowLoadMore = depth >= MAX_DEPTH && comment.children && comment.children.length > 0;
                     
                     // Check if comment is deleted (content is null or user is deleted)
@@ -1294,9 +1308,8 @@
                     const content = isDeleted ? '' : this.md.render(processed);
                     
                     let html = `
-                        <div class="comment-container ${depth > 0 ? 'comment-depth-' + depth : ''}" 
-                             data-comment-id="${comment.id}"
-                             ${isFocused ? 'class="focused-chain"' : ''}>
+                        <div class="comment-container ${depth > 0 ? 'comment-depth-' + depth : ''} ${isFocused ? 'focused-chain' : ''}" 
+                             data-comment-id="${comment.id}">
                             <!-- Vertical connection line -->
                             ${depth > 0 && !isFocused ? '<div class="comment-line" onclick="window.commentAppInstance.toggleCollapse(event)"></div>' : ''}
                             
@@ -1408,10 +1421,10 @@
                                     <div class="load-more-container">
                                         <button onclick="window.commentAppInstance.focusCommentChain('${comment.id}')" 
                                                 class="load-more-btn">
-                                            <i class="fas fa-plus-circle mr-2"></i>Load more replies (${comment.children.length})
+                                            <i class="fas fa-plus-circle mr-2"></i>Continue this thread (${this.countAllReplies(comment)} replies)
                                         </button>
                                     </div>
-                                ` : comment.children.map(child => this.renderComment(child, depth + 1, focusContext, isFocused)).join('')}
+                                ` : (comment.children && comment.children.length > 0 ? comment.children.map(child => this.renderComment(child, depth + 1, isFocused)).join('') : '')}
                             </div>
                         </div>
                     `;
@@ -1592,14 +1605,12 @@
                 focusCommentChain(commentId) {
                     const comment = this.findComment(commentId, this.comments);
                     if (comment) {
-                        // Get the Alpine component that manages focusedComment
-                        const threadComponent = document.querySelector('.comment-thread').__x;
-                        if (threadComponent && threadComponent.$data) {
-                            threadComponent.$data.focusedComment = comment;
-                        }
+                        this.focusedComment = comment;
                         
                         // Scroll to top of comments section
-                        document.querySelector('.comment-thread').scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        this.$nextTick(() => {
+                            document.querySelector('.comment-thread').scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        });
                     }
                 },
                 
