@@ -388,13 +388,15 @@
                         Moderator Panel
                     </h2>
                     
-                    <!-- Reports dropdown -->
-                    <div x-data="{ showReports: false, reports: [], loadingReports: false }">
-                        <button @click="showReports = !showReports; if(showReports && reports.length === 0) window.commentAppInstance.loadReports()" 
-                                class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md mb-3">
-                            <i class="fas fa-flag mr-2"></i>
-                            View Reports (<span x-text="reports.length"></span>)
-                        </button>
+                    <!-- Moderator Actions -->
+                    <div class="flex gap-3 mb-3">
+                        <!-- Reports dropdown -->
+                        <div x-data="{ showReports: false, reports: [], loadingReports: false }">
+                            <button @click="showReports = !showReports; if(showReports && reports.length === 0) window.commentAppInstance.loadReports()" 
+                                    class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">
+                                <i class="fas fa-flag mr-2"></i>
+                                View Reports (<span x-text="reports.length"></span>)
+                            </button>
                         
                         <div x-show="showReports" class="mt-3">
                             <div x-show="loadingReports" class="text-center py-4">
@@ -448,6 +450,14 @@
                                 </template>
                             </div>
                         </div>
+                        </div>
+                        
+                        <!-- Delete All Comments Button -->
+                        <button @click="deleteAllComments()" 
+                                class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md">
+                            <i class="fas fa-trash-alt mr-2"></i>
+                            Delete All Comments
+                        </button>
                     </div>
                 </div>
             </div>
@@ -1780,6 +1790,58 @@
                     } catch (error) {
                         console.error('Error banning user:', error);
                         alert('Failed to ban user');
+                    }
+                },
+                
+                async deleteAllComments() {
+                    if (!confirm('Are you sure you want to delete ALL comments on this page? This action cannot be undone.')) {
+                        return;
+                    }
+                    
+                    // Double confirmation for safety
+                    if (!confirm('This will permanently delete all comments and replies on this page. Are you absolutely sure?')) {
+                        return;
+                    }
+                    
+                    const sessionToken = localStorage.getItem('sessionToken');
+                    if (!sessionToken) {
+                        console.error('No session token found');
+                        alert('Please sign in again');
+                        return;
+                    }
+                    
+                    try {
+                        const response = await fetch(`${this.apiUrl}/comments/page/${this.pageId}/all`, {
+                            method: 'DELETE',
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${sessionToken}`
+                            }
+                        });
+                        
+                        if (!response.ok) {
+                            const error = await response.json();
+                            throw new Error(error.error || 'Failed to delete comments');
+                        }
+                        
+                        const result = await response.json();
+                        console.log('All comments deleted:', result);
+                        
+                        // Clear local state
+                        this.comments = [];
+                        this.sortedComments = [];
+                        
+                        // Clear any reports
+                        const reportsScope = this.$el.querySelector('[x-data*="showReports"]');
+                        if (reportsScope && reportsScope.__x) {
+                            reportsScope.__x.$data.reports = [];
+                        }
+                        
+                        alert(`Successfully deleted ${result.deletedCount} comments`);
+                        
+                    } catch (error) {
+                        console.error('Error deleting all comments:', error);
+                        alert(error.message || 'Failed to delete all comments');
                     }
                 }
             }
