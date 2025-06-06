@@ -1652,18 +1652,20 @@
                     }
                     
                     try {
-                        console.log('Loading reports for pageId:', this.pageId);
-                        const response = await fetch(`${this.apiUrl}/reports/${this.pageId}`, {
+                        console.log('Loading all reports to filter for pageId:', this.pageId);
+                        const response = await fetch(`${this.apiUrl}/reports`, {
                             headers: {
                                 'Authorization': `Bearer ${sessionToken}`
                             }
                         });
                         
                         if (response.ok) {
-                            const data = await response.json();
-                            scope.reports = data;
-                            console.log(`Loaded ${data.length} reports for page ${this.pageId}`);
-                            console.log('Reports data:', data);
+                            const allReports = await response.json();
+                            // Filter reports for this page only
+                            const pageReports = allReports.filter(report => report.page_id === this.pageId);
+                            scope.reports = pageReports;
+                            console.log(`Loaded ${pageReports.length} reports for page ${this.pageId} (from ${allReports.length} total)`);
+                            console.log('Page reports data:', pageReports);
                         } else if (response.status === 403) {
                             // User is not a moderator
                             console.log('User is not a moderator');
