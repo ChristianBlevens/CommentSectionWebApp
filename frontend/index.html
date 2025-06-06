@@ -4,28 +4,1855 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Comment Section</title>
-    
-    <!-- External CSS -->
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    
-    <!-- Custom CSS -->
-    <link href="css/main.css" rel="stylesheet">
-    
-    <!-- External JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.12.0/dist/cdn.min.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/markdown-it/dist/markdown-it.min.js"></script>
+    <style>
+        /* Reddit-style comment system */
+        :root {
+            --comment-line-color: #dae0e6;
+            --comment-hover-line-color: #0079d3;
+            --comment-padding: clamp(0.75rem, 2vw, 1rem);
+            --comment-indent: clamp(1rem, 3vw, 1.5rem);
+            --max-nest-depth: 10;
+        }
+        
+        .comment-thread {
+            position: relative;
+        }
+        
+        .comment-container {
+            position: relative;
+            padding-left: var(--comment-indent);
+        }
+        
+        .comment-container:not(.focused-chain) > .comment-line {
+            position: absolute;
+            left: 0.5rem;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background-color: var(--comment-line-color);
+            transition: background-color 0.2s ease;
+            cursor: pointer;
+        }
+        
+        .comment-container:hover > .comment-line {
+            background-color: var(--comment-hover-line-color);
+        }
+        
+        .comment-container.collapsed > .comment-line {
+            bottom: 2rem;
+        }
+        
+        .comment-content {
+            background: white;
+            border-radius: 0.5rem;
+            padding: var(--comment-padding);
+            margin-bottom: 0.5rem;
+            position: relative;
+            transition: box-shadow 0.2s ease;
+        }
+        
+        .comment-content:hover {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .comment-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        
+        .comment-avatar {
+            width: clamp(1.5rem, 4vw, 2rem);
+            height: clamp(1.5rem, 4vw, 2rem);
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        
+        .comment-meta {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            font-size: clamp(0.75rem, 2vw, 0.875rem);
+        }
+        
+        .comment-author {
+            font-weight: 600;
+            color: #1a1a1b;
+        }
+        
+        .comment-time {
+            color: #7c7c7d;
+        }
+        
+        .comment-body {
+            color: #1a1a1b;
+            line-height: 1.5;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        
+        .comment-actions {
+            display: flex;
+            align-items: center;
+            gap: clamp(0.5rem, 2vw, 1rem);
+            margin-top: 0.5rem;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+        
+        .comment-action {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            background: transparent;
+            border: none;
+            color: #878a8c;
+            font-size: clamp(0.75rem, 2vw, 0.875rem);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+        
+        .comment-action:hover {
+            background-color: #f6f7f8;
+            color: #1a1a1b;
+        }
+        
+        .comment-action.active-like {
+            color: #ff4500;
+        }
+        
+        .comment-action.active-dislike {
+            color: #7193ff;
+        }
+        
+        .comment-collapse-indicator {
+            position: absolute;
+            left: -0.75rem;
+            top: 0.5rem;
+            width: 0.5rem;
+            height: 0.5rem;
+            background-color: #878a8c;
+            border-radius: 50%;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            cursor: pointer;
+        }
+        
+        .comment-container:hover > .comment-content > .comment-collapse-indicator {
+            opacity: 1;
+        }
+        
+        .comment-container.collapsed .comment-children {
+            display: none;
+        }
+        
+        .comment-container.collapsed .comment-collapse-indicator {
+            background-color: #0079d3;
+            opacity: 1;
+        }
+        
+        .comment-deleted {
+            color: #7c7c7d;
+            font-style: italic;
+            padding: 0.5rem;
+        }
+        
+        .load-more-container {
+            margin-left: var(--comment-indent);
+            margin-bottom: 0.5rem;
+        }
+        
+        .load-more-btn {
+            background: #0079d3;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.25rem;
+            font-size: clamp(0.75rem, 2vw, 0.875rem);
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        
+        .load-more-btn:hover {
+            background: #1484d6;
+        }
+        
+        .focused-chain-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            background: #f6f7f8;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .unfocus-btn {
+            background: #878a8c;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        
+        .unfocus-btn:hover {
+            background: #636466;
+        }
+        
+        /* Responsive design without media queries */
+        .comment-report-btn {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+        
+        .comment-content:hover .comment-report-btn {
+            opacity: 1;
+        }
+        
+        /* Markdown content responsive styles */
+        .markdown-content img { 
+            max-width: 100%; 
+            height: auto; 
+            display: block;
+            margin: 0.5rem 0;
+        }
+        
+        .markdown-content video { 
+            max-width: 100%; 
+            height: auto; 
+        }
+        
+        .embed-responsive { 
+            position: relative; 
+            display: block; 
+            width: 100%; 
+            padding: 0; 
+            overflow: hidden; 
+        }
+        
+        .embed-responsive-16by9::before { 
+            display: block; 
+            content: ""; 
+            padding-top: 56.25%; 
+        }
+        
+        .embed-responsive-item { 
+            position: absolute; 
+            top: 0; 
+            bottom: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            border: 0; 
+        }
+        
+        .spoiler { 
+            background-color: #000; 
+            color: #000; 
+            cursor: pointer; 
+            padding: 0 4px; 
+        }
+        
+        .spoiler.revealed { 
+            background-color: transparent; 
+            color: inherit; 
+        }
+        
+        /* Markdown header styles - subtle size increases */
+        .markdown-content h1 { font-size: 1.2em; font-weight: 600; margin: 0.5em 0; }
+        .markdown-content h2 { font-size: 1.15em; font-weight: 600; margin: 0.5em 0; }
+        .markdown-content h3 { font-size: 1.1em; font-weight: 600; margin: 0.5em 0; }
+        .markdown-content h4 { font-size: 1.05em; font-weight: 600; margin: 0.5em 0; }
+        .markdown-content h5 { font-size: 1em; font-weight: 600; margin: 0.5em 0; }
+        .markdown-content h6 { font-size: 0.95em; font-weight: 600; margin: 0.5em 0; }
+        
+        /* Reply form responsive styles */
+        .reply-form {
+            margin-top: 0.5rem;
+            padding: var(--comment-padding);
+            background: #f6f7f8;
+            border-radius: 0.5rem;
+        }
+        
+        .reply-textarea {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #dae0e6;
+            border-radius: 0.25rem;
+            resize: vertical;
+            min-height: 3rem;
+            font-family: inherit;
+        }
+        
+        .reply-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 0.5rem;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .markdown-buttons {
+            display: flex;
+            gap: 0.25rem;
+            flex-wrap: wrap;
+        }
+        
+        .markdown-btn {
+            padding: 0.25rem 0.5rem;
+            background: white;
+            border: 1px solid #dae0e6;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            font-size: clamp(0.75rem, 2vw, 0.875rem);
+            transition: all 0.2s ease;
+        }
+        
+        .markdown-btn:hover {
+            background: #f6f7f8;
+            border-color: #878a8c;
+        }
+        
+        .reply-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .reply-submit, .reply-cancel {
+            padding: 0.25rem 1rem;
+            border-radius: 0.25rem;
+            border: none;
+            font-size: clamp(0.75rem, 2vw, 0.875rem);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .reply-submit {
+            background: #0079d3;
+            color: white;
+        }
+        
+        .reply-submit:hover {
+            background: #1484d6;
+        }
+        
+        .reply-submit:disabled {
+            background: #dae0e6;
+            cursor: not-allowed;
+        }
+        
+        .reply-cancel {
+            background: #878a8c;
+            color: white;
+        }
+        
+        .reply-cancel:hover {
+            background: #636466;
+        }
+        
+        /* Hide deep nesting beyond threshold */
+        @supports (selector(:has(*))) {
+            .comment-container:has(.comment-depth-10) {
+                --show-load-more: block;
+            }
+        }
+    </style>
 </head>
 <body class="bg-gray-100">
-    <div id="comment-app" class="container mx-auto p-4 max-w-4xl">
-        <!-- Content will be rendered here -->
-        <div class="text-center py-8">
+    <div x-data="commentApp()" x-init="init()" class="container mx-auto p-4 max-w-4xl">
+        <!-- Header -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h1 class="text-2xl font-bold mb-4">Comments</h1>
+            
+            <!-- Moderator Panel -->
+            <div x-show="user && user.is_moderator" class="mb-6">
+                <div class="bg-gray-100 rounded-lg p-4">
+                    <h2 class="text-lg font-semibold mb-3 flex items-center">
+                        <i class="fas fa-shield-alt mr-2 text-blue-600"></i>
+                        Moderator Panel
+                    </h2>
+                    
+                    <!-- Moderator Actions -->
+                    <div x-data="{ showReports: false, reports: [], loadingReports: false }">
+                        <div class="flex gap-3 mb-3">
+                            <!-- Reports button -->
+                            <button @click="showReports = !showReports; if(showReports && reports.length === 0) window.commentAppInstance.loadReports($el.closest('[x-data]'))" 
+                                    class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">
+                                <i class="fas fa-flag mr-2"></i>
+                                View Reports (<span x-text="reports.length"></span>)
+                            </button>
+                            
+                            <!-- Delete All Comments Button -->
+                            <button @click="deleteAllComments()" 
+                                    class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md">
+                                <i class="fas fa-trash-alt mr-2"></i>
+                                Delete All Comments
+                            </button>
+                        </div>
+                        
+                        <!-- Reports dropdown -->
+                        <div x-show="showReports" class="mt-3">
+                            <div x-show="loadingReports" class="text-center py-4">
+                                <i class="fas fa-spinner fa-spin"></i> Loading reports...
+                            </div>
+                            
+                            <div x-show="!loadingReports && reports.length === 0" class="text-gray-500 py-4">
+                                No pending reports
+                            </div>
+                            
+                            <div x-show="!loadingReports && reports.length > 0" class="space-y-3">
+                                <template x-for="report in reports" :key="report.id">
+                                    <div class="bg-white rounded-lg p-4 border border-gray-200">
+                                        <div class="flex justify-between items-start mb-2">
+                                            <div>
+                                                <p class="text-sm text-gray-600">
+                                                    Reported by: <span x-text="report.reporter_name"></span>
+                                                </p>
+                                                <p class="text-sm text-gray-600">
+                                                    Comment by: <span x-text="report.comment_user_name"></span>
+                                                </p>
+                                                <p class="text-sm text-gray-600">
+                                                    Reason: <span x-text="report.reason"></span>
+                                                </p>
+                                            </div>
+                                            <div class="flex space-x-2">
+                                                <button @click="window.commentAppInstance.viewReportedComment(report.comment_id)" 
+                                                        class="text-blue-600 hover:text-blue-800">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
+                                                <button @click="window.commentAppInstance.deleteReportedComment(report)" 
+                                                        class="text-red-600 hover:text-red-800">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                                <button @click="window.commentAppInstance.dismissReport(report.id)" 
+                                                        class="text-gray-600 hover:text-gray-800">
+                                                    <i class="fas fa-times"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="bg-gray-50 p-3 rounded text-sm">
+                                            <p x-text="report.content"></p>
+                                        </div>
+                                        <div class="mt-2">
+                                            <button @click="window.commentAppInstance.banUser(report.comment_user_id, report.comment_user_name)" 
+                                                    class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm">
+                                                <i class="fas fa-ban mr-1"></i>Ban User
+                                            </button>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Sign In / User Info -->
+            <div class="mb-4">
+                <div x-show="!user">
+                    <button @click="signInWithDiscord()" 
+                            class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md flex items-center transition-colors">
+                        <svg class="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M20.317 4.492c-1.53-.69-3.17-1.2-4.885-1.49a.075.075 0 0 0-.079.036c-.21.369-.444.85-.608 1.23a18.566 18.566 0 0 0-5.487 0 12.36 12.36 0 0 0-.617-1.23A.077.077 0 0 0 8.562 3c-1.714.29-3.354.8-4.885 1.491a.07.07 0 0 0-.032.027C.533 9.093-.32 13.555.099 17.961a.08.08 0 0 0 .031.055 20.03 20.03 0 0 0 5.993 2.98.078.078 0 0 0 .084-.026 13.83 13.83 0 0 0 1.226-1.963.074.074 0 0 0-.041-.104 13.175 13.175 0 0 1-1.872-.878.075.075 0 0 1-.008-.125 10.775 10.775 0 0 0 .372-.291.072.072 0 0 1 .077-.01c3.927 1.764 8.18 1.764 12.061 0a.071.071 0 0 1 .078.009c.12.098.246.198.373.292a.075.075 0 0 1-.006.125c-.598.344-1.22.635-1.873.877a.075.075 0 0 0-.041.105c.36.687.772 1.341 1.225 1.962a.077.077 0 0 0 .084.028 19.963 19.963 0 0 0 6.002-2.981.076.076 0 0 0 .032-.054c.5-5.094-.838-9.52-3.549-13.442a.06.06 0 0 0-.031-.028zM8.02 15.278c-1.182 0-2.157-1.069-2.157-2.38 0-1.312.956-2.38 2.157-2.38 1.21 0 2.176 1.077 2.157 2.38 0 1.312-.956 2.38-2.157 2.38zm7.975 0c-1.183 0-2.157-1.069-2.157-2.38 0-1.312.955-2.38 2.157-2.38 1.21 0 2.176 1.077 2.157 2.38 0 1.312-.946 2.38-2.157 2.38z"/>
+                        </svg>
+                        Sign in with Discord
+                    </button>
+                </div>
+                
+                <div x-show="user">
+                    <!-- User Info Bar -->
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center">
+                            <img :src="user?.avatar || ''" class="w-10 h-10 rounded-full mr-3">
+                            <span x-text="user?.username || ''" class="font-medium"></span>
+                        </div>
+                        <button @click="signOut()" class="text-sm text-red-600 hover:text-red-800">
+                            Sign Out
+                        </button>
+                    </div>
+                    
+                    <!-- Main Comment Box -->
+                    <div class="flex space-x-3 mt-4">
+                        <div class="flex-1">
+                            <div class="relative">
+                                <textarea x-model="newCommentText" 
+                                          @input="updatePreview()"
+                                          placeholder="Write your comment... (Markdown supported)"
+                                          class="w-full p-3 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                                          rows="4"></textarea>
+                            </div>
+
+                            <!-- Preview -->
+                            <div x-show="newCommentText" class="mt-4">
+                                <h4 class="font-semibold mb-2">Preview:</h4>
+                                <div x-html="commentPreview" class="markdown-content bg-gray-50 p-4 rounded-md"></div>
+                            </div>
+
+                            <!-- Submit Button with Markdown Toolbar -->
+                            <div class="flex justify-between items-center mt-4">
+                                <!-- Markdown Toolbar on the left -->
+                                <div class="bg-white border rounded-md shadow-sm p-1 flex space-x-1">
+                                    <button @click="insertMarkdown('**', '**')" title="Bold" class="p-2 hover:bg-gray-100 rounded">
+                                        <i class="fas fa-bold text-sm"></i>
+                                    </button>
+                                    <button @click="insertMarkdown('*', '*')" title="Italic" class="p-2 hover:bg-gray-100 rounded">
+                                        <i class="fas fa-italic text-sm"></i>
+                                    </button>
+                                    <button @click="insertMarkdown('~~', '~~')" title="Strikethrough" class="p-2 hover:bg-gray-100 rounded">
+                                        <i class="fas fa-strikethrough text-sm"></i>
+                                    </button>
+                                    <button @click="insertMarkdown('## ', '')" title="Header" class="p-2 hover:bg-gray-100 rounded">
+                                        <i class="fas fa-heading text-sm"></i>
+                                    </button>
+                                    <button @click="insertMarkdown('||', '||')" title="Spoiler" class="p-2 hover:bg-gray-100 rounded">
+                                        <i class="fas fa-eye-slash text-sm"></i>
+                                    </button>
+                                    <button @click="insertImage()" title="Image" class="p-2 hover:bg-gray-100 rounded">
+                                        <i class="fas fa-image text-sm"></i>
+                                    </button>
+                                    <button @click="insertVideo()" title="Video" class="p-2 hover:bg-gray-100 rounded">
+                                        <i class="fas fa-video text-sm"></i>
+                                    </button>
+                                </div>
+                                
+                                <!-- Post button on the right -->
+                                <button @click="submitComment()" 
+                                        :disabled="!newCommentText.trim()"
+                                        class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors disabled:bg-gray-300">
+                                    Post Comment
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Profile Picture on the right -->
+                        <div class="flex-shrink-0">
+                            <img :src="user?.avatar || ''" class="w-12 h-12 rounded-full">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sorting Options -->
+            <div class="flex space-x-4 mb-4">
+                <button @click="sortBy = 'likes'; sortComments()" 
+                        :class="{'bg-blue-500 text-white': sortBy === 'likes', 'bg-gray-200': sortBy !== 'likes'}"
+                        class="px-4 py-2 rounded-md transition-colors">
+                    <i class="fas fa-thumbs-up mr-2"></i>Top
+                </button>
+                <button @click="sortBy = 'popularity'; sortComments()" 
+                        :class="{'bg-blue-500 text-white': sortBy === 'popularity', 'bg-gray-200': sortBy !== 'popularity'}"
+                        class="px-4 py-2 rounded-md transition-colors">
+                    <i class="fas fa-fire mr-2"></i>Popular
+                </button>
+                <button @click="sortBy = 'newest'; sortComments()" 
+                        :class="{'bg-blue-500 text-white': sortBy === 'newest', 'bg-gray-200': sortBy !== 'newest'}"
+                        class="px-4 py-2 rounded-md transition-colors">
+                    <i class="fas fa-clock mr-2"></i>Newest
+                </button>
+                <button @click="sortBy = 'oldest'; sortComments()" 
+                        :class="{'bg-blue-500 text-white': sortBy === 'oldest', 'bg-gray-200': sortBy !== 'oldest'}"
+                        class="px-4 py-2 rounded-md transition-colors">
+                    <i class="fas fa-history mr-2"></i>Oldest
+                </button>
+            </div>
+
+        </div>
+
+        <!-- Comments List -->
+        <div class="comment-thread">
+            <!-- Focused chain header -->
+            <div x-show="focusedComment" class="focused-chain-header">
+                <h3 class="font-semibold">Viewing comment thread</h3>
+                <button @click="focusedComment = null" class="unfocus-btn">
+                    <i class="fas fa-arrow-left mr-2"></i>Back to all comments
+                </button>
+            </div>
+            
+            <!-- Comments -->
+            <div x-show="!focusedComment">
+                <template x-for="comment in sortedComments" :key="comment.id">
+                    <div x-html="renderComment(comment, 0)"></div>
+                </template>
+            </div>
+            
+            <!-- Focused comment chain -->
+            <div x-show="focusedComment">
+                <div x-html="focusedComment ? renderComment(focusedComment, 0, true) : ''"></div>
+            </div>
+        </div>
+
+        <!-- Loading State -->
+        <div x-show="loading" class="text-center py-8">
             <i class="fas fa-spinner fa-spin text-4xl text-gray-400"></i>
+        </div>
+
+        <!-- No Comments State -->
+        <div x-show="!loading && comments.length === 0" class="text-center py-8 text-gray-500">
+            <i class="fas fa-comments text-4xl mb-4"></i>
+            <p>No comments yet. Be the first to comment!</p>
         </div>
     </div>
 
-    <!-- Application Scripts -->
-    <script src="js/api.js"></script>
-    <script src="js/comment.js"></script>
-    <script src="js/app.js"></script>
+    <script>
+        // Configuration will be loaded dynamically
+        let CONFIG = {
+            backendUrl: window.location.origin,
+            moderationUrl: window.location.origin,
+            discordClientId: '',
+            discordRedirectUri: ''
+        };
+        
+        // Load configuration from backend
+        async function loadConfig() {
+            try {
+                const response = await fetch('/api/config');
+                if (response.ok) {
+                    const config = await response.json();
+                    CONFIG.discordClientId = config.discordClientId;
+                    CONFIG.discordRedirectUri = config.discordRedirectUri;
+                    console.log('Configuration loaded');
+                }
+            } catch (error) {
+                console.error('Failed to load configuration:', error);
+            }
+        }
+        
+        // Load config immediately
+        loadConfig();
+        
+        function commentApp() {
+            return {
+                user: null,
+                comments: [],
+                sortedComments: [],
+                loading: true,
+                showNewComment: false,
+                newCommentText: '',
+                commentPreview: '',
+                replyingTo: null,
+                replyTexts: {},
+                sortBy: 'likes',
+                pageId: '',
+                md: null,
+                focusedComment: null,
+                // API URLs - use relative paths
+                apiUrl: '/api',
+                moderationUrl: '/moderation/api',
+
+                init() {
+                    // Initialize app instance
+                    window.commentAppInstance = this;
+                    console.log('Comment app initializing...');
+                    
+                    // Get page ID
+                    this.pageId = this.getPageId();
+                    console.log('Page ID:', this.pageId);
+                    
+                    // Initialize markdown processor
+                    this.initMarkdown();
+                    
+                    // Check existing session
+                    this.checkExistingSession();
+                    
+                    // Load comments
+                    this.loadComments();
+                    
+                    // Check if returning from Discord OAuth
+                    this.checkDiscordCallback();
+                    
+                    // Listen for login messages from popup
+                    window.addEventListener('message', (event) => {
+                        if (event.data && event.data.type === 'discord-login-success') {
+                            console.log('Received Discord login success message');
+                            this.user = event.data.user;
+                            localStorage.setItem('user', JSON.stringify(this.user));
+                            if (event.data.sessionToken) {
+                                localStorage.setItem('sessionToken', event.data.sessionToken);
+                            }
+                            this.loadComments(); // Reload to get user-specific data
+                        }
+                    });
+                },
+
+                getPageId() {
+                    // Get page ID from environment variable or URL parameter
+                    const urlParams = new URLSearchParams(window.location.search);
+                    return urlParams.get('pageId') || window.PAGE_ID || 'default';
+                },
+
+                checkDiscordCallback() {
+                    // This is no longer needed since we use a dedicated callback page
+                    // Keeping empty function for compatibility
+                },
+
+
+                signInWithDiscord() {
+                    console.log('Sign in with Discord clicked');
+                    
+                    // Generate state for CSRF protection
+                    const state = Math.random().toString(36).substring(7);
+                    localStorage.setItem('discord_state', state);
+                    
+                    // Discord OAuth URL from configuration
+                    const clientId = CONFIG.discordClientId;
+                    const redirectUri = encodeURIComponent(CONFIG.discordRedirectUri);
+                    const scope = 'identify';
+                    
+                    const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&state=${state}`;
+                    
+                    // Open in popup
+                    const width = 500;
+                    const height = 700;
+                    const left = (window.screen.width - width) / 2;
+                    const top = (window.screen.height - height) / 2;
+                    
+                    const authWindow = window.open(
+                        discordAuthUrl,
+                        'discord-auth',
+                        `width=${width},height=${height},left=${left},top=${top}`
+                    );
+                    
+                    // Focus the popup
+                    if (authWindow) {
+                        authWindow.focus();
+                    }
+                },
+
+                initMarkdown() {
+                    this.md = window.markdownit({
+                        html: true, // Enable HTML to allow our processed embeds
+                        breaks: true,
+                        linkify: false // Disable automatic link detection
+                    });
+
+                    // Custom image renderer
+                    this.md.renderer.rules.image = this.createImageRenderer();
+                },
+
+                createImageRenderer() {
+                    return function(tokens, idx, options, env, self) {
+                        const token = tokens[idx];
+                        const srcIndex = token.attrIndex('src');
+                        const altIndex = token.attrIndex('alt');
+                        const titleIndex = token.attrIndex('title');
+                        
+                        if (srcIndex < 0) return '';
+                        
+                        const src = token.attrs[srcIndex][1];
+                        const alt = altIndex >= 0 ? token.attrs[altIndex][1] : '';
+                        const title = titleIndex >= 0 ? token.attrs[titleIndex][1] : '';
+                        
+                        return `<a href="${src}" target="_blank" rel="noopener noreferrer" class="inline-block markdown-image-link">
+                                  <img src="${src}" alt="${alt}" title="${title}" 
+                                       class="max-w-full h-auto rounded-md cursor-pointer hover:opacity-90 transition-opacity markdown-image" 
+                                       style="max-height: 400px; object-fit: contain; display: block; margin: 1rem 0;" />
+                                </a>`;
+                    };
+                },
+
+                preprocessMarkdown(text) {
+                    // Handle spoilers first (||text||)
+                    text = text.replace(/\|\|([^|]+)\|\|/g, '<span class="spoiler">$1</span>');
+                    
+                    const videoRegex = /!video\[(.*?)\]\((.*?)\)(?:{(.*?)})?/g;
+                    
+                    return text.replace(videoRegex, (match, alt, url, attributes) => {
+                        const youtubeId = this.getYoutubeId(url);
+                        const vimeoId = this.getVimeoId(url);
+                        const imgurId = this.getImgurId(url);
+                        
+                        if (youtubeId) {
+                            return this.createYouTubeEmbed(youtubeId);
+                        } else if (vimeoId) {
+                            return this.createVimeoEmbed(vimeoId);
+                        } else if (imgurId) {
+                            return this.createImgurVideoEmbed(url);
+                        }
+                        
+                        return match;
+                    });
+                },
+
+                getYoutubeId(url) {
+                    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+                    const match = url.match(regExp);
+                    return (match && match[2].length === 11) ? match[2] : null;
+                },
+
+                getVimeoId(url) {
+                    const regExp = /^.*(vimeo\.com\/)((channels\/[A-z]+\/)|(groups\/[A-z]+\/videos\/))?([0-9]+)/;
+                    const match = url.match(regExp);
+                    return (match && match[5]) ? match[5] : null;
+                },
+
+                getImgurId(url) {
+                    const regExp = /^.*i\.imgur\.com\/([a-zA-Z0-9]+)\.(mp4|webm)$/;
+                    const match = url.match(regExp);
+                    return match ? match[1] : null;
+                },
+
+                createYouTubeEmbed(videoId) {
+                    return `<div class="embed-responsive embed-responsive-16by9">
+                              <iframe class="embed-responsive-item" width="640" height="390" 
+                                      src="https://www.youtube.com/embed/${videoId}" 
+                                      frameborder="0" allowfullscreen></iframe>
+                            </div>`;
+                },
+
+                createVimeoEmbed(videoId) {
+                    return `<div class="embed-responsive embed-responsive-16by9">
+                              <iframe class="embed-responsive-item" width="640" height="360" 
+                                      src="https://player.vimeo.com/video/${videoId}" 
+                                      frameborder="0" allowfullscreen></iframe>
+                            </div>`;
+                },
+
+                createImgurVideoEmbed(url) {
+                    return `<div class="embed-responsive embed-responsive-16by9">
+                              <video class="embed-responsive-item" width="640" height="360" 
+                                     controls loop muted preload="metadata">
+                                <source src="${url}" type="video/mp4">
+                                Your browser does not support the video tag.
+                              </video>
+                            </div>`;
+                },
+
+                checkExistingSession() {
+                    // Check for saved user in localStorage
+                    const savedUser = localStorage.getItem('user');
+                    const sessionToken = localStorage.getItem('sessionToken');
+                    
+                    if (savedUser && sessionToken) {
+                        this.user = JSON.parse(savedUser);
+                        console.log('Found existing user session:', this.user.username);
+                        // Note: We rely on server-side validation for all privileged operations
+                        // The moderator UI visibility is just for UX - actual authorization happens server-side
+                    } else {
+                        console.log('No existing user session found');
+                        // Clear any partial data
+                        localStorage.removeItem('user');
+                        localStorage.removeItem('sessionToken');
+                    }
+                },
+
+                async signOut() {
+                    console.log('User signing out:', this.user?.username);
+                    
+                    // Call logout endpoint if we have a session token
+                    const sessionToken = localStorage.getItem('sessionToken');
+                    if (sessionToken) {
+                        try {
+                            await fetch(`${this.apiUrl}/logout`, {
+                                method: 'POST',
+                                headers: {
+                                    'Authorization': `Bearer ${sessionToken}`
+                                }
+                            });
+                        } catch (error) {
+                            console.error('Logout API call failed:', error);
+                        }
+                    }
+                    
+                    // Clear user data
+                    this.user = null;
+                    localStorage.removeItem('user');
+                    localStorage.removeItem('sessionToken');
+                    console.log('User session cleared');
+                },
+
+                async loadComments() {
+                    console.log('Loading comments for page:', this.pageId);
+                    try {
+                        // Fetch comments from backend
+                        const url = `${this.apiUrl}/comments/${this.pageId}${this.user ? `?userId=${this.user.id}` : ''}`;
+                        console.log('Fetching comments from:', url);
+                        
+                        const response = await fetch(url);
+                        const data = await response.json();
+                        
+                        console.log(`Loaded ${data.length} comments`);
+                        this.comments = data;
+                        
+                        // Build comment tree structure
+                        this.buildCommentTree();
+                        
+                        // Sort comments
+                        this.sortComments();
+                    } catch (error) {
+                        console.error('Error loading comments:', error);
+                    } finally {
+                        this.loading = false;
+                        console.log('Comments loading complete');
+                    }
+                },
+
+                buildCommentTree() {
+                    const commentMap = {};
+                    const rootComments = [];
+
+                    // First pass: create map
+                    this.comments.forEach(comment => {
+                        comment.children = [];
+                        commentMap[comment.id] = comment;
+                    });
+
+                    // Second pass: build tree
+                    this.comments.forEach(comment => {
+                        if (comment.parentId) {
+                            const parent = commentMap[comment.parentId];
+                            if (parent) {
+                                parent.children.push(comment);
+                            } else {
+                                // Parent not found, treat as root
+                                rootComments.push(comment);
+                            }
+                        } else {
+                            rootComments.push(comment);
+                        }
+                    });
+
+                    this.comments = rootComments;
+                },
+
+                sortComments() {
+                    console.log('Sorting comments by:', this.sortBy);
+                    const sortFn = this.getSortFunction();
+                    
+                    const sortRecursive = (comments) => {
+                        comments.sort(sortFn);
+                        comments.forEach(comment => {
+                            if (comment.children && comment.children.length > 0) {
+                                sortRecursive(comment.children);
+                            }
+                        });
+                    };
+
+                    sortRecursive(this.comments);
+                    this.sortedComments = [...this.comments];
+                    console.log('Comments sorted');
+                    
+                    // Attach spoiler handlers after rendering
+                    this.$nextTick(() => {
+                        this.attachSpoilerHandlers();
+                    });
+                },
+
+                getSortFunction() {
+                    switch (this.sortBy) {
+                        case 'likes':
+                            return (a, b) => (b.likes - b.dislikes) - (a.likes - a.dislikes);
+                        case 'popularity':
+                            // Sort by total number of replies (including nested replies)
+                            return (a, b) => this.countTotalReplies(b) - this.countTotalReplies(a);
+                        case 'newest':
+                            return (a, b) => new Date(b.createdAt) - new Date(a.createdAt);
+                        case 'oldest':
+                            return (a, b) => new Date(a.createdAt) - new Date(b.createdAt);
+                        default:
+                            return (a, b) => 0;
+                    }
+                },
+                
+                countTotalReplies(comment) {
+                    // Count all replies recursively
+                    let count = 0;
+                    if (comment.children && comment.children.length > 0) {
+                        count += comment.children.length;
+                        comment.children.forEach(child => {
+                            count += this.countTotalReplies(child);
+                        });
+                    }
+                    return count;
+                },
+                
+                countAllReplies(comment) {
+                    // Count all nested replies for a comment
+                    let count = 0;
+                    const countRecursive = (c) => {
+                        if (c.children && c.children.length > 0) {
+                            count += c.children.length;
+                            c.children.forEach(child => countRecursive(child));
+                        }
+                    };
+                    countRecursive(comment);
+                    return count;
+                },
+
+                updatePreview() {
+                    const processed = this.preprocessMarkdown(this.newCommentText);
+                    this.commentPreview = this.md.render(processed);
+                    this.$nextTick(() => {
+                        this.attachSpoilerHandlers();
+                    });
+                },
+
+                insertMarkdown(before, after) {
+                    const textarea = document.querySelector('textarea');
+                    const start = textarea.selectionStart;
+                    const end = textarea.selectionEnd;
+                    const text = textarea.value;
+                    const selectedText = text.substring(start, end);
+                    
+                    const newText = text.substring(0, start) + before + selectedText + after + text.substring(end);
+                    this.newCommentText = newText;
+                    
+                    this.$nextTick(() => {
+                        textarea.focus();
+                        const newCursorPos = start + before.length + selectedText.length;
+                        textarea.setSelectionRange(newCursorPos, newCursorPos);
+                        this.updatePreview();
+                    });
+                },
+
+                insertImage() {
+                    const url = prompt('Enter image URL:');
+                    if (url) {
+                        this.insertMarkdown(`![Image](${url})`, '');
+                    }
+                },
+
+                insertVideo() {
+                    const url = prompt('Enter video URL (YouTube, Vimeo, or Imgur):');
+                    if (url) {
+                        this.insertMarkdown(`!video[Video](${url})`, '');
+                    }
+                },
+
+                insertMarkdownForReply(commentId, before, after) {
+                    const textarea = document.getElementById(`reply-textarea-${commentId}`);
+                    if (!textarea) return;
+                    
+                    const start = textarea.selectionStart;
+                    const end = textarea.selectionEnd;
+                    const text = textarea.value;
+                    const selectedText = text.substring(start, end);
+                    
+                    const newText = text.substring(0, start) + before + selectedText + after + text.substring(end);
+                    textarea.value = newText;
+                    
+                    // Store in replyTexts
+                    this.replyTexts[commentId] = newText;
+                    
+                    this.$nextTick(() => {
+                        textarea.focus();
+                        const newCursorPos = start + before.length + selectedText.length;
+                        textarea.setSelectionRange(newCursorPos, newCursorPos);
+                    });
+                },
+
+                insertImageForReply(commentId) {
+                    const url = prompt('Enter image URL:');
+                    if (url) {
+                        this.insertMarkdownForReply(commentId, `![Image](${url})`, '');
+                    }
+                },
+
+                insertVideoForReply(commentId) {
+                    const url = prompt('Enter video URL (YouTube, Vimeo, or Imgur):');
+                    if (url) {
+                        this.insertMarkdownForReply(commentId, `!video[Video](${url})`, '');
+                    }
+                },
+
+                cancelNewComment() {
+                    this.newCommentText = '';
+                    this.commentPreview = '';
+                },
+
+                async submitComment(parentId = null) {
+                    if (!this.user) {
+                        console.error('Attempted to submit comment without authentication');
+                        alert('Please sign in to comment');
+                        return;
+                    }
+                    
+                    const content = parentId ? this.replyTexts[parentId] : this.newCommentText;
+                    
+                    if (!content || !content.trim()) return;
+                    
+                    console.log('Submitting comment:', { parentId, contentLength: content.length });
+
+                    try {
+                        // Send to moderation first
+                        console.log('Sending to moderation service...');
+                        const moderationResponse = await fetch(`${this.moderationUrl}/moderate`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ content, userId: this.user.id })
+                        });
+
+                        const moderationResult = await moderationResponse.json();
+                        console.log('Moderation result:', moderationResult);
+
+                        if (!moderationResult.approved) {
+                            console.warn('Comment rejected by moderation:', moderationResult.reason);
+                            alert(`Your comment was not approved. Reason: ${moderationResult.reason}`);
+                            return;
+                        }
+
+                        // If approved, submit to database
+                        console.log('Comment approved, submitting to backend...');
+                        
+                        const sessionToken = localStorage.getItem('sessionToken');
+                        if (!sessionToken) {
+                            console.error('No session token found');
+                            alert('Please sign in again');
+                            return;
+                        }
+                        
+                        const commentData = {
+                            pageId: this.pageId,
+                            content: content,
+                            parentId: parentId
+                        };
+
+                        const response = await fetch(`${this.apiUrl}/comments`, {
+                            method: 'POST',
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${sessionToken}`
+                            },
+                            body: JSON.stringify(commentData)
+                        });
+
+                        const newComment = await response.json();
+                        console.log('Comment created:', newComment);
+                        
+                        // Add to local state
+                        this.addCommentToTree(newComment);
+                        
+                        // Clear form
+                        if (parentId) {
+                            this.cancelReply(parentId);
+                        } else {
+                            this.newCommentText = '';
+                            this.commentPreview = '';
+                        }
+
+                        // Resort
+                        this.sortComments();
+                        console.log('Comment submitted successfully');
+
+                    } catch (error) {
+                        console.error('Error submitting comment:', error);
+                        alert('Failed to submit comment. Please try again.');
+                    }
+                },
+
+                addCommentToTree(comment) {
+                    comment.children = [];
+                    
+                    if (!comment.parentId) {
+                        this.comments.push(comment);
+                    } else {
+                        const parent = this.findComment(comment.parentId, this.comments);
+                        if (parent) {
+                            parent.children.push(comment);
+                        } else {
+                            this.comments.push(comment);
+                        }
+                    }
+                },
+
+                findComment(id, comments) {
+                    for (const comment of comments) {
+                        if (comment.id == id) return comment; // Use == for type coercion
+                        if (comment.children && comment.children.length > 0) {
+                            const found = this.findComment(id, comment.children);
+                            if (found) return found;
+                        }
+                    }
+                    return null;
+                },
+
+                async voteComment(commentId, voteType) {
+                    if (!this.user) {
+                        console.log('Vote attempted without login');
+                        alert('Please sign in to vote');
+                        return;
+                    }
+                    
+                    console.log('Voting on comment:', { commentId, voteType });
+
+                    const sessionToken = localStorage.getItem('sessionToken');
+                    if (!sessionToken) {
+                        console.error('No session token found');
+                        alert('Please sign in again');
+                        return;
+                    }
+                    
+                    try {
+                        // Submit vote to backend
+                        const response = await fetch(`${this.apiUrl}/comments/${commentId}/vote`, {
+                            method: 'POST',
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${sessionToken}`
+                            },
+                            body: JSON.stringify({
+                                voteType: voteType
+                            })
+                        });
+
+                        if (!response.ok) {
+                            const error = await response.json();
+                            throw new Error(error.error || 'Failed to vote');
+                        }
+
+                        const result = await response.json();
+                        console.log('Vote result:', result);
+                        
+                        // Update local state
+                        const comment = this.findComment(commentId, this.comments);
+                        if (comment) {
+                            comment.likes = result.likes;
+                            comment.dislikes = result.dislikes;
+                            comment.userVote = result.userVote;
+                            console.log('Updated local comment state');
+                        }
+
+                        // Resort if sorting by likes
+                        if (this.sortBy === 'likes') {
+                            this.sortComments();
+                        }
+
+                    } catch (error) {
+                        console.error('Error voting:', error);
+                        if (error.message === 'You must be logged in to vote') {
+                            alert('Please sign in to vote on comments');
+                        } else if (error.message === 'You are banned from voting') {
+                            alert('You are banned from voting');
+                        } else {
+                            alert('Failed to vote. Please try again.');
+                        }
+                    }
+                },
+
+                showReplyForm(commentId) {
+                    if (!this.user) {
+                        console.log('User not logged in, cannot reply');
+                        alert('Please sign in to reply');
+                        return;
+                    }
+                    
+                    console.log('Showing reply form for comment:', commentId);
+                    
+                    // Hide any other open reply forms
+                    document.querySelectorAll('[id^="reply-form-"]').forEach(form => {
+                        form.style.display = 'none';
+                    });
+                    
+                    // Show this reply form
+                    const replyForm = document.getElementById(`reply-form-${commentId}`);
+                    if (replyForm) {
+                        replyForm.style.display = 'block';
+                        const textarea = document.getElementById(`reply-textarea-${commentId}`);
+                        if (textarea) {
+                            textarea.focus();
+                        }
+                    }
+                    
+                    this.replyingTo = commentId;
+                },
+
+                cancelReply(commentId) {
+                    console.log('Canceling reply for comment:', commentId);
+                    
+                    // Hide the reply form
+                    const replyForm = document.getElementById(`reply-form-${commentId}`);
+                    if (replyForm) {
+                        replyForm.style.display = 'none';
+                    }
+                    
+                    // Clear the textarea
+                    const textarea = document.getElementById(`reply-textarea-${commentId}`);
+                    if (textarea) {
+                        textarea.value = '';
+                    }
+                    
+                    this.replyingTo = null;
+                    delete this.replyTexts[commentId];
+                },
+                
+                async submitReply(commentId) {
+                    const textarea = document.getElementById(`reply-textarea-${commentId}`);
+                    if (!textarea || !textarea.value.trim()) {
+                        return;
+                    }
+                    
+                    // Store the content
+                    this.replyTexts[commentId] = textarea.value;
+                    
+                    // Submit the comment with parentId
+                    await this.submitComment(commentId);
+                    
+                    // Clear and hide the form
+                    this.cancelReply(commentId);
+                },
+
+                renderComment(comment, depth = 0, isFocused = false) {
+                    // Safety check for null comment
+                    if (!comment) {
+                        console.error('Attempting to render null comment');
+                        return '';
+                    }
+                    
+                    const MAX_DEPTH = 4; // Changed from 8 to 4 levels
+                    const shouldShowLoadMore = depth >= MAX_DEPTH && comment.children && comment.children.length > 0;
+                    
+                    // Check if comment is deleted (content is null or user is deleted)
+                    const isDeleted = !comment.content || comment.content === '[deleted]' || comment.deleted;
+                    const displayContent = isDeleted ? '[Comment deleted]' : comment.content;
+                    const displayAuthor = isDeleted ? '[deleted]' : comment.userName;
+                    
+                    const processed = isDeleted ? '' : this.preprocessMarkdown(displayContent);
+                    const content = isDeleted ? '' : this.md.render(processed);
+                    
+                    let html = `
+                        <div class="comment-container ${depth > 0 ? 'comment-depth-' + depth : ''} ${isFocused ? 'focused-chain' : ''}" 
+                             data-comment-id="${comment.id}">
+                            <!-- Vertical connection line -->
+                            ${depth > 0 && !isFocused ? '<div class="comment-line" onclick="window.commentAppInstance.toggleCollapse(event)"></div>' : ''}
+                            
+                            <div class="comment-content" id="comment-${comment.id}">
+                                <!-- Collapse indicator -->
+                                ${comment.children && comment.children.length > 0 ? `
+                                    <div class="comment-collapse-indicator" onclick="window.commentAppInstance.toggleCollapse(event)"></div>
+                                ` : ''}
+                                
+                                <!-- Report button -->
+                                ${this.user && !isDeleted ? `
+                                    <button onclick="window.commentAppInstance.reportComment('${comment.id}')" 
+                                            class="comment-report-btn text-gray-400 hover:text-red-600"
+                                            title="Report comment">
+                                        <i class="fas fa-flag text-sm"></i>
+                                    </button>
+                                ` : ''}
+                                
+                                <!-- Comment header -->
+                                <div class="comment-header">
+                                    ${!isDeleted ? `<img src="${comment.userPicture}" class="comment-avatar">` : '<div class="comment-avatar bg-gray-300"></div>'}
+                                    <div class="comment-meta">
+                                        <span class="comment-author">${displayAuthor}</span>
+                                        <span class="comment-time">${this.getRelativeTime(comment.createdAt)}</span>
+                                    </div>
+                                </div>
+                                
+                                <!-- Comment body -->
+                                <div class="comment-body">
+                                    ${isDeleted ? '<span class="comment-deleted">[Comment deleted]</span>' : `<div class="markdown-content">${content}</div>`}
+                                </div>
+                                
+                                <!-- Comment actions -->
+                                ${!isDeleted ? `
+                                    <div class="comment-actions">
+                                        <button onclick="window.commentAppInstance.voteComment('${comment.id}', 'like')" 
+                                                class="comment-action ${comment.userVote === 'like' ? 'active-like' : ''}"
+                                                title="${this.user ? (comment.userVote === 'like' ? 'Remove upvote' : 'Upvote') : 'Sign in to upvote'}">
+                                            <i class="fas fa-arrow-up"></i>
+                                            <span>${comment.likes}</span>
+                                        </button>
+                                        <button onclick="window.commentAppInstance.voteComment('${comment.id}', 'dislike')" 
+                                                class="comment-action ${comment.userVote === 'dislike' ? 'active-dislike' : ''}"
+                                                title="${this.user ? (comment.userVote === 'dislike' ? 'Remove downvote' : 'Downvote') : 'Sign in to downvote'}">
+                                            <i class="fas fa-arrow-down"></i>
+                                            <span>${comment.dislikes}</span>
+                                        </button>
+                                        <button onclick="window.commentAppInstance.showReplyForm('${comment.id}')" 
+                                                class="comment-action">
+                                            <i class="fas fa-comment"></i>
+                                            <span>Reply</span>
+                                        </button>
+                                        ${(this.user && (comment.userId === this.user.id || this.user.is_moderator)) ? `
+                                            <button onclick="window.commentAppInstance.deleteComment('${comment.id}')" 
+                                                    class="comment-action">
+                                                <i class="fas fa-trash"></i>
+                                                <span>Delete</span>
+                                            </button>
+                                        ` : ''}
+                                    </div>
+                                ` : ''}
+                                
+                                <!-- Reply form -->
+                                <div id="reply-form-${comment.id}" style="display: none;" class="reply-form">
+                                    <textarea id="reply-textarea-${comment.id}" 
+                                              placeholder="What are your thoughts?"
+                                              class="reply-textarea"></textarea>
+                                    <div class="reply-toolbar">
+                                        <div class="markdown-buttons">
+                                            <button onclick="window.commentAppInstance.insertMarkdownForReply('${comment.id}', '**', '**')" title="Bold" class="markdown-btn">
+                                                <i class="fas fa-bold"></i>
+                                            </button>
+                                            <button onclick="window.commentAppInstance.insertMarkdownForReply('${comment.id}', '*', '*')" title="Italic" class="markdown-btn">
+                                                <i class="fas fa-italic"></i>
+                                            </button>
+                                            <button onclick="window.commentAppInstance.insertMarkdownForReply('${comment.id}', '~~', '~~')" title="Strikethrough" class="markdown-btn">
+                                                <i class="fas fa-strikethrough"></i>
+                                            </button>
+                                            <button onclick="window.commentAppInstance.insertMarkdownForReply('${comment.id}', '## ', '')" title="Header" class="markdown-btn">
+                                                <i class="fas fa-heading"></i>
+                                            </button>
+                                            <button onclick="window.commentAppInstance.insertMarkdownForReply('${comment.id}', '||', '||')" title="Spoiler" class="markdown-btn">
+                                                <i class="fas fa-eye-slash"></i>
+                                            </button>
+                                            <button onclick="window.commentAppInstance.insertImageForReply('${comment.id}')" title="Image" class="markdown-btn">
+                                                <i class="fas fa-image"></i>
+                                            </button>
+                                            <button onclick="window.commentAppInstance.insertVideoForReply('${comment.id}')" title="Video" class="markdown-btn">
+                                                <i class="fas fa-video"></i>
+                                            </button>
+                                        </div>
+                                        <div class="reply-actions">
+                                            <button onclick="window.commentAppInstance.cancelReply('${comment.id}')" 
+                                                    class="reply-cancel">
+                                                Cancel
+                                            </button>
+                                            <button onclick="window.commentAppInstance.submitReply('${comment.id}')" 
+                                                    class="reply-submit">
+                                                Reply
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Children comments or Load More button -->
+                            <div class="comment-children">
+                                ${shouldShowLoadMore ? `
+                                    <div class="load-more-container">
+                                        <button onclick="window.commentAppInstance.focusCommentChain('${comment.id}')" 
+                                                class="load-more-btn">
+                                            <i class="fas fa-plus-circle mr-2"></i>Continue this thread (${this.countAllReplies(comment)} replies)
+                                        </button>
+                                    </div>
+                                ` : (comment.children && comment.children.length > 0 ? comment.children.map(child => this.renderComment(child, depth + 1, isFocused)).join('') : '')}
+                            </div>
+                        </div>
+                    `;
+                    
+                    // After rendering, attach spoiler handlers
+                    setTimeout(() => {
+                        this.attachSpoilerHandlers();
+                    }, 0);
+                    
+                    return html;
+                },
+
+                async deleteComment(commentId) {
+                    if (!this.user) {
+                        console.error('Attempted to delete comment without authentication');
+                        alert('Please sign in to delete comments');
+                        return;
+                    }
+                    
+                    if (!confirm('Are you sure you want to delete this comment?')) {
+                        return;
+                    }
+                    
+                    console.log('Deleting comment:', commentId);
+                    
+                    const sessionToken = localStorage.getItem('sessionToken');
+                    if (!sessionToken) {
+                        console.error('No session token found');
+                        alert('Please sign in again');
+                        return;
+                    }
+                    
+                    try {
+                        const response = await fetch(`${this.apiUrl}/comments/${commentId}`, {
+                            method: 'DELETE',
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${sessionToken}`
+                            },
+                            body: JSON.stringify({})
+                        });
+                        
+                        if (!response.ok) {
+                            throw new Error('Failed to delete comment');
+                        }
+                        
+                        console.log('Comment deleted successfully');
+                        
+                        // Remove from local state
+                        this.removeCommentFromTree(commentId);
+                        this.sortComments();
+                        
+                    } catch (error) {
+                        console.error('Error deleting comment:', error);
+                        alert('Failed to delete comment');
+                    }
+                },
+                
+                removeCommentFromTree(commentId) {
+                    const markAsDeleted = (comments) => {
+                        for (let i = 0; i < comments.length; i++) {
+                            if (comments[i].id == commentId) {
+                                // If comment has children, mark as deleted instead of removing
+                                if (comments[i].children && comments[i].children.length > 0) {
+                                    comments[i].deleted = true;
+                                    comments[i].content = '[deleted]';
+                                    comments[i].userName = '[deleted]';
+                                    comments[i].userPicture = '';
+                                    return true;
+                                } else {
+                                    // No children, safe to remove completely
+                                    comments.splice(i, 1);
+                                    return true;
+                                }
+                            }
+                            if (comments[i].children && markAsDeleted(comments[i].children)) {
+                                return true;
+                            }
+                        }
+                        return false;
+                    };
+                    
+                    markAsDeleted(this.comments);
+                },
+                
+                async reportComment(commentId) {
+                    if (!this.user) {
+                        console.error('Attempted to report comment without authentication');
+                        alert('Please sign in to report comments');
+                        return;
+                    }
+                    
+                    const reason = prompt('Please provide a reason for reporting this comment (optional):');
+                    
+                    console.log('Reporting comment:', commentId);
+                    
+                    const sessionToken = localStorage.getItem('sessionToken');
+                    if (!sessionToken) {
+                        console.error('No session token found');
+                        alert('Please sign in again');
+                        return;
+                    }
+                    
+                    try {
+                        const response = await fetch(`${this.apiUrl}/comments/${commentId}/report`, {
+                            method: 'POST',
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${sessionToken}`
+                            },
+                            body: JSON.stringify({ 
+                                reason: reason || 'No reason provided'
+                            })
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (!response.ok) {
+                            throw new Error(data.error || 'Failed to report comment');
+                        }
+                        
+                        console.log('Comment reported successfully');
+                        alert('Comment reported successfully');
+                        
+                    } catch (error) {
+                        console.error('Error reporting comment:', error);
+                        alert(error.message || 'Failed to report comment');
+                    }
+                },
+                
+                attachSpoilerHandlers() {
+                    // Remove any existing handlers to avoid duplicates
+                    document.querySelectorAll('.spoiler').forEach(spoiler => {
+                        // Clone node to remove all event listeners
+                        const newSpoiler = spoiler.cloneNode(true);
+                        spoiler.parentNode.replaceChild(newSpoiler, spoiler);
+                        
+                        // Add click handler
+                        newSpoiler.addEventListener('click', function(e) {
+                            e.stopPropagation();
+                            this.classList.toggle('revealed');
+                        });
+                    });
+                },
+                
+                getRelativeTime(dateString) {
+                    const date = new Date(dateString);
+                    const now = new Date();
+                    const seconds = Math.floor((now - date) / 1000);
+                    
+                    const intervals = {
+                        year: 31536000,
+                        month: 2592000,
+                        week: 604800,
+                        day: 86400,
+                        hour: 3600,
+                        minute: 60
+                    };
+                    
+                    for (const [unit, secondsInUnit] of Object.entries(intervals)) {
+                        const interval = Math.floor(seconds / secondsInUnit);
+                        if (interval >= 1) {
+                            return interval === 1 ? `1 ${unit} ago` : `${interval} ${unit}s ago`;
+                        }
+                    }
+                    
+                    return 'just now';
+                },
+                
+                toggleCollapse(event) {
+                    event.stopPropagation();
+                    const container = event.target.closest('.comment-container');
+                    if (container) {
+                        container.classList.toggle('collapsed');
+                    }
+                },
+                
+                focusCommentChain(commentId) {
+                    console.log('Focusing comment chain:', commentId);
+                    console.log('Current comments:', this.comments);
+                    
+                    const comment = this.findComment(commentId, this.comments);
+                    console.log('Found comment:', comment);
+                    
+                    if (comment) {
+                        this.focusedComment = comment;
+                        console.log('Set focusedComment:', this.focusedComment);
+                        
+                        // Scroll to top of comments section
+                        this.$nextTick(() => {
+                            document.querySelector('.comment-thread').scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        });
+                    } else {
+                        console.error('Comment not found:', commentId);
+                    }
+                },
+                
+                // Moderator functions
+                async loadReports(scopeElement) {
+                    const scope = scopeElement ? scopeElement.__x.$data : this.$el.querySelector('[x-data*="showReports"]').__x.$data;
+                    scope.loadingReports = true;
+                    
+                    const sessionToken = localStorage.getItem('sessionToken');
+                    if (!sessionToken) {
+                        console.error('No session token found');
+                        scope.loadingReports = false;
+                        return;
+                    }
+                    
+                    try {
+                        console.log('Loading all reports to filter for pageId:', this.pageId);
+                        const response = await fetch(`${this.apiUrl}/reports`, {
+                            headers: {
+                                'Authorization': `Bearer ${sessionToken}`
+                            }
+                        });
+                        
+                        if (response.ok) {
+                            const allReports = await response.json();
+                            // Filter reports for this page only
+                            const pageReports = allReports.filter(report => report.page_id === this.pageId);
+                            scope.reports = pageReports;
+                            console.log(`Loaded ${pageReports.length} reports for page ${this.pageId} (from ${allReports.length} total)`);
+                            console.log('Page reports data:', pageReports);
+                        } else if (response.status === 403) {
+                            // User is not a moderator
+                            console.log('User is not a moderator');
+                            // Hide moderator UI
+                            this.user.is_moderator = false;
+                            localStorage.setItem('user', JSON.stringify(this.user));
+                        } else {
+                            console.error('Failed to load reports:', response.status, response.statusText);
+                        }
+                    } catch (error) {
+                        console.error('Error loading reports:', error);
+                    } finally {
+                        scope.loadingReports = false;
+                    }
+                },
+                
+                viewReportedComment(commentId) {
+                    const element = document.getElementById(`comment-${commentId}`);
+                    if (element) {
+                        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        element.style.border = '2px solid red';
+                        setTimeout(() => {
+                            element.style.border = '';
+                        }, 3000);
+                    }
+                },
+                
+                async deleteReportedComment(report) {
+                    if (!confirm('Delete this reported comment?')) {
+                        return;
+                    }
+                    
+                    const sessionToken = localStorage.getItem('sessionToken');
+                    if (!sessionToken) {
+                        console.error('No session token found');
+                        return;
+                    }
+                    
+                    try {
+                        // Delete the comment
+                        await this.deleteComment(report.comment_id);
+                        
+                        // Resolve the report
+                        await fetch(`${this.apiUrl}/reports/${report.id}/resolve`, {
+                            method: 'PUT',
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${sessionToken}`
+                            },
+                            body: JSON.stringify({ 
+                                action: 'resolved'
+                            })
+                        });
+                        
+                        // Remove from reports list
+                        const scope = this.$el.querySelector('[x-data*="showReports"]').__x.$data;
+                        scope.reports = scope.reports.filter(r => r.id !== report.id);
+                        
+                    } catch (error) {
+                        console.error('Error deleting reported comment:', error);
+                        alert('Failed to delete reported comment');
+                    }
+                },
+                
+                async dismissReport(reportId) {
+                    if (!confirm('Dismiss this report?')) {
+                        return;
+                    }
+                    
+                    const sessionToken = localStorage.getItem('sessionToken');
+                    if (!sessionToken) {
+                        console.error('No session token found');
+                        return;
+                    }
+                    
+                    try {
+                        const response = await fetch(`${this.apiUrl}/reports/${reportId}/resolve`, {
+                            method: 'PUT',
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${sessionToken}`
+                            },
+                            body: JSON.stringify({ 
+                                action: 'dismissed'
+                            })
+                        });
+                        
+                        if (response.ok) {
+                            // Remove from reports list
+                            const scope = this.$el.querySelector('[x-data*="showReports"]').__x.$data;
+                            scope.reports = scope.reports.filter(r => r.id !== reportId);
+                            console.log('Report dismissed');
+                        }
+                    } catch (error) {
+                        console.error('Error dismissing report:', error);
+                        alert('Failed to dismiss report');
+                    }
+                },
+                
+                async banUser(userId, userName) {
+                    if (!confirm(`Ban user ${userName}? This will delete all their comments.`)) {
+                        return;
+                    }
+                    
+                    const sessionToken = localStorage.getItem('sessionToken');
+                    if (!sessionToken) {
+                        console.error('No session token found');
+                        return;
+                    }
+                    
+                    try {
+                        const response = await fetch(`${this.apiUrl}/users/${userId}/ban`, {
+                            method: 'POST',
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${sessionToken}`
+                            },
+                            body: JSON.stringify({})
+                        });
+                        
+                        if (response.ok) {
+                            alert(`User ${userName} has been banned`);
+                            // Reload comments to reflect deletions
+                            await this.loadComments();
+                            // Clear reports from this user
+                            const scope = this.$el.querySelector('[x-data*="showReports"]').__x.$data;
+                            scope.reports = scope.reports.filter(r => r.comment_user_id !== userId);
+                        }
+                    } catch (error) {
+                        console.error('Error banning user:', error);
+                        alert('Failed to ban user');
+                    }
+                },
+                
+                async deleteAllComments() {
+                    if (!confirm('Are you sure you want to delete ALL comments on this page? This action cannot be undone.')) {
+                        return;
+                    }
+                    
+                    // Double confirmation for safety
+                    if (!confirm('This will permanently delete all comments and replies on this page. Are you absolutely sure?')) {
+                        return;
+                    }
+                    
+                    const sessionToken = localStorage.getItem('sessionToken');
+                    if (!sessionToken) {
+                        console.error('No session token found');
+                        alert('Please sign in again');
+                        return;
+                    }
+                    
+                    try {
+                        const response = await fetch(`${this.apiUrl}/comments/page/${this.pageId}/all`, {
+                            method: 'DELETE',
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${sessionToken}`
+                            }
+                        });
+                        
+                        if (!response.ok) {
+                            const error = await response.json();
+                            throw new Error(error.error || 'Failed to delete comments');
+                        }
+                        
+                        const result = await response.json();
+                        console.log('All comments deleted:', result);
+                        
+                        // Clear local state
+                        this.comments = [];
+                        this.sortedComments = [];
+                        
+                        // Clear any reports
+                        const reportsScope = this.$el.querySelector('[x-data*="showReports"]');
+                        if (reportsScope && reportsScope.__x) {
+                            reportsScope.__x.$data.reports = [];
+                        }
+                        
+                        alert(`Successfully deleted ${result.deletedCount} comments`);
+                        
+                    } catch (error) {
+                        console.error('Error deleting all comments:', error);
+                        alert(error.message || 'Failed to delete all comments');
+                    }
+                }
+            }
+        }
+    </script>
 </body>
 </html>
