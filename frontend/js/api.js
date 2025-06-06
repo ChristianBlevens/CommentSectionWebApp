@@ -82,12 +82,17 @@ class CommentAPI {
     // Discord OAuth
     async getDiscordAuthUrl() {
         const config = await this.loadConfig();
+        
+        if (!config.discordClientId) {
+            throw new Error('Discord authentication is not configured on this server');
+        }
+        
         const state = Math.random().toString(36).substring(7);
         localStorage.setItem('discord_state', state);
 
         const params = new URLSearchParams({
             client_id: config.discordClientId,
-            redirect_uri: config.redirectUri,
+            redirect_uri: config.redirectUri || `${window.location.origin}/oauth-callback.html`,
             response_type: 'code',
             scope: 'identify email',
             state: state

@@ -50,6 +50,11 @@ class AuthService {
   }
   
   async authenticateDiscordUser(code, state) {
+    // Check if Discord is configured
+    if (!config.discord.isConfigured) {
+      throw new Error('Discord authentication is not configured');
+    }
+    
     // Exchange code for token
     const tokenData = await this.exchangeCodeForToken(code);
     

@@ -1,17 +1,21 @@
 const path = require('path');
 
-// Validate required environment variables
-const requiredEnvVars = {
-  DISCORD_CLIENT_ID: process.env.DISCORD_CLIENT_ID,
-  DISCORD_CLIENT_SECRET: process.env.DISCORD_CLIENT_SECRET,
-};
+// Validate environment variables
+const discordClientId = process.env.DISCORD_CLIENT_ID;
+const discordClientSecret = process.env.DISCORD_CLIENT_SECRET;
 
-// Check for required variables
-for (const [key, value] of Object.entries(requiredEnvVars)) {
-  if (!value || value === `YOUR_${key}`) {
-    console.error(`ERROR: ${key} not configured! Please set it in .env file`);
-    process.exit(1);
-  }
+// Check Discord configuration
+const isDiscordConfigured = discordClientId && 
+                          discordClientSecret && 
+                          !discordClientId.includes('your-discord-client-id') &&
+                          !discordClientSecret.includes('your-discord-client-secret') &&
+                          discordClientId !== '' &&
+                          discordClientSecret !== '';
+
+if (!isDiscordConfigured) {
+  console.warn('WARNING: Discord OAuth not configured!');
+  console.warn('Please set DISCORD_CLIENT_ID and DISCORD_CLIENT_SECRET in .env file');
+  console.warn('Authentication will not work until properly configured');
 }
 
 const config = {
@@ -48,10 +52,11 @@ const config = {
 
   // Discord OAuth configuration
   discord: {
-    clientId: process.env.DISCORD_CLIENT_ID,
-    clientSecret: process.env.DISCORD_CLIENT_SECRET,
+    clientId: discordClientId || '',
+    clientSecret: discordClientSecret || '',
     redirectUri: process.env.DISCORD_REDIRECT_URI || 'http://localhost:8080/oauth-callback.html',
     apiEndpoint: 'https://discord.com/api',
+    isConfigured: isDiscordConfigured,
   },
 
   // CORS configuration
