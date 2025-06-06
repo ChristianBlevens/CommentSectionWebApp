@@ -17,9 +17,22 @@ class ModerationService {
   
   async loadBlockedWords() {
     try {
-      const result = await pool.query(
-        'SELECT word, severity FROM blocked_words WHERE is_active = true'
-      );
+      // Check if is_active column exists
+      const columnCheck = await pool.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'blocked_words' 
+        AND column_name = 'is_active'
+      `);
+      
+      const hasIsActive = columnCheck.rows.length > 0;
+      
+      // Query based on column availability
+      const query = hasIsActive
+        ? 'SELECT word, severity FROM blocked_words WHERE is_active = true'
+        : 'SELECT word, severity FROM blocked_words';
+      
+      const result = await pool.query(query);
       
       this.blockedWords.clear();
       result.rows.forEach(row => {

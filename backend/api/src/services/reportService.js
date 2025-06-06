@@ -49,7 +49,7 @@ class ReportService {
         `SELECT c.*, u.name as author_name
          FROM comments c
          JOIN users u ON c.user_id = u.id
-         WHERE c.id = $1`,
+         WHERE c.id = $1 AND c.is_deleted = FALSE`,
         [commentId]
       );
       

@@ -154,6 +154,20 @@ async function legacyInit() {
       END $$;
     `);
     
+    // Add soft delete columns to comments if they don't exist
+    await client.query(`
+      DO $$ 
+      BEGIN 
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                      WHERE table_name='comments' AND column_name='is_deleted') 
+        THEN 
+          ALTER TABLE comments ADD COLUMN is_deleted BOOLEAN DEFAULT FALSE;
+          ALTER TABLE comments ADD COLUMN deleted_at TIMESTAMP;
+          ALTER TABLE comments ADD COLUMN deleted_by VARCHAR(255);
+        END IF;
+      END $$;
+    `);
+    
     // Create report rate limiting table
     await client.query(`
       CREATE TABLE IF NOT EXISTS report_rate_limits (
