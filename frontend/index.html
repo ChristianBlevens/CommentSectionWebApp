@@ -610,137 +610,96 @@
     </div>
 
     <script>
-        // ============================================
-        // CONFIGURATION
-        // ============================================
-        
-        const CONFIG = {
-            apiUrl: '/api',
-            moderationUrl: '/moderation/api',
+        // Configuration will be loaded dynamically
+        let CONFIG = {
+            backendUrl: window.location.origin,
+            moderationUrl: window.location.origin,
             discordClientId: '',
             discordRedirectUri: ''
         };
         
         // Load configuration from backend
-        (async () => {
+        async function loadConfig() {
             try {
                 const response = await fetch('/api/config');
                 if (response.ok) {
                     const config = await response.json();
                     CONFIG.discordClientId = config.discordClientId;
                     CONFIG.discordRedirectUri = config.discordRedirectUri;
+                    console.log('Configuration loaded');
                 }
             } catch (error) {
                 console.error('Failed to load configuration:', error);
             }
-        })();
+        }
         
-        // ============================================
-        // COMMENT APP
-        // ============================================
+        // Load config immediately
+        loadConfig();
         
         function commentApp() {
             return {
-                // State
                 user: null,
                 comments: [],
                 sortedComments: [],
                 loading: true,
+                showNewComment: false,
                 newCommentText: '',
                 commentPreview: '',
+                replyingTo: null,
                 replyTexts: {},
                 sortBy: 'likes',
                 pageId: '',
-                focusedComment: null,
-                
-                // Services
                 md: null,
-                api: null,
-                moderator: null,
+                focusedComment: null,
+                // API URLs - use relative paths
+                apiUrl: '/api',
+                moderationUrl: '/moderation/api',
 
-                // ============================================
-                // INITIALIZATION
-                // ============================================
-                
                 init() {
+                    // Initialize app instance
                     window.commentAppInstance = this;
+                    console.log('Comment app initializing...');
                     
-                    // Initialize services
-                    this.initializeServices();
+                    // Get page ID
+                    this.pageId = this.getPageId();
+                    console.log('Page ID:', this.pageId);
                     
-                    // Setup page
-                    this.pageId = new URLSearchParams(window.location.search).get('pageId') || window.PAGE_ID || 'default';
+                    // Initialize markdown processor
+                    this.initMarkdown();
                     
-                    // Check session and load data
+                    // Check existing session
                     this.checkExistingSession();
+                    
+                    // Load comments
                     this.loadComments();
                     
-                    // Setup event listeners
-                    this.setupEventListeners();
-                },
-                
-                initializeServices() {
-                    // API Service
-                    this.api = {
-                        get: (endpoint) => this.makeRequest('GET', endpoint),
-                        post: (endpoint, data) => this.makeRequest('POST', endpoint, data),
-                        put: (endpoint, data) => this.makeRequest('PUT', endpoint, data),
-                        delete: (endpoint) => this.makeRequest('DELETE', endpoint)
-                    };
+                    // Check if returning from Discord OAuth
+                    this.checkDiscordCallback();
                     
-                    // Moderator Service
-                    this.moderator = {
-                        moderate: async (content, userId) => {
-                            const response = await fetch(`${CONFIG.moderationUrl}/moderate`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ content, userId })
-                            });
-                            return response.json();
-                        }
-                    };
-                    
-                    // Initialize markdown
-                    this.initMarkdown();
-                },
-                
-                setupEventListeners() {
+                    // Listen for login messages from popup
                     window.addEventListener('message', (event) => {
-                        if (event.data?.type === 'discord-login-success') {
-                            this.handleDiscordLogin(event.data);
+                        if (event.data && event.data.type === 'discord-login-success') {
+                            console.log('Received Discord login success message');
+                            this.user = event.data.user;
+                            localStorage.setItem('user', JSON.stringify(this.user));
+                            if (event.data.sessionToken) {
+                                localStorage.setItem('sessionToken', event.data.sessionToken);
+                            }
+                            this.loadComments(); // Reload to get user-specific data
                         }
                     });
                 },
-                
-                async makeRequest(method, endpoint, data = null) {
-                    const options = {
-                        method,
-                        headers: {}
-                    };
-                    
-                    const sessionToken = localStorage.getItem('sessionToken');
-                    if (sessionToken) {
-                        options.headers['Authorization'] = `Bearer ${sessionToken}`;
-                    }
-                    
-                    if (data) {
-                        options.headers['Content-Type'] = 'application/json';
-                        options.body = JSON.stringify(data);
-                    }
-                    
-                    const response = await fetch(`${CONFIG.apiUrl}${endpoint}`, options);
-                    
-                    if (!response.ok) {
-                        const error = await response.json();
-                        throw new Error(error.error || 'Request failed');
-                    }
-                    
-                    return response.json();
+
+                getPageId() {
+                    // Get page ID from environment variable or URL parameter
+                    const urlParams = new URLSearchParams(window.location.search);
+                    return urlParams.get('pageId') || window.PAGE_ID || 'default';
                 },
 
-                // ============================================
-                // AUTHENTICATION
-                // ============================================
+                checkDiscordCallback() {
+                    // This is no longer needed since we use a dedicated callback page
+                    // Keeping empty function for compatibility
+                },
 
 
                 signInWithDiscord() {
@@ -875,54 +834,71 @@
                 },
 
                 checkExistingSession() {
+                    // Check for saved user in localStorage
                     const savedUser = localStorage.getItem('user');
                     const sessionToken = localStorage.getItem('sessionToken');
                     
                     if (savedUser && sessionToken) {
                         this.user = JSON.parse(savedUser);
+                        console.log('Found existing user session:', this.user.username);
+                        // Note: We rely on server-side validation for all privileged operations
+                        // The moderator UI visibility is just for UX - actual authorization happens server-side
                     } else {
+                        console.log('No existing user session found');
+                        // Clear any partial data
                         localStorage.removeItem('user');
                         localStorage.removeItem('sessionToken');
                     }
                 },
-                
-                handleDiscordLogin(data) {
-                    this.user = data.user;
-                    localStorage.setItem('user', JSON.stringify(this.user));
-                    if (data.sessionToken) {
-                        localStorage.setItem('sessionToken', data.sessionToken);
-                    }
-                    this.loadComments();
-                },
 
                 async signOut() {
-                    try {
-                        await this.api.post('/logout');
-                    } catch (error) {
-                        console.error('Logout API call failed:', error);
+                    console.log('User signing out:', this.user?.username);
+                    
+                    // Call logout endpoint if we have a session token
+                    const sessionToken = localStorage.getItem('sessionToken');
+                    if (sessionToken) {
+                        try {
+                            await fetch(`${this.apiUrl}/logout`, {
+                                method: 'POST',
+                                headers: {
+                                    'Authorization': `Bearer ${sessionToken}`
+                                }
+                            });
+                        } catch (error) {
+                            console.error('Logout API call failed:', error);
+                        }
                     }
                     
+                    // Clear user data
                     this.user = null;
                     localStorage.removeItem('user');
                     localStorage.removeItem('sessionToken');
+                    console.log('User session cleared');
                 },
-                
-                // ============================================
-                // COMMENTS MANAGEMENT
-                // ============================================
 
                 async loadComments() {
+                    console.log('Loading comments for page:', this.pageId);
                     try {
-                        const endpoint = `/comments/${this.pageId}${this.user ? `?userId=${this.user.id}` : ''}`;
-                        const data = await this.api.get(endpoint);
+                        // Fetch comments from backend
+                        const url = `${this.apiUrl}/comments/${this.pageId}${this.user ? `?userId=${this.user.id}` : ''}`;
+                        console.log('Fetching comments from:', url);
                         
+                        const response = await fetch(url);
+                        const data = await response.json();
+                        
+                        console.log(`Loaded ${data.length} comments`);
                         this.comments = data;
+                        
+                        // Build comment tree structure
                         this.buildCommentTree();
+                        
+                        // Sort comments
                         this.sortComments();
                     } catch (error) {
                         console.error('Error loading comments:', error);
                     } finally {
                         this.loading = false;
+                        console.log('Comments loading complete');
                     }
                 },
 
@@ -1101,29 +1077,64 @@
 
                 async submitComment(parentId = null) {
                     if (!this.user) {
+                        console.error('Attempted to submit comment without authentication');
                         alert('Please sign in to comment');
                         return;
                     }
                     
                     const content = parentId ? this.replyTexts[parentId] : this.newCommentText;
-                    if (!content?.trim()) return;
                     
+                    if (!content || !content.trim()) return;
+                    
+                    console.log('Submitting comment:', { parentId, contentLength: content.length });
+
                     try {
-                        // Moderate content
-                        const moderationResult = await this.moderator.moderate(content, this.user.id);
-                        
+                        // Send to moderation first
+                        console.log('Sending to moderation service...');
+                        const moderationResponse = await fetch(`${this.moderationUrl}/moderate`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ content, userId: this.user.id })
+                        });
+
+                        const moderationResult = await moderationResponse.json();
+                        console.log('Moderation result:', moderationResult);
+
                         if (!moderationResult.approved) {
+                            console.warn('Comment rejected by moderation:', moderationResult.reason);
                             alert(`Your comment was not approved. Reason: ${moderationResult.reason}`);
                             return;
                         }
+
+                        // If approved, submit to database
+                        console.log('Comment approved, submitting to backend...');
                         
-                        // Submit comment
-                        const newComment = await this.api.post('/comments', {
+                        const sessionToken = localStorage.getItem('sessionToken');
+                        if (!sessionToken) {
+                            console.error('No session token found');
+                            alert('Please sign in again');
+                            return;
+                        }
+                        
+                        const commentData = {
                             pageId: this.pageId,
                             content: content,
                             parentId: parentId
+                        };
+
+                        const response = await fetch(`${this.apiUrl}/comments`, {
+                            method: 'POST',
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${sessionToken}`
+                            },
+                            body: JSON.stringify(commentData)
                         });
+
+                        const newComment = await response.json();
+                        console.log('Comment created:', newComment);
                         
+                        // Add to local state
                         this.addCommentToTree(newComment);
                         
                         // Clear form
@@ -1133,8 +1144,11 @@
                             this.newCommentText = '';
                             this.commentPreview = '';
                         }
-                        
+
+                        // Resort
                         this.sortComments();
+                        console.log('Comment submitted successfully');
+
                     } catch (error) {
                         console.error('Error submitting comment:', error);
                         alert('Failed to submit comment. Please try again.');
@@ -1169,36 +1183,77 @@
 
                 async voteComment(commentId, voteType) {
                     if (!this.user) {
+                        console.log('Vote attempted without login');
                         alert('Please sign in to vote');
                         return;
                     }
                     
+                    console.log('Voting on comment:', { commentId, voteType });
+
+                    const sessionToken = localStorage.getItem('sessionToken');
+                    if (!sessionToken) {
+                        console.error('No session token found');
+                        alert('Please sign in again');
+                        return;
+                    }
+                    
                     try {
-                        const result = await this.api.post(`/comments/${commentId}/vote`, { voteType });
+                        // Submit vote to backend
+                        const response = await fetch(`${this.apiUrl}/comments/${commentId}/vote`, {
+                            method: 'POST',
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${sessionToken}`
+                            },
+                            body: JSON.stringify({
+                                voteType: voteType
+                            })
+                        });
+
+                        if (!response.ok) {
+                            const error = await response.json();
+                            throw new Error(error.error || 'Failed to vote');
+                        }
+
+                        const result = await response.json();
+                        console.log('Vote result:', result);
                         
+                        // Update local state
                         const comment = this.findComment(commentId, this.comments);
                         if (comment) {
                             comment.likes = result.likes;
                             comment.dislikes = result.dislikes;
                             comment.userVote = result.userVote;
+                            console.log('Updated local comment state');
                         }
-                        
+
+                        // Resort if sorting by likes
                         if (this.sortBy === 'likes') {
                             this.sortComments();
                         }
+
                     } catch (error) {
                         console.error('Error voting:', error);
-                        alert(error.message || 'Failed to vote. Please try again.');
+                        if (error.message === 'You must be logged in to vote') {
+                            alert('Please sign in to vote on comments');
+                        } else if (error.message === 'You are banned from voting') {
+                            alert('You are banned from voting');
+                        } else {
+                            alert('Failed to vote. Please try again.');
+                        }
                     }
                 },
 
                 showReplyForm(commentId) {
                     if (!this.user) {
+                        console.log('User not logged in, cannot reply');
                         alert('Please sign in to reply');
                         return;
                     }
                     
-                    // Hide other reply forms
+                    console.log('Showing reply form for comment:', commentId);
+                    
+                    // Hide any other open reply forms
                     document.querySelectorAll('[id^="reply-form-"]').forEach(form => {
                         form.style.display = 'none';
                     });
@@ -1208,36 +1263,48 @@
                     if (replyForm) {
                         replyForm.style.display = 'block';
                         const textarea = document.getElementById(`reply-textarea-${commentId}`);
-                        textarea?.focus();
+                        if (textarea) {
+                            textarea.focus();
+                        }
                     }
+                    
+                    this.replyingTo = commentId;
                 },
 
                 cancelReply(commentId) {
+                    console.log('Canceling reply for comment:', commentId);
+                    
+                    // Hide the reply form
                     const replyForm = document.getElementById(`reply-form-${commentId}`);
                     if (replyForm) {
                         replyForm.style.display = 'none';
                     }
                     
+                    // Clear the textarea
                     const textarea = document.getElementById(`reply-textarea-${commentId}`);
                     if (textarea) {
                         textarea.value = '';
                     }
                     
+                    this.replyingTo = null;
                     delete this.replyTexts[commentId];
                 },
                 
                 async submitReply(commentId) {
                     const textarea = document.getElementById(`reply-textarea-${commentId}`);
-                    if (!textarea?.value.trim()) return;
+                    if (!textarea || !textarea.value.trim()) {
+                        return;
+                    }
                     
+                    // Store the content
                     this.replyTexts[commentId] = textarea.value;
+                    
+                    // Submit the comment with parentId
                     await this.submitComment(commentId);
+                    
+                    // Clear and hide the form
                     this.cancelReply(commentId);
                 },
-                
-                // ============================================
-                // MODERATOR FUNCTIONS
-                // ============================================
 
                 renderComment(comment, depth = 0, isFocused = false) {
                     // Safety check for null comment
@@ -1389,6 +1456,7 @@
 
                 async deleteComment(commentId) {
                     if (!this.user) {
+                        console.error('Attempted to delete comment without authentication');
                         alert('Please sign in to delete comments');
                         return;
                     }
@@ -1397,10 +1465,35 @@
                         return;
                     }
                     
+                    console.log('Deleting comment:', commentId);
+                    
+                    const sessionToken = localStorage.getItem('sessionToken');
+                    if (!sessionToken) {
+                        console.error('No session token found');
+                        alert('Please sign in again');
+                        return;
+                    }
+                    
                     try {
-                        await this.api.delete(`/comments/${commentId}`);
+                        const response = await fetch(`${this.apiUrl}/comments/${commentId}`, {
+                            method: 'DELETE',
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${sessionToken}`
+                            },
+                            body: JSON.stringify({})
+                        });
+                        
+                        if (!response.ok) {
+                            throw new Error('Failed to delete comment');
+                        }
+                        
+                        console.log('Comment deleted successfully');
+                        
+                        // Remove from local state
                         this.removeCommentFromTree(commentId);
                         this.sortComments();
+                        
                     } catch (error) {
                         console.error('Error deleting comment:', error);
                         alert('Failed to delete comment');
@@ -1436,26 +1529,48 @@
                 
                 async reportComment(commentId) {
                     if (!this.user) {
+                        console.error('Attempted to report comment without authentication');
                         alert('Please sign in to report comments');
                         return;
                     }
                     
                     const reason = prompt('Please provide a reason for reporting this comment (optional):');
                     
+                    console.log('Reporting comment:', commentId);
+                    
+                    const sessionToken = localStorage.getItem('sessionToken');
+                    if (!sessionToken) {
+                        console.error('No session token found');
+                        alert('Please sign in again');
+                        return;
+                    }
+                    
                     try {
-                        await this.api.post(`/comments/${commentId}/report`, { 
-                            reason: reason || 'No reason provided'
+                        const response = await fetch(`${this.apiUrl}/comments/${commentId}/report`, {
+                            method: 'POST',
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${sessionToken}`
+                            },
+                            body: JSON.stringify({ 
+                                reason: reason || 'No reason provided'
+                            })
                         });
+                        
+                        const data = await response.json();
+                        
+                        if (!response.ok) {
+                            throw new Error(data.error || 'Failed to report comment');
+                        }
+                        
+                        console.log('Comment reported successfully');
                         alert('Comment reported successfully');
+                        
                     } catch (error) {
                         console.error('Error reporting comment:', error);
                         alert(error.message || 'Failed to report comment');
                     }
                 },
-                
-                // ============================================
-                // UI HELPERS
-                // ============================================
                 
                 attachSpoilerHandlers() {
                     // Remove any existing handlers to avoid duplicates
@@ -1524,19 +1639,43 @@
                     }
                 },
                 
+                // Moderator functions
                 async loadReports(scopeElement) {
-                    const scope = scopeElement?.__x.$data || this.$el.querySelector('[x-data*="showReports"]').__x.$data;
+                    const scope = scopeElement ? scopeElement.__x.$data : this.$el.querySelector('[x-data*="showReports"]').__x.$data;
                     scope.loadingReports = true;
                     
+                    const sessionToken = localStorage.getItem('sessionToken');
+                    if (!sessionToken) {
+                        console.error('No session token found');
+                        scope.loadingReports = false;
+                        return;
+                    }
+                    
                     try {
-                        // Use page-specific reports endpoint
-                        const reports = await this.api.get(`/reports/${this.pageId}`);
-                        scope.reports = reports;
-                    } catch (error) {
-                        if (error.message.includes('403')) {
+                        console.log('Loading all reports to filter for pageId:', this.pageId);
+                        const response = await fetch(`${this.apiUrl}/reports`, {
+                            headers: {
+                                'Authorization': `Bearer ${sessionToken}`
+                            }
+                        });
+                        
+                        if (response.ok) {
+                            const allReports = await response.json();
+                            // Filter reports for this page only
+                            const pageReports = allReports.filter(report => report.page_id === this.pageId);
+                            scope.reports = pageReports;
+                            console.log(`Loaded ${pageReports.length} reports for page ${this.pageId} (from ${allReports.length} total)`);
+                            console.log('Page reports data:', pageReports);
+                        } else if (response.status === 403) {
+                            // User is not a moderator
+                            console.log('User is not a moderator');
+                            // Hide moderator UI
                             this.user.is_moderator = false;
                             localStorage.setItem('user', JSON.stringify(this.user));
+                        } else {
+                            console.error('Failed to load reports:', response.status, response.statusText);
                         }
+                    } catch (error) {
                         console.error('Error loading reports:', error);
                     } finally {
                         scope.loadingReports = false;
@@ -1555,14 +1694,36 @@
                 },
                 
                 async deleteReportedComment(report) {
-                    if (!confirm('Delete this reported comment?')) return;
+                    if (!confirm('Delete this reported comment?')) {
+                        return;
+                    }
+                    
+                    const sessionToken = localStorage.getItem('sessionToken');
+                    if (!sessionToken) {
+                        console.error('No session token found');
+                        return;
+                    }
                     
                     try {
+                        // Delete the comment
                         await this.deleteComment(report.comment_id);
-                        await this.api.put(`/reports/${report.id}/resolve`, { action: 'resolved' });
                         
+                        // Resolve the report
+                        await fetch(`${this.apiUrl}/reports/${report.id}/resolve`, {
+                            method: 'PUT',
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${sessionToken}`
+                            },
+                            body: JSON.stringify({ 
+                                action: 'resolved'
+                            })
+                        });
+                        
+                        // Remove from reports list
                         const scope = this.$el.querySelector('[x-data*="showReports"]').__x.$data;
                         scope.reports = scope.reports.filter(r => r.id !== report.id);
+                        
                     } catch (error) {
                         console.error('Error deleting reported comment:', error);
                         alert('Failed to delete reported comment');
@@ -1570,13 +1731,34 @@
                 },
                 
                 async dismissReport(reportId) {
-                    if (!confirm('Dismiss this report?')) return;
+                    if (!confirm('Dismiss this report?')) {
+                        return;
+                    }
+                    
+                    const sessionToken = localStorage.getItem('sessionToken');
+                    if (!sessionToken) {
+                        console.error('No session token found');
+                        return;
+                    }
                     
                     try {
-                        await this.api.put(`/reports/${reportId}/resolve`, { action: 'dismissed' });
+                        const response = await fetch(`${this.apiUrl}/reports/${reportId}/resolve`, {
+                            method: 'PUT',
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${sessionToken}`
+                            },
+                            body: JSON.stringify({ 
+                                action: 'dismissed'
+                            })
+                        });
                         
-                        const scope = this.$el.querySelector('[x-data*="showReports"]').__x.$data;
-                        scope.reports = scope.reports.filter(r => r.id !== reportId);
+                        if (response.ok) {
+                            // Remove from reports list
+                            const scope = this.$el.querySelector('[x-data*="showReports"]').__x.$data;
+                            scope.reports = scope.reports.filter(r => r.id !== reportId);
+                            console.log('Report dismissed');
+                        }
                     } catch (error) {
                         console.error('Error dismissing report:', error);
                         alert('Failed to dismiss report');
@@ -1584,15 +1766,34 @@
                 },
                 
                 async banUser(userId, userName) {
-                    if (!confirm(`Ban user ${userName}? This will delete all their comments.`)) return;
+                    if (!confirm(`Ban user ${userName}? This will delete all their comments.`)) {
+                        return;
+                    }
+                    
+                    const sessionToken = localStorage.getItem('sessionToken');
+                    if (!sessionToken) {
+                        console.error('No session token found');
+                        return;
+                    }
                     
                     try {
-                        await this.api.post(`/users/${userId}/ban`, {});
-                        alert(`User ${userName} has been banned`);
-                        await this.loadComments();
+                        const response = await fetch(`${this.apiUrl}/users/${userId}/ban`, {
+                            method: 'POST',
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${sessionToken}`
+                            },
+                            body: JSON.stringify({})
+                        });
                         
-                        const scope = this.$el.querySelector('[x-data*="showReports"]').__x.$data;
-                        scope.reports = scope.reports.filter(r => r.comment_user_id !== userId);
+                        if (response.ok) {
+                            alert(`User ${userName} has been banned`);
+                            // Reload comments to reflect deletions
+                            await this.loadComments();
+                            // Clear reports from this user
+                            const scope = this.$el.querySelector('[x-data*="showReports"]').__x.$data;
+                            scope.reports = scope.reports.filter(r => r.comment_user_id !== userId);
+                        }
                     } catch (error) {
                         console.error('Error banning user:', error);
                         alert('Failed to ban user');
@@ -1600,26 +1801,56 @@
                 },
                 
                 async deleteAllComments() {
-                    if (!confirm('Are you sure you want to delete ALL comments on this page? This action cannot be undone.')) return;
-                    if (!confirm('This will permanently delete all comments and replies on this page. Are you absolutely sure?')) return;
+                    if (!confirm('Are you sure you want to delete ALL comments on this page? This action cannot be undone.')) {
+                        return;
+                    }
+                    
+                    // Double confirmation for safety
+                    if (!confirm('This will permanently delete all comments and replies on this page. Are you absolutely sure?')) {
+                        return;
+                    }
+                    
+                    const sessionToken = localStorage.getItem('sessionToken');
+                    if (!sessionToken) {
+                        console.error('No session token found');
+                        alert('Please sign in again');
+                        return;
+                    }
                     
                     try {
-                        const result = await this.api.delete(`/comments/page/${this.pageId}/all`);
+                        const response = await fetch(`${this.apiUrl}/comments/page/${this.pageId}/all`, {
+                            method: 'DELETE',
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${sessionToken}`
+                            }
+                        });
                         
+                        if (!response.ok) {
+                            const error = await response.json();
+                            throw new Error(error.error || 'Failed to delete comments');
+                        }
+                        
+                        const result = await response.json();
+                        console.log('All comments deleted:', result);
+                        
+                        // Clear local state
                         this.comments = [];
                         this.sortedComments = [];
                         
+                        // Clear any reports
                         const reportsScope = this.$el.querySelector('[x-data*="showReports"]');
-                        if (reportsScope?.__x) {
+                        if (reportsScope && reportsScope.__x) {
                             reportsScope.__x.$data.reports = [];
                         }
                         
                         alert(`Successfully deleted ${result.deletedCount} comments`);
+                        
                     } catch (error) {
                         console.error('Error deleting all comments:', error);
                         alert(error.message || 'Failed to delete all comments');
                     }
-                },
+                }
             }
         }
     </script>
