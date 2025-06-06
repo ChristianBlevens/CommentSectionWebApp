@@ -1111,14 +1111,17 @@ app.get('/api/reports/:pageId', authenticateUser, requireModerator, async (req, 
     
     try {
         
-        // Get reports with comment details
+        // Get reports with comment details (use LEFT JOIN in case comment was deleted)
         const reports = await pgPool.query(
-            `SELECT r.*, c.content, c.user_id as comment_user_id, 
-                    u1.name as reporter_name, u2.name as comment_user_name
+            `SELECT r.*, 
+                    COALESCE(c.content, '[Comment deleted]') as content, 
+                    c.user_id as comment_user_id, 
+                    u1.name as reporter_name, 
+                    COALESCE(u2.name, '[Deleted User]') as comment_user_name
              FROM reports r
-             JOIN comments c ON r.comment_id = c.id
+             LEFT JOIN comments c ON r.comment_id = c.id
              JOIN users u1 ON r.reporter_id = u1.id
-             JOIN users u2 ON c.user_id = u2.id
+             LEFT JOIN users u2 ON c.user_id = u2.id
              WHERE r.page_id = $1 AND r.status = 'pending'
              ORDER BY r.created_at DESC`,
             [pageId]

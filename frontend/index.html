@@ -1652,6 +1652,7 @@
                     }
                     
                     try {
+                        console.log('Loading reports for pageId:', this.pageId);
                         const response = await fetch(`${this.apiUrl}/reports/${this.pageId}`, {
                             headers: {
                                 'Authorization': `Bearer ${sessionToken}`
@@ -1661,13 +1662,16 @@
                         if (response.ok) {
                             const data = await response.json();
                             scope.reports = data;
-                            console.log(`Loaded ${data.length} reports`);
+                            console.log(`Loaded ${data.length} reports for page ${this.pageId}`);
+                            console.log('Reports data:', data);
                         } else if (response.status === 403) {
                             // User is not a moderator
                             console.log('User is not a moderator');
                             // Hide moderator UI
                             this.user.is_moderator = false;
                             localStorage.setItem('user', JSON.stringify(this.user));
+                        } else {
+                            console.error('Failed to load reports:', response.status, response.statusText);
                         }
                     } catch (error) {
                         console.error('Error loading reports:', error);
