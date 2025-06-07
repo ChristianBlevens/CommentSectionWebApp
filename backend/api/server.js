@@ -929,6 +929,80 @@ app.post('/api/comments/:commentId/report', authenticateUser, async (req, res) =
     }
 });
 
+// Get reports with optional page filter (moderators only) - MOVED UP TO AVOID ROUTE CONFLICT
+app.get('/api/reports/filter', authenticateUser, requireModerator, async (req, res) => {
+    const { pageId } = req.query;
+    
+    console.log(`[FILTER ENDPOINT] Getting reports with filter - pageId: "${pageId}" (length: ${pageId ? pageId.length : 0})`);
+    
+    try {
+        let query = `
+            SELECT r.*, 
+                   r.comment_content as content,
+                   u1.name as reporter_name
+            FROM reports r
+            JOIN users u1 ON r.reporter_id = u1.id
+            WHERE r.status = 'pending'
+        `;
+        
+        const params = [];
+        if (pageId) {
+            // Use TRIM to handle any whitespace issues
+            query += ' AND TRIM(r.page_id) = TRIM($1)';
+            params.push(pageId);
+            console.log(`[FILTER ENDPOINT] Filtering reports for page: "${pageId}" (trimmed)`);
+        }
+        
+        query += ' ORDER BY r.created_at DESC';
+        
+        const reports = await pgPool.query(query, params);
+        console.log(`[FILTER ENDPOINT] Found ${reports.rows.length} reports${pageId ? ` for page "${pageId}"` : ' (all pages)'}`);
+        
+        // Enhanced debugging for page_id mismatch
+        if (reports.rows.length === 0 && pageId) {
+            const allReports = await pgPool.query(
+                `SELECT DISTINCT page_id, LENGTH(page_id) as len, 
+                        ENCODE(page_id::bytea, 'hex') as hex_value 
+                 FROM reports 
+                 WHERE status = 'pending' 
+                 LIMIT 10`
+            );
+            console.log('[FILTER ENDPOINT] Sample page_ids in reports table:');
+            allReports.rows.forEach(r => {
+                console.log(`  - "${r.page_id}" (length: ${r.len}, hex: ${r.hex_value})`);
+            });
+            
+            // Check exact match
+            const exactMatch = await pgPool.query(
+                `SELECT COUNT(*) as count FROM reports 
+                 WHERE page_id = $1 AND status = 'pending'`,
+                [pageId]
+            );
+            console.log(`[FILTER ENDPOINT] Exact match count for "${pageId}": ${exactMatch.rows[0].count}`);
+            
+            // Check with LIKE to see if there's partial match
+            const likeMatch = await pgPool.query(
+                `SELECT COUNT(*) as count FROM reports 
+                 WHERE page_id LIKE $1 AND status = 'pending'`,
+                [`%${pageId}%`]
+            );
+            console.log(`[FILTER ENDPOINT] LIKE match count for "%${pageId}%": ${likeMatch.rows[0].count}`);
+        }
+        
+        // Prevent caching
+        res.set({
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+        });
+        
+        res.json(reports.rows);
+    } catch (error) {
+        console.error('[FILTER ENDPOINT] Get filtered reports error:', error);
+        res.status(500).json({ error: 'Failed to get reports' });
+    }
+});
+
 // Get reports for page (moderators only)
 app.get('/api/reports/:pageId', authenticateUser, requireModerator, async (req, res) => {
     const { pageId } = req.params;
@@ -1158,79 +1232,6 @@ app.get('/api/pages', authenticateUser, requireModerator, async (req, res) => {
     }
 });
 
-// Get reports with optional page filter (moderators only)
-app.get('/api/reports/filter', authenticateUser, requireModerator, async (req, res) => {
-    const { pageId } = req.query;
-    
-    console.log(`[FILTER ENDPOINT] Getting reports with filter - pageId: "${pageId}" (length: ${pageId ? pageId.length : 0})`);
-    
-    try {
-        let query = `
-            SELECT r.*, 
-                   r.comment_content as content,
-                   u1.name as reporter_name
-            FROM reports r
-            JOIN users u1 ON r.reporter_id = u1.id
-            WHERE r.status = 'pending'
-        `;
-        
-        const params = [];
-        if (pageId) {
-            // Use TRIM to handle any whitespace issues
-            query += ' AND TRIM(r.page_id) = TRIM($1)';
-            params.push(pageId);
-            console.log(`[FILTER ENDPOINT] Filtering reports for page: "${pageId}" (trimmed)`);
-        }
-        
-        query += ' ORDER BY r.created_at DESC';
-        
-        const reports = await pgPool.query(query, params);
-        console.log(`[FILTER ENDPOINT] Found ${reports.rows.length} reports${pageId ? ` for page "${pageId}"` : ' (all pages)'}`);
-        
-        // Enhanced debugging for page_id mismatch
-        if (reports.rows.length === 0 && pageId) {
-            const allReports = await pgPool.query(
-                `SELECT DISTINCT page_id, LENGTH(page_id) as len, 
-                        ENCODE(page_id::bytea, 'hex') as hex_value 
-                 FROM reports 
-                 WHERE status = 'pending' 
-                 LIMIT 10`
-            );
-            console.log('[FILTER ENDPOINT] Sample page_ids in reports table:');
-            allReports.rows.forEach(r => {
-                console.log(`  - "${r.page_id}" (length: ${r.len}, hex: ${r.hex_value})`);
-            });
-            
-            // Check exact match
-            const exactMatch = await pgPool.query(
-                `SELECT COUNT(*) as count FROM reports 
-                 WHERE page_id = $1 AND status = 'pending'`,
-                [pageId]
-            );
-            console.log(`[FILTER ENDPOINT] Exact match count for "${pageId}": ${exactMatch.rows[0].count}`);
-            
-            // Check with LIKE to see if there's partial match
-            const likeMatch = await pgPool.query(
-                `SELECT COUNT(*) as count FROM reports 
-                 WHERE page_id LIKE $1 AND status = 'pending'`,
-                [`%${pageId}%`]
-            );
-            console.log(`[FILTER ENDPOINT] LIKE match count for "%${pageId}%": ${likeMatch.rows[0].count}`);
-        }
-        
-        // Prevent caching
-        res.set({
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0'
-        });
-        
-        res.json(reports.rows);
-    } catch (error) {
-        console.error('[FILTER ENDPOINT] Get filtered reports error:', error);
-        res.status(500).json({ error: 'Failed to get reports' });
-    }
-});
 
 // Error handlers
 app.use((err, req, res, next) => {

@@ -301,6 +301,9 @@
                         const url = this.selectedPage 
                             ? `${this.apiUrl}/reports/filter?pageId=${encodeURIComponent(this.selectedPage)}`
                             : `${this.apiUrl}/reports`;
+                        
+                        console.log(`[DEBUG] Loading reports from: ${url}`);
+                        console.log(`[DEBUG] Selected page: ${this.selectedPage}`);
                             
                         const response = await fetch(url, {
                             headers: { 
