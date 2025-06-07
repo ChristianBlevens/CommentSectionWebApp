@@ -219,7 +219,7 @@
                     this.checkExistingSession();
                     
                     // Listen for login messages
-                    window.addEventListener('message', (event) => {
+                    window.addEventListener('message', async (event) => {
                         if (event.data && event.data.type === 'discord-login-success') {
                             console.log('Received Discord login success');
                             this.user = event.data.user;
@@ -228,14 +228,15 @@
                                 localStorage.setItem('sessionToken', event.data.sessionToken);
                             }
                             if (this.user.is_moderator) {
-                                this.loadReports();
-                                this.loadPages();
+                                // Load pages first, then reports
+                                await this.loadPages();
+                                await this.loadReports();
                             }
                         }
                     });
                 },
                 
-                checkExistingSession() {
+                async checkExistingSession() {
                     const savedUser = localStorage.getItem('user');
                     const sessionToken = localStorage.getItem('sessionToken');
                     
@@ -245,8 +246,9 @@
                         
                         // Try to load reports - server will verify permissions
                         if (this.user.is_moderator) {
-                            this.loadReports();
-                            this.loadPages();
+                            // Load pages first, then reports
+                            await this.loadPages();
+                            await this.loadReports();
                         } else {
                             this.loading = false;
                         }
@@ -310,6 +312,11 @@
                             this.reports = await response.json();
                             this.filteredReports = [...this.reports];
                             console.log(`Loaded ${this.reports.length} reports`);
+                            
+                            // If we're showing all reports and pages haven't been loaded, load them
+                            if (!this.selectedPage && this.pages.length === 0) {
+                                await this.loadPages();
+                            }
                         } else if (response.status === 401) {
                             console.error('Session expired or invalid');
                             this.user = null;
@@ -330,10 +337,12 @@
                     const sessionToken = localStorage.getItem('sessionToken');
                     
                     if (!sessionToken) {
+                        console.log('[DEBUG] No session token, skipping page load');
                         return;
                     }
                     
                     try {
+                        console.log('[DEBUG] Loading pages from:', `${this.apiUrl}/reports/pages`);
                         const response = await fetch(`${this.apiUrl}/reports/pages`, {
                             headers: { 
                                 'Authorization': `Bearer ${sessionToken}`
@@ -343,10 +352,12 @@
                         if (response.ok) {
                             this.pages = await response.json();
                             this.filteredPages = [...this.pages];
-                            console.log(`Loaded ${this.pages.length} pages with reports`);
+                            console.log(`[DEBUG] Loaded ${this.pages.length} pages with reports:`, this.pages);
+                        } else {
+                            console.error('[DEBUG] Failed to load pages, status:', response.status);
                         }
                     } catch (error) {
-                        console.error('Error loading pages:', error);
+                        console.error('[DEBUG] Error loading pages:', error);
                     }
                 },
                 
@@ -417,6 +428,9 @@
                         
                         // Remove from list
                         this.reports = this.reports.filter(r => r.id !== report.id);
+                        this.filteredReports = this.reports.filter(r => 
+                            !this.selectedPage || r.page_id === this.selectedPage
+                        );
                         alert('Comment deleted successfully');
                         
                     } catch (error) {
@@ -461,6 +475,9 @@
                         
                         if (response.ok) {
                             this.reports = this.reports.filter(r => r.id !== reportId);
+                            this.filteredReports = this.reports.filter(r => 
+                                !this.selectedPage || r.page_id === this.selectedPage
+                            );
                             alert('Report dismissed');
                         } else {
                             throw new Error('Failed to dismiss report');
