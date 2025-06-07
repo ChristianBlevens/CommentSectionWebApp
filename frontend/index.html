@@ -578,6 +578,97 @@
             </div>
         </div>
 
+        <!-- Moderation Panel for Reports -->
+        <div x-show="user && user.is_moderator" class="bg-white rounded-lg shadow-md p-4 mb-4">
+            <div class="border-l-4 border-orange-500 pl-4">
+                <button @click="toggleReportsPanel()" 
+                        class="w-full flex justify-between items-center hover:bg-gray-50 p-2 rounded transition-colors">
+                    <div class="flex items-center">
+                        <i class="fas fa-shield-alt text-orange-600 mr-2"></i>
+                        <span class="font-semibold text-gray-800">Moderation Panel</span>
+                        <span x-show="pageReports.length > 0" 
+                              class="ml-2 bg-red-500 text-white px-2 py-1 rounded-full text-xs">
+                            <span x-text="pageReports.length"></span> report<span x-show="pageReports.length !== 1">s</span>
+                        </span>
+                    </div>
+                    <i :class="showReportsPanel ? 'fa-chevron-up' : 'fa-chevron-down'" 
+                       class="fas text-gray-500"></i>
+                </button>
+                
+                <div x-show="showReportsPanel" x-transition class="mt-4 space-y-3">
+                    <!-- Loading reports -->
+                    <div x-show="loadingReports" class="text-center py-4">
+                        <div class="loading-spinner"></div>
+                        <p class="text-sm text-gray-600 mt-2">Loading reports...</p>
+                    </div>
+                    
+                    <!-- No reports -->
+                    <div x-show="!loadingReports && pageReports.length === 0" 
+                         class="text-center py-4 text-gray-500">
+                        <i class="fas fa-check-circle text-2xl mb-2 text-green-500"></i>
+                        <p class="text-sm">No pending reports for this page</p>
+                    </div>
+                    
+                    <!-- Reports list -->
+                    <div x-show="!loadingReports && pageReports.length > 0" class="space-y-3">
+                        <template x-for="report in pageReports" :key="report.id">
+                            <div class="border rounded-lg p-4 bg-gray-50">
+                                <div class="flex justify-between items-start mb-2">
+                                    <div class="flex-1">
+                                        <p class="text-sm text-gray-600 mb-1">
+                                            <i class="fas fa-user mr-1"></i>
+                                            Reported by: <span class="font-medium" x-text="report.reporter_name"></span>
+                                        </p>
+                                        <p class="text-sm text-gray-600 mb-1">
+                                            <i class="fas fa-clock mr-1"></i>
+                                            <span x-text="getRelativeTime(report.created_at)"></span>
+                                        </p>
+                                        <p class="text-sm text-gray-600">
+                                            <i class="fas fa-exclamation-circle mr-1"></i>
+                                            Reason: <span class="font-medium" x-text="report.reason"></span>
+                                        </p>
+                                    </div>
+                                </div>
+                                
+                                <!-- Reported comment content -->
+                                <div class="bg-white rounded p-3 mb-3 border border-gray-200">
+                                    <p class="text-sm font-medium text-gray-700 mb-1">
+                                        Comment by: <span x-text="report.comment_user_name"></span>
+                                    </p>
+                                    <div class="text-sm text-gray-800" x-text="report.content"></div>
+                                </div>
+                                
+                                <!-- Actions -->
+                                <div class="flex flex-wrap gap-2">
+                                    <button @click="jumpToComment(report.comment_id)" 
+                                            class="text-xs bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded">
+                                        <i class="fas fa-eye mr-1"></i>View Comment
+                                    </button>
+                                    <button @click="deleteReportedComment(report)" 
+                                            class="text-xs bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded">
+                                        <i class="fas fa-trash mr-1"></i>Delete Comment
+                                    </button>
+                                    <button @click="dismissReport(report.id)" 
+                                            class="text-xs bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded">
+                                        <i class="fas fa-times mr-1"></i>Dismiss
+                                    </button>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                    
+                    <!-- View all reports link -->
+                    <div class="mt-4 pt-4 border-t text-center">
+                        <a href="/reports.html" target="_blank" 
+                           class="text-sm text-blue-600 hover:text-blue-800">
+                            <i class="fas fa-external-link-alt mr-1"></i>
+                            View all reports across all pages
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Focus mode header -->
         <div x-show="focusedCommentId" class="bg-white rounded-lg shadow-md p-4 mb-4">
             <div class="flex justify-between items-center">
@@ -653,6 +744,9 @@
                 focusedCommentId: null,
                 focusedComments: [],
                 reportedCommentId: null,
+                pageReports: [],
+                showReportsPanel: false,
+                loadingReports: false,
 
                 init() {
                     // Set global instance
@@ -670,6 +764,11 @@
                     // Load comments
                     this.loadComments();
                     
+                    // Load reports if moderator
+                    if (this.user && this.user.is_moderator) {
+                        this.loadPageReports();
+                    }
+                    
                     // Listen for OAuth messages
                     window.addEventListener('message', (event) => {
                         if (event.data?.type === 'discord-login-success') {
@@ -679,6 +778,10 @@
                                 localStorage.setItem('sessionToken', event.data.sessionToken);
                             }
                             this.loadComments();
+                            // Load reports if user became a moderator
+                            if (this.user && this.user.is_moderator) {
+                                this.loadPageReports();
+                            }
                         }
                     });
                     
@@ -823,6 +926,11 @@
                         this.comments = data;
                         this.buildCommentTree();
                         this.sortComments();
+                        
+                        // Load reports if user is moderator
+                        if (this.user && this.user.is_moderator) {
+                            this.loadPageReports();
+                        }
                     } catch (error) {
                         console.error('Error loading comments:', error);
                     } finally {
@@ -1557,6 +1665,140 @@
                     this.loadComments();
                 },
                 
+                // Toggle reports panel
+                toggleReportsPanel() {
+                    this.showReportsPanel = !this.showReportsPanel;
+                    if (this.showReportsPanel && this.pageReports.length === 0) {
+                        this.loadPageReports();
+                    }
+                },
+                
+                // Load reports for current page
+                async loadPageReports() {
+                    if (!this.user || !this.user.is_moderator) return;
+                    
+                    this.loadingReports = true;
+                    const sessionToken = localStorage.getItem('sessionToken');
+                    
+                    if (!sessionToken) {
+                        this.loadingReports = false;
+                        return;
+                    }
+                    
+                    try {
+                        const response = await fetch(`${this.apiUrl}/reports/${encodeURIComponent(this.pageId)}`, {
+                            headers: { 
+                                'Authorization': `Bearer ${sessionToken}`
+                            }
+                        });
+                        
+                        if (response.ok) {
+                            this.pageReports = await response.json();
+                        } else if (response.status === 401) {
+                            this.user = null;
+                            localStorage.removeItem('user');
+                            localStorage.removeItem('sessionToken');
+                        }
+                    } catch (error) {
+                        console.error('Error loading reports:', error);
+                    } finally {
+                        this.loadingReports = false;
+                    }
+                },
+                
+                // Jump to comment
+                jumpToComment(commentId) {
+                    const commentElement = document.querySelector(`[data-comment-id="${commentId}"]`);
+                    if (commentElement) {
+                        commentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        // Highlight the comment briefly
+                        commentElement.style.backgroundColor = '#fef3c7';
+                        setTimeout(() => {
+                            commentElement.style.backgroundColor = '';
+                        }, 2000);
+                    } else {
+                        alert('Comment not found on this page. It may have been deleted.');
+                    }
+                },
+                
+                // Delete reported comment
+                async deleteReportedComment(report) {
+                    if (!confirm('Delete this reported comment?')) return;
+                    
+                    const sessionToken = localStorage.getItem('sessionToken');
+                    if (!sessionToken) {
+                        alert('Session expired. Please sign in again.');
+                        return;
+                    }
+                    
+                    try {
+                        // Delete the comment
+                        const deleteResponse = await fetch(`${this.apiUrl}/comments/${report.comment_id}`, {
+                            method: 'DELETE',
+                            headers: { 
+                                'Authorization': `Bearer ${sessionToken}`
+                            }
+                        });
+                        
+                        if (!deleteResponse.ok) {
+                            throw new Error('Failed to delete comment');
+                        }
+                        
+                        // Resolve the report
+                        await fetch(`${this.apiUrl}/reports/${report.id}/resolve`, {
+                            method: 'PUT',
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${sessionToken}`
+                            },
+                            body: JSON.stringify({ action: 'resolved' })
+                        });
+                        
+                        // Remove from list
+                        this.pageReports = this.pageReports.filter(r => r.id !== report.id);
+                        
+                        // Reload comments to reflect deletion
+                        this.loadComments();
+                        
+                        alert('Comment deleted successfully');
+                    } catch (error) {
+                        console.error('Error deleting comment:', error);
+                        alert('Failed to delete comment');
+                    }
+                },
+                
+                // Dismiss report
+                async dismissReport(reportId) {
+                    if (!confirm('Dismiss this report?')) return;
+                    
+                    const sessionToken = localStorage.getItem('sessionToken');
+                    if (!sessionToken) {
+                        alert('Session expired. Please sign in again.');
+                        return;
+                    }
+                    
+                    try {
+                        const response = await fetch(`${this.apiUrl}/reports/${reportId}/resolve`, {
+                            method: 'PUT',
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${sessionToken}`
+                            },
+                            body: JSON.stringify({ action: 'dismissed' })
+                        });
+                        
+                        if (response.ok) {
+                            // Remove from list
+                            this.pageReports = this.pageReports.filter(r => r.id !== reportId);
+                            alert('Report dismissed');
+                        } else {
+                            throw new Error('Failed to dismiss report');
+                        }
+                    } catch (error) {
+                        console.error('Error dismissing report:', error);
+                        alert('Failed to dismiss report');
+                    }
+                }
                 
             }
         }

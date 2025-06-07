@@ -49,11 +49,6 @@
                                 class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">
                             <i class="fas fa-sync-alt mr-2"></i>Refresh
                         </button>
-                        <button x-show="selectedPage" 
-                                @click="deleteAllCommentsForPage()" 
-                                class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md">
-                            <i class="fas fa-trash-alt mr-2"></i>Delete All Comments
-                        </button>
                         <div class="relative">
                             <button @click="showPageDropdown = !showPageDropdown" 
                                     class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md flex items-center">
@@ -82,7 +77,7 @@
                                                 class="w-full text-left px-4 py-2 hover:bg-gray-100 border-b border-gray-200">
                                             <div class="flex justify-between items-center">
                                                 <span x-text="page.page_id" class="font-medium"></span>
-                                                <span class="text-sm text-gray-500">(<span x-text="page.comment_count"></span> comments)</span>
+                                                <span class="text-sm text-gray-500">(<span x-text="page.report_count"></span> report<span x-show="page.report_count != 1">s</span>)</span>
                                             </div>
                                         </button>
                                     </template>
@@ -339,7 +334,7 @@
                     }
                     
                     try {
-                        const response = await fetch(`${this.apiUrl}/pages`, {
+                        const response = await fetch(`${this.apiUrl}/reports/pages`, {
                             headers: { 
                                 'Authorization': `Bearer ${sessionToken}`
                             }
@@ -348,7 +343,7 @@
                         if (response.ok) {
                             this.pages = await response.json();
                             this.filteredPages = [...this.pages];
-                            console.log(`Loaded ${this.pages.length} pages`);
+                            console.log(`Loaded ${this.pages.length} pages with reports`);
                         }
                     } catch (error) {
                         console.error('Error loading pages:', error);
@@ -370,61 +365,6 @@
                     this.selectedPage = pageId;
                     this.showPageDropdown = false;
                     this.loadReports();
-                },
-                
-                async deleteAllCommentsForPage() {
-                    if (!this.selectedPage) return;
-                    
-                    if (!confirm(`Delete ALL comments on page "${this.selectedPage}"? This cannot be undone.`)) {
-                        return;
-                    }
-                    
-                    if (!confirm('This will permanently delete all comments on this page. Are you absolutely sure?')) {
-                        return;
-                    }
-                    
-                    const sessionToken = localStorage.getItem('sessionToken');
-                    if (!sessionToken) {
-                        alert('Session expired. Please sign in again.');
-                        this.user = null;
-                        localStorage.removeItem('user');
-                        localStorage.removeItem('sessionToken');
-                        return;
-                    }
-                    
-                    try {
-                        const response = await fetch(`${this.apiUrl}/comments/page/${encodeURIComponent(this.selectedPage)}/all`, {
-                            method: 'DELETE',
-                            headers: { 
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${sessionToken}`
-                            }
-                        });
-                        
-                        if (response.status === 401) {
-                            alert('Session expired. Please sign in again.');
-                            this.user = null;
-                            localStorage.removeItem('user');
-                            localStorage.removeItem('sessionToken');
-                            return;
-                        }
-                        
-                        if (!response.ok) {
-                            const error = await response.json();
-                            throw new Error(error.error || 'Failed to delete comments');
-                        }
-                        
-                        const result = await response.json();
-                        alert(`Successfully deleted ${result.deletedCount} comments from page "${this.selectedPage}"`);
-                        
-                        // Reload reports and pages
-                        await this.loadReports();
-                        await this.loadPages();
-                        
-                    } catch (error) {
-                        console.error('Error deleting all comments:', error);
-                        alert(error.message || 'Failed to delete all comments');
-                    }
                 },
                 
                 async deleteComment(report) {

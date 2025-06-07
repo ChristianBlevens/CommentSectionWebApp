@@ -1232,6 +1232,26 @@ app.get('/api/pages', authenticateUser, requireModerator, async (req, res) => {
     }
 });
 
+// Get pages with pending reports (moderators only)
+app.get('/api/reports/pages', authenticateUser, requireModerator, async (req, res) => {
+    try {
+        const pages = await pgPool.query(`
+            SELECT DISTINCT page_id, COUNT(*) as report_count 
+            FROM reports 
+            WHERE status = 'pending'
+            GROUP BY page_id 
+            ORDER BY report_count DESC
+        `);
+        
+        console.log(`Returning ${pages.rows.length} pages with pending reports`);
+        
+        res.json(pages.rows);
+    } catch (error) {
+        console.error('Get report pages error:', error);
+        res.status(500).json({ error: 'Failed to get pages with reports' });
+    }
+});
+
 
 // Error handlers
 app.use((err, req, res, next) => {
