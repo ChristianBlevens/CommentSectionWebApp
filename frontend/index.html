@@ -490,6 +490,15 @@
         .comment-section-bottom-padding {
             height: 300px;
         }
+        
+        /* View replies button */
+        .ml-4 {
+            margin-left: 1rem;
+        }
+        
+        .mt-2 {
+            margin-top: 0.5rem;
+        }
     </style>
 </head>
 <body class="bg-gray-100">
@@ -671,9 +680,20 @@
             </div>
         </div>
 
+        <!-- Focus mode header -->
+        <div x-show="focusedCommentId" class="bg-white rounded-lg shadow-md p-4 mb-4">
+            <div class="flex justify-between items-center">
+                <h2 class="text-lg font-semibold">Viewing replies</h2>
+                <button @click="exitFocusMode()" class="btn-secondary text-sm">
+                    <i class="fas fa-arrow-left mr-1"></i>
+                    Back to discussion
+                </button>
+            </div>
+        </div>
+        
         <!-- Comments -->
         <div class="comment-thread">
-            <template x-for="comment in sortedComments" :key="comment.id">
+            <template x-for="comment in (focusedCommentId ? focusedComments : sortedComments)" :key="comment.id">
                 <div x-html="renderComment(comment, 0)"></div>
             </template>
         </div>
@@ -732,6 +752,9 @@
                 md: null,
                 apiUrl: '/api',
                 moderationUrl: '/moderation/api',
+                focusedCommentId: null,
+                focusedComments: [],
+                reportedCommentId: null,
 
                 init() {
                     // Set global instance
@@ -1275,7 +1298,7 @@
                              data-comment-id="${comment.id}">
                             ${depth > 0 ? '<div class="comment-line" onclick="window.commentAppInstance.toggleCollapse(event)"></div>' : ''}
                             
-                            <div class="comment-content ${window.reportedCommentId == comment.id ? 'reported' : ''}" id="comment-${comment.id}">
+                            <div class="comment-content ${this.reportedCommentId == comment.id ? 'reported' : ''}" id="comment-${comment.id}">
                                 
                                 <div class="comment-header">
                                     ${!isDeleted ? `<img src="${comment.userPicture}" class="comment-avatar">` : '<div class="comment-avatar bg-gray-300"></div>'}
@@ -1376,8 +1399,17 @@
                             
                             <div class="comment-children">
                                 ${depth < MAX_DEPTH && comment.children?.length > 0 ? 
-                                    comment.children.map(child => this.renderComment(child, depth + 1)).join('') : ''}
-                            </div>
+                                    comment.children.map(child => this.renderComment(child, depth + 1)).join('') : 
+                                    (depth >= MAX_DEPTH && comment.children?.length > 0 ? `
+                                        <div class="ml-4 mt-2">
+                                            <button onclick="window.commentAppInstance.viewReplies('${comment.id}')" 
+                                                    class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                                                <i class="fas fa-comments mr-1"></i>
+                                                View ${comment.children.length} ${comment.children.length === 1 ? 'reply' : 'replies'}
+                                            </button>
+                                        </div>
+                                    ` : '')
+                                }
                         </div>
                     `;
                     
@@ -1631,47 +1663,58 @@
                 
                 // View reported comment
                 viewReportedComment(commentId) {
-                    // Set global marker for reported comment
-                    window.reportedCommentId = commentId;
+                    // Set marker for reported comment
+                    this.reportedCommentId = commentId;
                     
                     // Find the comment
                     const comment = this.findComment(commentId, this.comments);
                     if (!comment) return;
                     
-                    // If it's a reply, focus on parent first
+                    // Enter focus mode
                     if (comment.parentId) {
-                        const parentElement = document.getElementById(`comment-${comment.parentId}`);
-                        if (parentElement) {
-                            parentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                            // Wait a bit then scroll to the actual reported comment
-                            setTimeout(() => {
-                                const element = document.getElementById(`comment-${commentId}`);
-                                if (element) {
-                                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                    // Add reported class
-                                    element.classList.add('reported');
-                                    // Remove after 5 seconds
-                                    setTimeout(() => {
-                                        element.classList.remove('reported');
-                                        window.reportedCommentId = null;
-                                    }, 5000);
-                                }
-                            }, 500);
-                        }
+                        // If it's a reply, focus on its parent
+                        this.enterFocusMode(comment.parentId);
                     } else {
-                        // It's a base comment
-                        const element = document.getElementById(`comment-${commentId}`);
-                        if (element) {
-                            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                            // Add reported class
-                            element.classList.add('reported');
-                            // Remove after 5 seconds
-                            setTimeout(() => {
-                                element.classList.remove('reported');
-                                window.reportedCommentId = null;
-                            }, 5000);
-                        }
+                        // If it's a base comment, focus on it
+                        this.enterFocusMode(commentId);
                     }
+                    
+                    // Clear reported highlight after 5 seconds
+                    setTimeout(() => {
+                        this.reportedCommentId = null;
+                        this.sortComments();
+                    }, 5000);
+                },
+                
+                // View replies button handler
+                viewReplies(commentId) {
+                    this.enterFocusMode(commentId);
+                },
+                
+                // Enter focus mode
+                enterFocusMode(commentId) {
+                    const comment = this.findComment(commentId, this.comments);
+                    if (!comment) return;
+                    
+                    // Set focused comment
+                    this.focusedCommentId = commentId;
+                    
+                    // Create focused comments array with just this comment
+                    this.focusedComments = [comment];
+                    
+                    // Scroll to top
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                },
+                
+                // Exit focus mode
+                exitFocusMode() {
+                    this.focusedCommentId = null;
+                    this.focusedComments = [];
+                    this.reportedCommentId = null;
+                    
+                    // Rebuild and sort comments
+                    this.buildCommentTree();
+                    this.sortComments();
                 },
                 
                 // Delete reported comment
