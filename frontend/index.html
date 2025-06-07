@@ -473,147 +473,6 @@
 </head>
 <body class="bg-gray-100">
     <div x-data="commentApp()" x-init="init()" class="container mx-auto px-4 max-w-4xl">
-        <!-- Moderation Panel for Reports -->
-        <div x-show="user && user.is_moderator" class="bg-white rounded-lg shadow-md p-4 mb-4">
-            <div class="border-l-4 border-orange-500 pl-4">
-                <button @click="toggleReportsPanel()" 
-                        class="w-full flex justify-between items-center hover:bg-gray-50 p-2 rounded transition-colors">
-                    <div class="flex items-center">
-                        <i class="fas fa-shield-alt text-orange-600 mr-2"></i>
-                        <span class="font-semibold text-gray-800">Moderation Panel</span>
-                        <span x-show="pageReports.length > 0" 
-                              class="ml-2 bg-red-500 text-white px-2 py-1 rounded-full text-xs">
-                            <span x-text="pageReports.length"></span> report<span x-show="pageReports.length !== 1">s</span>
-                        </span>
-                    </div>
-                    <i :class="showReportsPanel ? 'fa-chevron-up' : 'fa-chevron-down'" 
-                       class="fas text-gray-500"></i>
-                </button>
-                
-                <div x-show="showReportsPanel" x-transition class="mt-4 space-y-3">
-                    <!-- Loading reports -->
-                    <div x-show="loadingReports" class="text-center py-4">
-                        <div class="loading-spinner"></div>
-                        <p class="text-sm text-gray-600 mt-2">Loading reports...</p>
-                    </div>
-                    
-                    <!-- No reports -->
-                    <div x-show="!loadingReports && pageReports.length === 0" 
-                         class="text-center py-4 text-gray-500">
-                        <i class="fas fa-check-circle text-2xl mb-2 text-green-500"></i>
-                        <p class="text-sm">No pending reports for this page</p>
-                    </div>
-                    
-                    <!-- Reports list -->
-                    <div x-show="!loadingReports && pageReports.length > 0" class="space-y-3">
-                        <template x-for="report in pageReports" :key="report.id">
-                            <div class="border rounded-lg p-4 bg-gray-50">
-                                <div class="flex justify-between items-start mb-2">
-                                    <div class="flex-1">
-                                        <p class="text-sm text-gray-600 mb-1">
-                                            <i class="fas fa-user mr-1"></i>
-                                            Reported by: <span class="font-medium" x-text="report.reporter_name"></span>
-                                        </p>
-                                        <p class="text-sm text-gray-600 mb-1">
-                                            <i class="fas fa-clock mr-1"></i>
-                                            <span x-text="getRelativeTime(report.created_at)"></span>
-                                        </p>
-                                        <p class="text-sm text-gray-600">
-                                            <i class="fas fa-exclamation-circle mr-1"></i>
-                                            Reason: <span class="font-medium" x-text="report.reason"></span>
-                                        </p>
-                                    </div>
-                                </div>
-                                
-                                <!-- Reported comment content -->
-                                <div class="bg-white rounded p-3 mb-3 border border-gray-200">
-                                    <p class="text-sm font-medium text-gray-700 mb-1">
-                                        Comment by: <span x-text="report.comment_user_name"></span>
-                                    </p>
-                                    <div class="text-sm text-gray-800" x-text="report.content"></div>
-                                </div>
-                                
-                                <!-- Actions -->
-                                <div class="flex flex-wrap gap-2">
-                                    <button @click="jumpToComment(report.comment_id)" 
-                                            class="text-xs bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded">
-                                        <i class="fas fa-eye mr-1"></i>View Comment
-                                    </button>
-                                    <button @click="deleteReportedComment(report)" 
-                                            class="text-xs bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded">
-                                        <i class="fas fa-trash mr-1"></i>Delete Comment
-                                    </button>
-                                    <button @click="dismissReport(report.id)" 
-                                            class="text-xs bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded">
-                                        <i class="fas fa-times mr-1"></i>Dismiss
-                                    </button>
-                                    <div class="relative">
-                                        <button @click="toggleBanDropdown(report.comment_user_id)" 
-                                                class="text-xs bg-red-800 hover:bg-red-900 text-white px-3 py-1 rounded">
-                                            <i class="fas fa-ban mr-1"></i>Ban User
-                                        </button>
-                                        <div x-show="showBanDropdown === report.comment_user_id" 
-                                             @click.away="showBanDropdown = null"
-                                             class="absolute z-10 mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200">
-                                            <div class="py-1">
-                                                <button @click="banUser(report.comment_user_id, report.comment_user_name, '30m')" 
-                                                        class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                                                    30 minutes
-                                                </button>
-                                                <button @click="banUser(report.comment_user_id, report.comment_user_name, '6h')" 
-                                                        class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                                                    6 hours
-                                                </button>
-                                                <button @click="banUser(report.comment_user_id, report.comment_user_name, '1d')" 
-                                                        class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                                                    1 day
-                                                </button>
-                                                <button @click="banUser(report.comment_user_id, report.comment_user_name, '3d')" 
-                                                        class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                                                    3 days
-                                                </button>
-                                                <button @click="banUser(report.comment_user_id, report.comment_user_name, '1w')" 
-                                                        class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                                                    1 week
-                                                </button>
-                                                <button @click="banUser(report.comment_user_id, report.comment_user_name, '1mo')" 
-                                                        class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                                                    1 month
-                                                </button>
-                                                <button @click="banUser(report.comment_user_id, report.comment_user_name, '3mo')" 
-                                                        class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                                                    3 months
-                                                </button>
-                                                <button @click="banUser(report.comment_user_id, report.comment_user_name, 'permanent')" 
-                                                        class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                                                    Permanent
-                                                </button>
-                                                <div class="border-t border-gray-200">
-                                                    <button @click="showCustomBanInput(report.comment_user_id, report.comment_user_name)" 
-                                                            class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                                                        <i class="fas fa-clock mr-1"></i>Custom duration
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </template>
-                    </div>
-                    
-                    <!-- View all reports link -->
-                    <div class="mt-4 pt-4 border-t text-center">
-                        <a href="/reports.html" target="_blank" 
-                           class="text-sm text-blue-600 hover:text-blue-800">
-                            <i class="fas fa-external-link-alt mr-1"></i>
-                            View all reports across all pages
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <!-- Header -->
         <div class="bg-white rounded-lg shadow-md p-4 md:p-6 mb-4">
             <h1 class="text-xl md:text-2xl font-bold mb-4">Comments</h1>
@@ -719,6 +578,97 @@
             </div>
         </div>
 
+        <!-- Moderation Panel for Reports -->
+        <div x-show="user && user.is_moderator" class="bg-white rounded-lg shadow-md p-4 mb-4">
+            <div class="border-l-4 border-orange-500 pl-4">
+                <button @click="toggleReportsPanel()" 
+                        class="w-full flex justify-between items-center hover:bg-gray-50 p-2 rounded transition-colors">
+                    <div class="flex items-center">
+                        <i class="fas fa-shield-alt text-orange-600 mr-2"></i>
+                        <span class="font-semibold text-gray-800">Moderation Panel</span>
+                        <span x-show="pageReports.length > 0" 
+                              class="ml-2 bg-red-500 text-white px-2 py-1 rounded-full text-xs">
+                            <span x-text="pageReports.length"></span> report<span x-show="pageReports.length !== 1">s</span>
+                        </span>
+                    </div>
+                    <i :class="showReportsPanel ? 'fa-chevron-up' : 'fa-chevron-down'" 
+                       class="fas text-gray-500"></i>
+                </button>
+                
+                <div x-show="showReportsPanel" x-transition class="mt-4 space-y-3">
+                    <!-- Loading reports -->
+                    <div x-show="loadingReports" class="text-center py-4">
+                        <div class="loading-spinner"></div>
+                        <p class="text-sm text-gray-600 mt-2">Loading reports...</p>
+                    </div>
+                    
+                    <!-- No reports -->
+                    <div x-show="!loadingReports && pageReports.length === 0" 
+                         class="text-center py-4 text-gray-500">
+                        <i class="fas fa-check-circle text-2xl mb-2 text-green-500"></i>
+                        <p class="text-sm">No pending reports for this page</p>
+                    </div>
+                    
+                    <!-- Reports list -->
+                    <div x-show="!loadingReports && pageReports.length > 0" class="space-y-3">
+                        <template x-for="report in pageReports" :key="report.id">
+                            <div class="border rounded-lg p-4 bg-gray-50">
+                                <div class="flex justify-between items-start mb-2">
+                                    <div class="flex-1">
+                                        <p class="text-sm text-gray-600 mb-1">
+                                            <i class="fas fa-user mr-1"></i>
+                                            Reported by: <span class="font-medium" x-text="report.reporter_name"></span>
+                                        </p>
+                                        <p class="text-sm text-gray-600 mb-1">
+                                            <i class="fas fa-clock mr-1"></i>
+                                            <span x-text="getRelativeTime(report.created_at)"></span>
+                                        </p>
+                                        <p class="text-sm text-gray-600">
+                                            <i class="fas fa-exclamation-circle mr-1"></i>
+                                            Reason: <span class="font-medium" x-text="report.reason"></span>
+                                        </p>
+                                    </div>
+                                </div>
+                                
+                                <!-- Reported comment content -->
+                                <div class="bg-white rounded p-3 mb-3 border border-gray-200">
+                                    <p class="text-sm font-medium text-gray-700 mb-1">
+                                        Comment by: <span x-text="report.comment_user_name"></span>
+                                    </p>
+                                    <div class="text-sm text-gray-800" x-text="report.content"></div>
+                                </div>
+                                
+                                <!-- Actions -->
+                                <div class="flex flex-wrap gap-2">
+                                    <button @click="jumpToComment(report.comment_id)" 
+                                            class="text-xs bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded">
+                                        <i class="fas fa-eye mr-1"></i>View Comment
+                                    </button>
+                                    <button @click="deleteReportedComment(report)" 
+                                            class="text-xs bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded">
+                                        <i class="fas fa-trash mr-1"></i>Delete Comment
+                                    </button>
+                                    <button @click="dismissReport(report.id)" 
+                                            class="text-xs bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded">
+                                        <i class="fas fa-times mr-1"></i>Dismiss
+                                    </button>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                    
+                    <!-- View all reports link -->
+                    <div class="mt-4 pt-4 border-t text-center">
+                        <a href="/reports.html" target="_blank" 
+                           class="text-sm text-blue-600 hover:text-blue-800">
+                            <i class="fas fa-external-link-alt mr-1"></i>
+                            View all reports across all pages
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Focus mode header -->
         <div x-show="focusedCommentId" class="bg-white rounded-lg shadow-md p-4 mb-4">
             <div class="flex justify-between items-center">
@@ -797,7 +747,6 @@
                 pageReports: [],
                 showReportsPanel: false,
                 loadingReports: false,
-                showBanDropdown: null,
 
                 init() {
                     // Set global instance
@@ -833,8 +782,6 @@
                             if (this.user && this.user.is_moderator) {
                                 this.loadPageReports();
                             }
-                        } else if (event.data?.type === 'discord-login-error' && event.data.error === 'banned') {
-                            alert(event.data.message || 'You are banned from this service');
                         }
                     });
                     
@@ -1850,85 +1797,6 @@
                     } catch (error) {
                         console.error('Error dismissing report:', error);
                         alert('Failed to dismiss report');
-                    }
-                },
-                
-                // Toggle ban dropdown
-                toggleBanDropdown(userId) {
-                    this.showBanDropdown = this.showBanDropdown === userId ? null : userId;
-                },
-                
-                // Show custom ban input
-                showCustomBanInput(userId, userName) {
-                    const duration = prompt('Enter ban duration (e.g., 30m, 2h, 7d):');
-                    if (duration) {
-                        this.banUser(userId, userName, duration);
-                    }
-                    this.showBanDropdown = null;
-                },
-                
-                // Ban user
-                async banUser(userId, userName, duration) {
-                    if (!confirm(`Ban user ${userName} for ${this.formatBanDuration(duration)}?`)) {
-                        return;
-                    }
-                    
-                    const sessionToken = localStorage.getItem('sessionToken');
-                    if (!sessionToken) {
-                        alert('Session expired. Please sign in again.');
-                        return;
-                    }
-                    
-                    try {
-                        const response = await fetch(`${this.apiUrl}/users/${userId}/ban`, {
-                            method: 'POST',
-                            headers: { 
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${sessionToken}`
-                            },
-                            body: JSON.stringify({ duration })
-                        });
-                        
-                        if (response.ok) {
-                            alert(`User ${userName} has been banned for ${this.formatBanDuration(duration)}`);
-                            // Reload reports to reflect changes
-                            this.loadPageReports();
-                            this.loadComments();
-                        } else {
-                            throw new Error('Failed to ban user');
-                        }
-                    } catch (error) {
-                        console.error('Error banning user:', error);
-                        alert('Failed to ban user');
-                    } finally {
-                        this.showBanDropdown = null;
-                    }
-                },
-                
-                // Format ban duration for display
-                formatBanDuration(duration) {
-                    if (duration === 'permanent') return 'permanently';
-                    
-                    const match = duration.match(/^(\d+)(m|h|d|w|mo)?$/);
-                    if (!match) return duration;
-                    
-                    const [, num, unit] = match;
-                    const value = parseInt(num);
-                    
-                    switch (unit) {
-                        case 'm':
-                        case undefined:
-                            return value === 1 ? '1 minute' : `${value} minutes`;
-                        case 'h':
-                            return value === 1 ? '1 hour' : `${value} hours`;
-                        case 'd':
-                            return value === 1 ? '1 day' : `${value} days`;
-                        case 'w':
-                            return value === 1 ? '1 week' : `${value} weeks`;
-                        case 'mo':
-                            return value === 1 ? '1 month' : `${value} months`;
-                        default:
-                            return duration;
                     }
                 }
                 
