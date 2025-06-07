@@ -160,10 +160,56 @@
                                         class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md text-sm">
                                     <i class="fas fa-times mr-1"></i>Dismiss Report
                                 </button>
-                                <button @click="banUser(report.comment_user_id, report.comment_user_name)" 
-                                        class="bg-red-800 hover:bg-red-900 text-white px-4 py-2 rounded-md text-sm">
-                                    <i class="fas fa-ban mr-1"></i>Ban User
-                                </button>
+                                <div class="relative inline-block">
+                                    <button @click="toggleBanDropdown(report.comment_user_id, $event)" 
+                                            class="bg-red-800 hover:bg-red-900 text-white px-4 py-2 rounded-md text-sm">
+                                        <i class="fas fa-ban mr-1"></i>Ban User
+                                    </button>
+                                    <div x-show="showBanDropdown === report.comment_user_id" 
+                                         @click.away="showBanDropdown = null"
+                                         class="absolute left-0 mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-20">
+                                        <div class="py-1">
+                                            <button @click="banUserWithDuration(report.comment_user_id, report.comment_user_name, '30m')" 
+                                                    class="w-full text-left px-4 py-2 text-sm hover:bg-gray-100">
+                                                30 minutes
+                                            </button>
+                                            <button @click="banUserWithDuration(report.comment_user_id, report.comment_user_name, '6h')" 
+                                                    class="w-full text-left px-4 py-2 text-sm hover:bg-gray-100">
+                                                6 hours
+                                            </button>
+                                            <button @click="banUserWithDuration(report.comment_user_id, report.comment_user_name, '1d')" 
+                                                    class="w-full text-left px-4 py-2 text-sm hover:bg-gray-100">
+                                                1 day
+                                            </button>
+                                            <button @click="banUserWithDuration(report.comment_user_id, report.comment_user_name, '3d')" 
+                                                    class="w-full text-left px-4 py-2 text-sm hover:bg-gray-100">
+                                                3 days
+                                            </button>
+                                            <button @click="banUserWithDuration(report.comment_user_id, report.comment_user_name, '7d')" 
+                                                    class="w-full text-left px-4 py-2 text-sm hover:bg-gray-100">
+                                                1 week
+                                            </button>
+                                            <button @click="banUserWithDuration(report.comment_user_id, report.comment_user_name, '30d')" 
+                                                    class="w-full text-left px-4 py-2 text-sm hover:bg-gray-100">
+                                                1 month
+                                            </button>
+                                            <button @click="banUserWithDuration(report.comment_user_id, report.comment_user_name, '90d')" 
+                                                    class="w-full text-left px-4 py-2 text-sm hover:bg-gray-100">
+                                                3 months
+                                            </button>
+                                            <button @click="banUserWithDuration(report.comment_user_id, report.comment_user_name, 'permanent')" 
+                                                    class="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 text-red-600">
+                                                Permanent
+                                            </button>
+                                            <div class="border-t border-gray-200">
+                                                <button @click="showCustomBanInput(report.comment_user_id, report.comment_user_name)" 
+                                                        class="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 text-blue-600">
+                                                    <i class="fas fa-clock mr-1"></i>Custom duration
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </template>
@@ -213,6 +259,7 @@
                 pageSearchQuery: '',
                 loading: true,
                 apiUrl: '/api',
+                showBanDropdown: null,
                 
                 init() {
                     console.log('Reports app initializing...');
@@ -488,11 +535,36 @@
                     }
                 },
                 
-                async banUser(userId, userName) {
-                    if (!confirm(`Ban user ${userName}? This will delete all their comments.`)) {
+                // Toggle ban dropdown
+                toggleBanDropdown(userId, event) {
+                    event.stopPropagation();
+                    this.showBanDropdown = this.showBanDropdown === userId ? null : userId;
+                },
+                
+                // Ban user with duration
+                async banUserWithDuration(userId, userName, duration) {
+                    const reason = prompt(`Why are you banning ${userName}?`);
+                    if (!reason) return;
+                    
+                    await this.banUser(userId, userName, duration, reason);
+                },
+                
+                // Show custom ban input
+                async showCustomBanInput(userId, userName) {
+                    const duration = prompt('Enter ban duration (e.g., 30m, 6h, 1d):');
+                    if (!duration) return;
+                    
+                    // Validate duration format
+                    if (!/^\d+[mhd]?$/.test(duration)) {
+                        alert('Invalid duration format. Use format like: 30m, 6h, 1d');
                         return;
                     }
                     
+                    await this.banUserWithDuration(userId, userName, duration);
+                },
+                
+                // Ban user
+                async banUser(userId, userName, duration, reason) {
                     const sessionToken = localStorage.getItem('sessionToken');
                     if (!sessionToken) {
                         alert('Session expired. Please sign in again.');
@@ -505,10 +577,15 @@
                     try {
                         const response = await fetch(`${this.apiUrl}/users/${userId}/ban`, {
                             method: 'POST',
-                            headers: { 
+                            headers: {
                                 'Content-Type': 'application/json',
                                 'Authorization': `Bearer ${sessionToken}`
-                            }
+                            },
+                            body: JSON.stringify({
+                                duration: duration,
+                                reason: reason,
+                                deleteComments: duration === 'permanent' // Only delete comments for permanent bans
+                            })
                         });
                         
                         if (response.status === 401) {
@@ -520,9 +597,14 @@
                         }
                         
                         if (response.ok) {
-                            alert(`User ${userName} has been banned`);
+                            const result = await response.json();
+                            alert(`${userName} has been banned.\n${result.ban_duration_text}`);
+                            
                             // Reload reports to reflect changes
                             await this.loadReports();
+                            
+                            // Close dropdown
+                            this.showBanDropdown = null;
                         } else {
                             throw new Error('Failed to ban user');
                         }
