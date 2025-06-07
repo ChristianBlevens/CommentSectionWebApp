@@ -901,6 +901,8 @@ app.post('/api/comments/:commentId/report', authenticateUser, async (req, res) =
         const comment = commentResult.rows[0];
         
         // Create report with comment copy
+        console.log(`Creating report for comment ${commentIdNum} on page "${comment.page_id}" (length: ${comment.page_id.length})`);
+        
         await client.query(
             `INSERT INTO reports (comment_id, reporter_id, page_id, reason, comment_content, comment_user_id, comment_user_name) 
              VALUES ($1, $2, $3, $4, $5, $6, $7) 
@@ -1148,7 +1150,7 @@ app.get('/api/pages', authenticateUser, requireModerator, async (req, res) => {
 app.get('/api/reports/filter', authenticateUser, requireModerator, async (req, res) => {
     const { pageId } = req.query;
     
-    console.log(`Getting reports with filter - pageId: "${pageId}"`);
+    console.log(`Getting reports with filter - pageId: "${pageId}" (length: ${pageId ? pageId.length : 0})`);
     
     try {
         let query = `
@@ -1162,9 +1164,10 @@ app.get('/api/reports/filter', authenticateUser, requireModerator, async (req, r
         
         const params = [];
         if (pageId) {
-            query += ' AND r.page_id = $1';
+            // Use TRIM to handle any whitespace issues
+            query += ' AND TRIM(r.page_id) = TRIM($1)';
             params.push(pageId);
-            console.log(`Filtering reports for page: "${pageId}"`);
+            console.log(`Filtering reports for page: "${pageId}" (trimmed)`);
         }
         
         query += ' ORDER BY r.created_at DESC';
@@ -1172,12 +1175,35 @@ app.get('/api/reports/filter', authenticateUser, requireModerator, async (req, r
         const reports = await pgPool.query(query, params);
         console.log(`Found ${reports.rows.length} reports${pageId ? ` for page "${pageId}"` : ' (all pages)'}`);
         
-        // Log sample page_ids from reports to help debug
+        // Enhanced debugging for page_id mismatch
         if (reports.rows.length === 0 && pageId) {
             const allReports = await pgPool.query(
-                `SELECT DISTINCT page_id FROM reports WHERE status = 'pending' LIMIT 10`
+                `SELECT DISTINCT page_id, LENGTH(page_id) as len, 
+                        ENCODE(page_id::bytea, 'hex') as hex_value 
+                 FROM reports 
+                 WHERE status = 'pending' 
+                 LIMIT 10`
             );
-            console.log('Sample page_ids in reports table:', allReports.rows.map(r => r.page_id));
+            console.log('Sample page_ids in reports table:');
+            allReports.rows.forEach(r => {
+                console.log(`  - "${r.page_id}" (length: ${r.len}, hex: ${r.hex_value})`);
+            });
+            
+            // Check exact match
+            const exactMatch = await pgPool.query(
+                `SELECT COUNT(*) as count FROM reports 
+                 WHERE page_id = $1 AND status = 'pending'`,
+                [pageId]
+            );
+            console.log(`Exact match count for "${pageId}": ${exactMatch.rows[0].count}`);
+            
+            // Check with LIKE to see if there's partial match
+            const likeMatch = await pgPool.query(
+                `SELECT COUNT(*) as count FROM reports 
+                 WHERE page_id LIKE $1 AND status = 'pending'`,
+                [`%${pageId}%`]
+            );
+            console.log(`LIKE match count for "%${pageId}%": ${likeMatch.rows[0].count}`);
         }
         
         res.json(reports.rows);
