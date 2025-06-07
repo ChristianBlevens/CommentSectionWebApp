@@ -127,7 +127,7 @@ const authenticateUser = async (req, res, next) => {
         
         // Get user from database
         const userResult = await pgPool.query(
-            'SELECT id, name, is_moderator, is_banned FROM users WHERE id = $1',
+            'SELECT id, name, is_moderator, is_banned, ban_until FROM users WHERE id = $1',
             [userId]
         );
         
@@ -136,8 +136,25 @@ const authenticateUser = async (req, res, next) => {
         }
         
         const user = userResult.rows[0];
+        
+        // Check if user is banned
         if (user.is_banned) {
-            return res.status(403).json({ error: 'User is banned' });
+            // Check if it's a temporary ban that has expired
+            if (user.ban_until && new Date(user.ban_until) < new Date()) {
+                // Ban has expired, unban the user
+                await pgPool.query(
+                    'UPDATE users SET is_banned = FALSE, ban_until = NULL WHERE id = $1',
+                    [userId]
+                );
+                user.is_banned = false;
+                user.ban_until = null;
+            } else {
+                // User is still banned
+                const banMessage = user.ban_until 
+                    ? `You are banned until ${new Date(user.ban_until).toLocaleString()}`
+                    : 'You are permanently banned';
+                return res.status(403).json({ error: banMessage });
+            }
         }
         
         req.user = user;
@@ -171,9 +188,15 @@ const initDatabase = async () => {
                 picture TEXT,
                 is_moderator BOOLEAN DEFAULT FALSE,
                 is_banned BOOLEAN DEFAULT FALSE,
+                ban_until TIMESTAMP,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
+        `);
+        
+        // Add ban_until column if it doesn't exist
+        await client.query(`
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS ban_until TIMESTAMP
         `);
         
         // Comments table
@@ -426,13 +449,33 @@ app.post('/api/discord/callback', authLimiter, async (req, res) => {
         
         // Get user status
         const userResult = await pgPool.query(
-            'SELECT is_moderator, is_banned FROM users WHERE id = $1',
+            'SELECT is_moderator, is_banned, ban_until FROM users WHERE id = $1',
             [user.id]
         );
         
         if (userResult.rows.length > 0) {
-            user.is_moderator = userResult.rows[0].is_moderator;
-            user.is_banned = userResult.rows[0].is_banned;
+            const dbUser = userResult.rows[0];
+            user.is_moderator = dbUser.is_moderator;
+            user.is_banned = dbUser.is_banned;
+            
+            // Check if user is banned
+            if (dbUser.is_banned) {
+                // Check if temporary ban has expired
+                if (dbUser.ban_until && new Date(dbUser.ban_until) < new Date()) {
+                    // Ban has expired, unban the user
+                    await pgPool.query(
+                        'UPDATE users SET is_banned = FALSE, ban_until = NULL WHERE id = $1',
+                        [user.id]
+                    );
+                    user.is_banned = false;
+                } else {
+                    // User is still banned
+                    const banMessage = dbUser.ban_until 
+                        ? `You are banned until ${new Date(dbUser.ban_until).toLocaleString()}`
+                        : 'You are permanently banned';
+                    return res.status(403).json({ error: 'banned', message: banMessage });
+                }
+            }
         }
         
         // Generate session
@@ -1086,38 +1129,79 @@ app.put('/api/reports/:reportId/resolve', authenticateUser, requireModerator, as
 // Ban user (moderators only)
 app.post('/api/users/:targetUserId/ban', authenticateUser, requireModerator, async (req, res) => {
     const { targetUserId } = req.params;
+    const { duration } = req.body;
     const userId = req.user.id;
     
     const client = await pgPool.connect();
     try {
         await client.query('BEGIN');
         
+        // Calculate ban_until timestamp
+        let banUntil = null;
+        if (duration && duration !== 'permanent') {
+            const match = duration.match(/^(\d+)(m|h|d|w|mo)?$/);
+            if (match) {
+                const [, num, unit] = match;
+                const value = parseInt(num);
+                const now = new Date();
+                
+                switch (unit || 'm') {
+                    case 'm': // minutes
+                        banUntil = new Date(now.getTime() + value * 60 * 1000);
+                        break;
+                    case 'h': // hours
+                        banUntil = new Date(now.getTime() + value * 60 * 60 * 1000);
+                        break;
+                    case 'd': // days
+                        banUntil = new Date(now.getTime() + value * 24 * 60 * 60 * 1000);
+                        break;
+                    case 'w': // weeks
+                        banUntil = new Date(now.getTime() + value * 7 * 24 * 60 * 60 * 1000);
+                        break;
+                    case 'mo': // months
+                        banUntil = new Date(now.setMonth(now.getMonth() + value));
+                        break;
+                }
+            }
+        }
+        
         // Ban user
         await client.query(
-            'UPDATE users SET is_banned = TRUE WHERE id = $1',
-            [targetUserId]
+            'UPDATE users SET is_banned = TRUE, ban_until = $2 WHERE id = $1',
+            [targetUserId, banUntil]
         );
         
-        // Delete comments
-        await client.query(
-            'DELETE FROM comments WHERE user_id = $1',
-            [targetUserId]
-        );
+        // Don't delete comments for temporary bans
+        if (duration === 'permanent') {
+            // Delete comments only for permanent bans
+            await client.query(
+                'DELETE FROM comments WHERE user_id = $1',
+                [targetUserId]
+            );
+        }
         
         // Resolve reports
         await client.query(
             `UPDATE reports 
              SET status = 'resolved', resolved_at = CURRENT_TIMESTAMP, resolved_by = $1
-             WHERE comment_id IN (SELECT id FROM comments WHERE user_id = $2)`,
+             WHERE comment_user_id = $2 AND status = 'pending'`,
             [userId, targetUserId]
         );
         
         await client.query('COMMIT');
         
-        // Clear all caches
-        await safeRedisOp(() => redisClient.flushDb());
+        // Clear user's sessions
+        const sessions = await safeRedisOp(() => redisClient.keys('session:*'));
+        if (sessions) {
+            for (const key of sessions) {
+                const sessionUserId = await safeRedisOp(() => redisClient.get(key));
+                if (sessionUserId === targetUserId) {
+                    await safeRedisOp(() => redisClient.del(key));
+                }
+            }
+        }
         
-        res.json({ success: true });
+        res.json({ success: true, ban_until: banUntil });
     } catch (error) {
         await client.query('ROLLBACK');
         console.error('Ban user error:', error);

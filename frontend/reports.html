@@ -160,10 +160,56 @@
                                         class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md text-sm">
                                     <i class="fas fa-times mr-1"></i>Dismiss Report
                                 </button>
-                                <button @click="banUser(report.comment_user_id, report.comment_user_name)" 
-                                        class="bg-red-800 hover:bg-red-900 text-white px-4 py-2 rounded-md text-sm">
-                                    <i class="fas fa-ban mr-1"></i>Ban User
-                                </button>
+                                <div class="relative inline-block">
+                                    <button @click="toggleBanDropdown(report.comment_user_id)" 
+                                            class="bg-red-800 hover:bg-red-900 text-white px-4 py-2 rounded-md text-sm">
+                                        <i class="fas fa-ban mr-1"></i>Ban User
+                                    </button>
+                                    <div x-show="showBanDropdown === report.comment_user_id" 
+                                         @click.away="showBanDropdown = null"
+                                         class="absolute z-10 mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200">
+                                        <div class="py-1">
+                                            <button @click="banUser(report.comment_user_id, report.comment_user_name, '30m')" 
+                                                    class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                                30 minutes
+                                            </button>
+                                            <button @click="banUser(report.comment_user_id, report.comment_user_name, '6h')" 
+                                                    class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                                6 hours
+                                            </button>
+                                            <button @click="banUser(report.comment_user_id, report.comment_user_name, '1d')" 
+                                                    class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                                1 day
+                                            </button>
+                                            <button @click="banUser(report.comment_user_id, report.comment_user_name, '3d')" 
+                                                    class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                                3 days
+                                            </button>
+                                            <button @click="banUser(report.comment_user_id, report.comment_user_name, '1w')" 
+                                                    class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                                1 week
+                                            </button>
+                                            <button @click="banUser(report.comment_user_id, report.comment_user_name, '1mo')" 
+                                                    class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                                1 month
+                                            </button>
+                                            <button @click="banUser(report.comment_user_id, report.comment_user_name, '3mo')" 
+                                                    class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                                3 months
+                                            </button>
+                                            <button @click="banUser(report.comment_user_id, report.comment_user_name, 'permanent')" 
+                                                    class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                                Permanent
+                                            </button>
+                                            <div class="border-t border-gray-200">
+                                                <button @click="showCustomBanInput(report.comment_user_id, report.comment_user_name)" 
+                                                        class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                                    <i class="fas fa-clock mr-1"></i>Custom duration
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </template>
@@ -213,6 +259,7 @@
                 pageSearchQuery: '',
                 loading: true,
                 apiUrl: '/api',
+                showBanDropdown: null,
                 
                 init() {
                     console.log('Reports app initializing...');
@@ -327,23 +374,32 @@
                 },
                 
                 async loadPages() {
+                    console.log('Loading pages with reports...');
                     const sessionToken = localStorage.getItem('sessionToken');
                     
                     if (!sessionToken) {
+                        console.error('No session token for loading pages');
                         return;
                     }
                     
                     try {
-                        const response = await fetch(`${this.apiUrl}/reports/pages`, {
+                        const url = `${this.apiUrl}/reports/pages`;
+                        console.log('Fetching pages from:', url);
+                        
+                        const response = await fetch(url, {
                             headers: { 
                                 'Authorization': `Bearer ${sessionToken}`
                             }
                         });
                         
+                        console.log('Pages response status:', response.status);
+                        
                         if (response.ok) {
                             this.pages = await response.json();
                             this.filteredPages = [...this.pages];
-                            console.log(`Loaded ${this.pages.length} pages with reports`);
+                            console.log(`Loaded ${this.pages.length} pages with reports:`, this.pages);
+                        } else {
+                            console.error('Failed to load pages:', response.status, await response.text());
                         }
                     } catch (error) {
                         console.error('Error loading pages:', error);
@@ -471,8 +527,23 @@
                     }
                 },
                 
-                async banUser(userId, userName) {
-                    if (!confirm(`Ban user ${userName}? This will delete all their comments.`)) {
+                // Toggle ban dropdown
+                toggleBanDropdown(userId) {
+                    this.showBanDropdown = this.showBanDropdown === userId ? null : userId;
+                },
+                
+                // Show custom ban input
+                showCustomBanInput(userId, userName) {
+                    const duration = prompt('Enter ban duration (e.g., 30m, 2h, 7d):');
+                    if (duration) {
+                        this.banUser(userId, userName, duration);
+                    }
+                    this.showBanDropdown = null;
+                },
+                
+                // Ban user
+                async banUser(userId, userName, duration) {
+                    if (!confirm(`Ban user ${userName} for ${this.formatBanDuration(duration)}?`)) {
                         return;
                     }
                     
@@ -491,7 +562,8 @@
                             headers: { 
                                 'Content-Type': 'application/json',
                                 'Authorization': `Bearer ${sessionToken}`
-                            }
+                            },
+                            body: JSON.stringify({ duration })
                         });
                         
                         if (response.status === 401) {
@@ -503,15 +575,45 @@
                         }
                         
                         if (response.ok) {
-                            alert(`User ${userName} has been banned`);
+                            alert(`User ${userName} has been banned for ${this.formatBanDuration(duration)}`);
                             // Reload reports to reflect changes
                             await this.loadReports();
+                            await this.loadPages();
                         } else {
                             throw new Error('Failed to ban user');
                         }
                     } catch (error) {
                         console.error('Error banning user:', error);
                         alert('Failed to ban user');
+                    } finally {
+                        this.showBanDropdown = null;
+                    }
+                },
+                
+                // Format ban duration for display
+                formatBanDuration(duration) {
+                    if (duration === 'permanent') return 'permanently';
+                    
+                    const match = duration.match(/^(\d+)(m|h|d|w|mo)?$/);
+                    if (!match) return duration;
+                    
+                    const [, num, unit] = match;
+                    const value = parseInt(num);
+                    
+                    switch (unit) {
+                        case 'm':
+                        case undefined:
+                            return value === 1 ? '1 minute' : `${value} minutes`;
+                        case 'h':
+                            return value === 1 ? '1 hour' : `${value} hours`;
+                        case 'd':
+                            return value === 1 ? '1 day' : `${value} days`;
+                        case 'w':
+                            return value === 1 ? '1 week' : `${value} weeks`;
+                        case 'mo':
+                            return value === 1 ? '1 month' : `${value} months`;
+                        default:
+                            return duration;
                     }
                 }
             }

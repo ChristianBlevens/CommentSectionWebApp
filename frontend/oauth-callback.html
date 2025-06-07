@@ -94,9 +94,31 @@
                 console.log('Response status:', response.status);
                 
                 if (!response.ok) {
-                    const errorText = await response.text();
-                    console.error('Backend error response:', errorText);
-                    throw new Error(`Backend returned ${response.status}: ${errorText}`);
+                    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+                    console.error('Backend error response:', errorData);
+                    
+                    // Check if user is banned
+                    if (response.status === 403 && errorData.error === 'banned') {
+                        showError(errorData.message || 'You are banned from this service');
+                        if (isPopup && window.opener) {
+                            window.opener.postMessage({ 
+                                type: 'discord-login-error',
+                                error: 'banned',
+                                message: errorData.message
+                            }, window.location.origin);
+                        }
+                        setTimeout(() => {
+                            if (isPopup) {
+                                window.close();
+                            } else {
+                                window.location.href = window.location.origin + 
+                                    window.location.pathname.replace('oauth-callback.html', 'index.html');
+                            }
+                        }, 5000);
+                        return;
+                    }
+                    
+                    throw new Error(`Backend returned ${response.status}: ${errorData.error || errorData}`);
                 }
                 
                 const data = await response.json();
