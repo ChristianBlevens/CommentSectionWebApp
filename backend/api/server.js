@@ -955,6 +955,8 @@ app.get('/api/reports/:pageId', authenticateUser, requireModerator, async (req, 
 
 // Get all reports (moderators only)
 app.get('/api/reports', authenticateUser, requireModerator, async (req, res) => {
+    console.log('Getting all reports (no filter)');
+    
     try {
         const reports = await pgPool.query(
             `SELECT r.*, 
@@ -965,6 +967,15 @@ app.get('/api/reports', authenticateUser, requireModerator, async (req, res) => 
              WHERE r.status = 'pending'
              ORDER BY r.created_at DESC`
         );
+        
+        console.log(`Returning ${reports.rows.length} total reports`);
+        
+        // Prevent caching
+        res.set({
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+        });
         
         res.json(reports.rows);
     } catch (error) {
@@ -1151,7 +1162,7 @@ app.get('/api/pages', authenticateUser, requireModerator, async (req, res) => {
 app.get('/api/reports/filter', authenticateUser, requireModerator, async (req, res) => {
     const { pageId } = req.query;
     
-    console.log(`Getting reports with filter - pageId: "${pageId}" (length: ${pageId ? pageId.length : 0})`);
+    console.log(`[FILTER ENDPOINT] Getting reports with filter - pageId: "${pageId}" (length: ${pageId ? pageId.length : 0})`);
     
     try {
         let query = `
@@ -1168,13 +1179,13 @@ app.get('/api/reports/filter', authenticateUser, requireModerator, async (req, r
             // Use TRIM to handle any whitespace issues
             query += ' AND TRIM(r.page_id) = TRIM($1)';
             params.push(pageId);
-            console.log(`Filtering reports for page: "${pageId}" (trimmed)`);
+            console.log(`[FILTER ENDPOINT] Filtering reports for page: "${pageId}" (trimmed)`);
         }
         
         query += ' ORDER BY r.created_at DESC';
         
         const reports = await pgPool.query(query, params);
-        console.log(`Found ${reports.rows.length} reports${pageId ? ` for page "${pageId}"` : ' (all pages)'}`);
+        console.log(`[FILTER ENDPOINT] Found ${reports.rows.length} reports${pageId ? ` for page "${pageId}"` : ' (all pages)'}`);
         
         // Enhanced debugging for page_id mismatch
         if (reports.rows.length === 0 && pageId) {
@@ -1185,7 +1196,7 @@ app.get('/api/reports/filter', authenticateUser, requireModerator, async (req, r
                  WHERE status = 'pending' 
                  LIMIT 10`
             );
-            console.log('Sample page_ids in reports table:');
+            console.log('[FILTER ENDPOINT] Sample page_ids in reports table:');
             allReports.rows.forEach(r => {
                 console.log(`  - "${r.page_id}" (length: ${r.len}, hex: ${r.hex_value})`);
             });
@@ -1196,7 +1207,7 @@ app.get('/api/reports/filter', authenticateUser, requireModerator, async (req, r
                  WHERE page_id = $1 AND status = 'pending'`,
                 [pageId]
             );
-            console.log(`Exact match count for "${pageId}": ${exactMatch.rows[0].count}`);
+            console.log(`[FILTER ENDPOINT] Exact match count for "${pageId}": ${exactMatch.rows[0].count}`);
             
             // Check with LIKE to see if there's partial match
             const likeMatch = await pgPool.query(
@@ -1204,12 +1215,19 @@ app.get('/api/reports/filter', authenticateUser, requireModerator, async (req, r
                  WHERE page_id LIKE $1 AND status = 'pending'`,
                 [`%${pageId}%`]
             );
-            console.log(`LIKE match count for "%${pageId}%": ${likeMatch.rows[0].count}`);
+            console.log(`[FILTER ENDPOINT] LIKE match count for "%${pageId}%": ${likeMatch.rows[0].count}`);
         }
+        
+        // Prevent caching
+        res.set({
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+        });
         
         res.json(reports.rows);
     } catch (error) {
-        console.error('Get filtered reports error:', error);
+        console.error('[FILTER ENDPOINT] Get filtered reports error:', error);
         res.status(500).json({ error: 'Failed to get reports' });
     }
 });
