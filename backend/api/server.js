@@ -270,10 +270,11 @@ const initDatabase = async () => {
         
         // Check if reports table has ON DELETE CASCADE for comment_id
         const constraintCheck = await client.query(`
-            SELECT constraint_name 
+            SELECT tc.constraint_name 
             FROM information_schema.table_constraints tc
             JOIN information_schema.key_column_usage kcu 
                 ON tc.constraint_name = kcu.constraint_name
+                AND tc.table_schema = kcu.table_schema
             WHERE tc.table_name = 'reports' 
             AND kcu.column_name = 'comment_id'
             AND tc.constraint_type = 'FOREIGN KEY'
