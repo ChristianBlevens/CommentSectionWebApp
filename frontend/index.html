@@ -435,36 +435,6 @@
             transition: all 0.2s;
         }
         
-        /* Moderator panel */
-        .moderator-panel {
-            background: #f3f4f6;
-            border-radius: 0.5rem;
-            padding: 1rem;
-            margin-bottom: 1rem;
-        }
-        
-        .moderator-actions {
-            display: flex;
-            gap: 0.5rem;
-            flex-wrap: wrap;
-        }
-        
-        /* Report item */
-        .report-item {
-            background: white;
-            border-radius: 0.5rem;
-            padding: 1rem;
-            border: 1px solid #e5e7eb;
-            margin-bottom: 0.75rem;
-        }
-        
-        .report-content {
-            background: #f9fafb;
-            padding: 0.75rem;
-            border-radius: 0.375rem;
-            margin-top: 0.5rem;
-            font-size: var(--text-sm);
-        }
         
         /* Loading and empty states */
         .loading-spinner {
@@ -506,78 +476,6 @@
         <!-- Header -->
         <div class="bg-white rounded-lg shadow-md p-4 md:p-6 mb-4">
             <h1 class="text-xl md:text-2xl font-bold mb-4">Comments</h1>
-            
-            <!-- Moderator Panel -->
-            <div x-show="user && user.is_moderator" class="moderator-panel">
-                <h2 class="text-base md:text-lg font-semibold mb-3 flex items-center">
-                    <i class="fas fa-shield-alt mr-2 text-blue-600"></i>
-                    Moderator Panel
-                </h2>
-                
-                <div x-data="{ showReports: false, reports: [], loadingReports: false }">
-                    <div class="moderator-actions">
-                        <!-- View reports button -->
-                        <button @click="showReports = !showReports; if(showReports && reports.length === 0) window.commentAppInstance.loadReports($el.closest('[x-data]'))" 
-                                class="btn-primary mobile-btn">
-                            <i class="fas fa-flag mr-1"></i>
-                            <span class="hidden sm:inline">View</span> Reports (<span x-text="reports.length"></span>)
-                        </button>
-                        
-                        <!-- Delete all button -->
-                        <button @click="deleteAllComments()" 
-                                class="btn-secondary mobile-btn bg-red-600 hover:bg-red-700">
-                            <i class="fas fa-trash-alt mr-1"></i>
-                            <span class="hidden sm:inline">Delete All</span>
-                        </button>
-                    </div>
-                    
-                    <!-- Reports list -->
-                    <div x-show="showReports" class="mt-4">
-                        <div x-show="loadingReports" class="text-center py-4">
-                            <div class="loading-spinner"></div>
-                        </div>
-                        
-                        <div x-show="!loadingReports && reports.length === 0" class="text-gray-500 py-4 text-sm">
-                            No pending reports
-                        </div>
-                        
-                        <div x-show="!loadingReports && reports.length > 0">
-                            <template x-for="report in reports" :key="report.id">
-                                <div class="report-item">
-                                    <div class="flex justify-between items-start">
-                                        <div class="text-xs md:text-sm text-gray-600">
-                                            <p>Reported by: <span x-text="report.reporter_name" class="font-medium"></span></p>
-                                            <p>Author: <span x-text="report.comment_user_name" class="font-medium"></span></p>
-                                            <p>Reason: <span x-text="report.reason"></span></p>
-                                        </div>
-                                        <div class="flex gap-2">
-                                            <button @click="window.commentAppInstance.viewReportedComment(report.comment_id)" 
-                                                    class="text-blue-600 hover:text-blue-800 p-1">
-                                                <i class="fas fa-eye"></i>
-                                            </button>
-                                            <button @click="window.commentAppInstance.deleteReportedComment(report)" 
-                                                    class="text-red-600 hover:text-red-800 p-1">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
-                                            <button @click="window.commentAppInstance.dismissReport(report.id)" 
-                                                    class="text-gray-600 hover:text-gray-800 p-1">
-                                                <i class="fas fa-times"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div class="report-content">
-                                        <p x-text="report.content"></p>
-                                    </div>
-                                    <button @click="window.commentAppInstance.banUser(report.comment_user_id, report.comment_user_name)" 
-                                            class="btn-secondary bg-red-600 hover:bg-red-700 mt-2 text-xs">
-                                        <i class="fas fa-ban mr-1"></i>Ban User
-                                    </button>
-                                </div>
-                            </template>
-                        </div>
-                    </div>
-                </div>
-            </div>
             
             <!-- Sign In / User Info -->
             <div class="mb-4">
@@ -1403,7 +1301,7 @@
                                     (depth >= MAX_DEPTH && comment.children?.length > 0 ? `
                                         <div class="ml-4 mt-2">
                                             <button onclick="window.commentAppInstance.viewReplies('${comment.id}')" 
-                                                    class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                                                    class="text-blue-600 hover:text-blue-800 text-sm font-medium px-3 py-2 rounded hover:bg-blue-50 transition-colors">
                                                 <i class="fas fa-comments mr-1"></i>
                                                 View ${comment.children.length} ${comment.children.length === 1 ? 'reply' : 'replies'}
                                             </button>
@@ -1581,39 +1479,6 @@
                     });
                 },
                 
-                // Moderator functions
-                
-                // Load reports for current page
-                async loadReports(scopeElement) {
-                    const scope = scopeElement.__x.$data;
-                    scope.loadingReports = true;
-                    
-                    const sessionToken = localStorage.getItem('sessionToken');
-                    if (!sessionToken) {
-                        scope.loadingReports = false;
-                        return;
-                    }
-                    
-                    try {
-                        // Load page-specific reports
-                        const response = await fetch(`${this.apiUrl}/reports/${this.pageId}`, {
-                            headers: {
-                                'Authorization': `Bearer ${sessionToken}`
-                            }
-                        });
-                        
-                        if (response.ok) {
-                            scope.reports = await response.json();
-                        } else if (response.status === 403) {
-                            this.user.is_moderator = false;
-                            localStorage.setItem('user', JSON.stringify(this.user));
-                        }
-                    } catch (error) {
-                        console.error('Error loading reports:', error);
-                    } finally {
-                        scope.loadingReports = false;
-                    }
-                },
                 
                 // Toggle dropdown menu
                 toggleDropdown(commentId, event) {
@@ -1661,30 +1526,6 @@
                     }
                 },
                 
-                // View reported comment
-                viewReportedComment(commentId) {
-                    // Set marker for reported comment
-                    this.reportedCommentId = commentId;
-                    
-                    // Find the comment
-                    const comment = this.findComment(commentId, this.comments);
-                    if (!comment) return;
-                    
-                    // Enter focus mode
-                    if (comment.parentId) {
-                        // If it's a reply, focus on its parent
-                        this.enterFocusMode(comment.parentId);
-                    } else {
-                        // If it's a base comment, focus on it
-                        this.enterFocusMode(commentId);
-                    }
-                    
-                    // Clear reported highlight after 5 seconds
-                    setTimeout(() => {
-                        this.reportedCommentId = null;
-                        this.sortComments();
-                    }, 5000);
-                },
                 
                 // View replies button handler
                 viewReplies(commentId) {
@@ -1712,147 +1553,11 @@
                     this.focusedComments = [];
                     this.reportedCommentId = null;
                     
-                    // Rebuild and sort comments
-                    this.buildCommentTree();
-                    this.sortComments();
+                    // Reload all comments to ensure replies are included
+                    this.loadComments();
                 },
                 
-                // Delete reported comment
-                async deleteReportedComment(report) {
-                    if (!confirm('Delete this reported comment?')) {
-                        return;
-                    }
-                    
-                    const sessionToken = localStorage.getItem('sessionToken');
-                    if (!sessionToken) return;
-                    
-                    try {
-                        await this.deleteComment(report.comment_id);
-                        
-                        await fetch(`${this.apiUrl}/reports/${report.id}/resolve`, {
-                            method: 'PUT',
-                            headers: { 
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${sessionToken}`
-                            },
-                            body: JSON.stringify({ action: 'resolved' })
-                        });
-                        
-                        const scope = this.$el.querySelector('[x-data*="showReports"]').__x.$data;
-                        scope.reports = scope.reports.filter(r => r.id !== report.id);
-                        
-                    } catch (error) {
-                        console.error('Error deleting reported comment:', error);
-                        alert('Failed to delete reported comment');
-                    }
-                },
                 
-                // Dismiss report
-                async dismissReport(reportId) {
-                    if (!confirm('Dismiss this report?')) {
-                        return;
-                    }
-                    
-                    const sessionToken = localStorage.getItem('sessionToken');
-                    if (!sessionToken) return;
-                    
-                    try {
-                        const response = await fetch(`${this.apiUrl}/reports/${reportId}/resolve`, {
-                            method: 'PUT',
-                            headers: { 
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${sessionToken}`
-                            },
-                            body: JSON.stringify({ action: 'dismissed' })
-                        });
-                        
-                        if (response.ok) {
-                            const scope = this.$el.querySelector('[x-data*="showReports"]').__x.$data;
-                            scope.reports = scope.reports.filter(r => r.id !== reportId);
-                        }
-                    } catch (error) {
-                        console.error('Error dismissing report:', error);
-                        alert('Failed to dismiss report');
-                    }
-                },
-                
-                // Ban user
-                async banUser(userId, userName) {
-                    if (!confirm(`Ban user ${userName}? This will delete all their comments.`)) {
-                        return;
-                    }
-                    
-                    const sessionToken = localStorage.getItem('sessionToken');
-                    if (!sessionToken) return;
-                    
-                    try {
-                        const response = await fetch(`${this.apiUrl}/users/${userId}/ban`, {
-                            method: 'POST',
-                            headers: { 
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${sessionToken}`
-                            }
-                        });
-                        
-                        if (response.ok) {
-                            alert(`User ${userName} has been banned`);
-                            await this.loadComments();
-                            const scope = this.$el.querySelector('[x-data*="showReports"]').__x.$data;
-                            scope.reports = scope.reports.filter(r => r.comment_user_id !== userId);
-                        }
-                    } catch (error) {
-                        console.error('Error banning user:', error);
-                        alert('Failed to ban user');
-                    }
-                },
-                
-                // Delete all comments
-                async deleteAllComments() {
-                    if (!confirm('Are you sure you want to delete ALL comments on this page?')) {
-                        return;
-                    }
-                    
-                    if (!confirm('This will permanently delete all comments. Are you absolutely sure?')) {
-                        return;
-                    }
-                    
-                    const sessionToken = localStorage.getItem('sessionToken');
-                    if (!sessionToken) {
-                        alert('Please sign in again');
-                        return;
-                    }
-                    
-                    try {
-                        const response = await fetch(`${this.apiUrl}/comments/page/${this.pageId}/all`, {
-                            method: 'DELETE',
-                            headers: { 
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${sessionToken}`
-                            }
-                        });
-                        
-                        if (!response.ok) {
-                            const error = await response.json();
-                            throw new Error(error.error || 'Failed to delete comments');
-                        }
-                        
-                        const result = await response.json();
-                        
-                        this.comments = [];
-                        this.sortedComments = [];
-                        
-                        const reportsScope = this.$el.querySelector('[x-data*="showReports"]');
-                        if (reportsScope?.__x) {
-                            reportsScope.__x.$data.reports = [];
-                        }
-                        
-                        alert(`Successfully deleted ${result.deletedCount} comments`);
-                        
-                    } catch (error) {
-                        console.error('Error deleting all comments:', error);
-                        alert(error.message || 'Failed to delete all comments');
-                    }
-                }
             }
         }
     </script>

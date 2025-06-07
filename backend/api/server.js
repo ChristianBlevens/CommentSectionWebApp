@@ -214,11 +214,13 @@ const initDatabase = async () => {
                 reporter_id VARCHAR(255) NOT NULL,
                 page_id VARCHAR(255) NOT NULL,
                 reason VARCHAR(500),
+                comment_content TEXT NOT NULL,
+                comment_user_id VARCHAR(255) NOT NULL,
+                comment_user_name VARCHAR(255) NOT NULL,
                 status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'resolved', 'dismissed')),
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 resolved_at TIMESTAMP,
                 resolved_by VARCHAR(255),
-                FOREIGN KEY (comment_id) REFERENCES comments(id) ON DELETE CASCADE,
                 FOREIGN KEY (reporter_id) REFERENCES users(id) ON DELETE CASCADE,
                 FOREIGN KEY (resolved_by) REFERENCES users(id) ON DELETE SET NULL,
                 UNIQUE(comment_id, reporter_id)
@@ -819,9 +821,12 @@ app.post('/api/comments/:commentId/report', authenticateUser, async (req, res) =
             }
         }
         
-        // Get comment info
+        // Get comment info with user details
         const commentResult = await client.query(
-            'SELECT page_id FROM comments WHERE id = $1',
+            `SELECT c.page_id, c.content, c.user_id, u.name as user_name
+             FROM comments c
+             JOIN users u ON c.user_id = u.id
+             WHERE c.id = $1`,
             [commentIdNum]
         );
         
@@ -829,14 +834,15 @@ app.post('/api/comments/:commentId/report', authenticateUser, async (req, res) =
             throw new Error('Comment not found');
         }
         
-        const pageId = commentResult.rows[0].page_id;
+        const comment = commentResult.rows[0];
         
-        // Create report
+        // Create report with comment copy
         await client.query(
-            `INSERT INTO reports (comment_id, reporter_id, page_id, reason) 
-             VALUES ($1, $2, $3, $4) 
+            `INSERT INTO reports (comment_id, reporter_id, page_id, reason, comment_content, comment_user_id, comment_user_name) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7) 
              ON CONFLICT (comment_id, reporter_id) DO NOTHING`,
-            [commentIdNum, userId, pageId, reason || 'No reason provided']
+            [commentIdNum, userId, comment.page_id, reason || 'No reason provided', 
+             comment.content, comment.user_id, comment.user_name]
         );
         
         await client.query('COMMIT');
@@ -864,14 +870,10 @@ app.get('/api/reports/:pageId', authenticateUser, requireModerator, async (req, 
         // Query specifically for this page's reports
         const reports = await pgPool.query(
             `SELECT r.*, 
-                    COALESCE(c.content, '[Comment deleted]') as content, 
-                    c.user_id as comment_user_id, 
-                    u1.name as reporter_name, 
-                    COALESCE(u2.name, '[Deleted User]') as comment_user_name
+                    r.comment_content as content,
+                    u1.name as reporter_name
              FROM reports r
-             LEFT JOIN comments c ON r.comment_id = c.id
              JOIN users u1 ON r.reporter_id = u1.id
-             LEFT JOIN users u2 ON c.user_id = u2.id
              WHERE r.page_id = $1 AND r.status = 'pending'
              ORDER BY r.created_at DESC`,
             [pageId]
@@ -888,12 +890,11 @@ app.get('/api/reports/:pageId', authenticateUser, requireModerator, async (req, 
 app.get('/api/reports', authenticateUser, requireModerator, async (req, res) => {
     try {
         const reports = await pgPool.query(
-            `SELECT r.*, c.content, c.user_id as comment_user_id, 
-                    u1.name as reporter_name, u2.name as comment_user_name
+            `SELECT r.*, 
+                    r.comment_content as content,
+                    u1.name as reporter_name
              FROM reports r
-             JOIN comments c ON r.comment_id = c.id
              JOIN users u1 ON r.reporter_id = u1.id
-             JOIN users u2 ON c.user_id = u2.id
              WHERE r.status = 'pending'
              ORDER BY r.created_at DESC`
         );
@@ -1053,6 +1054,52 @@ app.delete('/api/comments/page/:pageId/all', authenticateUser, requireModerator,
         res.status(500).json({ error: 'Failed to delete comments' });
     } finally {
         client.release();
+    }
+});
+
+// Get all pages with comments (moderators only)
+app.get('/api/pages', authenticateUser, requireModerator, async (req, res) => {
+    try {
+        const pages = await pgPool.query(`
+            SELECT DISTINCT page_id, COUNT(*) as comment_count 
+            FROM comments 
+            GROUP BY page_id 
+            ORDER BY comment_count DESC
+        `);
+        res.json(pages.rows);
+    } catch (error) {
+        console.error('Get pages error:', error);
+        res.status(500).json({ error: 'Failed to get pages' });
+    }
+});
+
+// Get reports with optional page filter (moderators only)
+app.get('/api/reports/filter', authenticateUser, requireModerator, async (req, res) => {
+    const { pageId } = req.query;
+    
+    try {
+        let query = `
+            SELECT r.*, 
+                   r.comment_content as content,
+                   u1.name as reporter_name
+            FROM reports r
+            JOIN users u1 ON r.reporter_id = u1.id
+            WHERE r.status = 'pending'
+        `;
+        
+        const params = [];
+        if (pageId) {
+            query += ' AND r.page_id = $1';
+            params.push(pageId);
+        }
+        
+        query += ' ORDER BY r.created_at DESC';
+        
+        const reports = await pgPool.query(query, params);
+        res.json(reports.rows);
+    } catch (error) {
+        console.error('Get filtered reports error:', error);
+        res.status(500).json({ error: 'Failed to get reports' });
     }
 });
 
