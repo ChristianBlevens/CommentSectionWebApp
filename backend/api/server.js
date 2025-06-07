@@ -79,6 +79,32 @@ redisClient.connect().catch(err => {
     console.error('Redis connection failed:', err);
 });
 
+// Middleware to check moderator status for rate limiting
+const checkModeratorForRateLimit = async (req, res, next) => {
+    const authHeader = req.headers.authorization;
+    if (authHeader?.startsWith('Bearer ')) {
+        const token = authHeader.substring(7);
+        try {
+            const userId = await safeRedisOp(() => redisClient.get(`session:${token}`));
+            if (userId) {
+                const userResult = await pgPool.query(
+                    'SELECT is_moderator FROM users WHERE id = $1',
+                    [userId]
+                );
+                if (userResult.rows.length > 0 && userResult.rows[0].is_moderator) {
+                    req.isModerator = true;
+                }
+            }
+        } catch (error) {
+            // Silently continue - rate limiting will apply normally
+        }
+    }
+    next();
+};
+
+// Apply moderator check middleware before rate limiters
+app.use(checkModeratorForRateLimit);
+
 // Rate limiters
 const createRateLimiter = (windowMs, max, message) => {
     return rateLimit({
@@ -87,7 +113,7 @@ const createRateLimiter = (windowMs, max, message) => {
         message,
         standardHeaders: true,
         legacyHeaders: false,
-        skip: (req) => req.user?.is_moderator === true
+        skip: (req) => req.isModerator === true
     });
 };
 
