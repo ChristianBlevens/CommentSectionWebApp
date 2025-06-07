@@ -571,11 +571,11 @@
                                         <i class="fas fa-trash mr-1"></i>Delete Comment
                                     </button>
                                     <div class="relative inline-block">
-                                        <button @click="toggleBanDropdown(report.comment_user_id, $event)" 
+                                        <button @click="toggleBanDropdown(report.id, $event)" 
                                                 class="text-xs bg-red-800 hover:bg-red-900 text-white px-3 py-1 rounded">
                                             <i class="fas fa-ban mr-1"></i>Ban User
                                         </button>
-                                        <div x-show="showBanDropdown === report.comment_user_id" 
+                                        <div x-show="showBanDropdown === report.id" 
                                              @click.away="showBanDropdown = null"
                                              class="absolute left-0 mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-20">
                                             <div class="py-1">
@@ -1928,9 +1928,9 @@
                 },
                 
                 // Toggle ban dropdown
-                toggleBanDropdown(userId, event) {
+                toggleBanDropdown(reportId, event) {
                     event.stopPropagation();
-                    this.showBanDropdown = this.showBanDropdown === userId ? null : userId;
+                    this.showBanDropdown = this.showBanDropdown === reportId ? null : reportId;
                 },
                 
                 // Ban user with duration
