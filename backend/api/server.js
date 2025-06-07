@@ -268,6 +268,29 @@ const initDatabase = async () => {
             console.log('Reports table migration completed');
         }
         
+        // Check if reports table has ON DELETE CASCADE for comment_id
+        const constraintCheck = await client.query(`
+            SELECT constraint_name 
+            FROM information_schema.table_constraints tc
+            JOIN information_schema.key_column_usage kcu 
+                ON tc.constraint_name = kcu.constraint_name
+            WHERE tc.table_name = 'reports' 
+            AND kcu.column_name = 'comment_id'
+            AND tc.constraint_type = 'FOREIGN KEY'
+        `);
+        
+        // Remove CASCADE constraint if it exists
+        if (constraintCheck.rows.length > 0) {
+            console.log('Removing CASCADE constraint from reports table...');
+            for (const row of constraintCheck.rows) {
+                await client.query(`
+                    ALTER TABLE reports 
+                    DROP CONSTRAINT ${row.constraint_name}
+                `);
+            }
+            console.log('CASCADE constraint removed');
+        }
+        
         // Report rate limits table
         await client.query(`
             CREATE TABLE IF NOT EXISTS report_rate_limits (
@@ -1075,9 +1098,8 @@ app.delete('/api/comments/page/:pageId/all', authenticateUser, requireModerator,
             return res.json({ success: true, deletedCount: 0, message: 'No comments to delete' });
         }
         
-        // Delete comments and reports
+        // Delete comments only (preserve reports)
         await client.query('DELETE FROM comments WHERE page_id = $1', [pageId]);
-        await client.query('DELETE FROM reports WHERE page_id = $1', [pageId]);
         
         await client.query('COMMIT');
         
@@ -1107,6 +1129,14 @@ app.get('/api/pages', authenticateUser, requireModerator, async (req, res) => {
             GROUP BY page_id 
             ORDER BY comment_count DESC
         `);
+        
+        console.log(`Returning ${pages.rows.length} pages for dropdown`);
+        if (pages.rows.length > 0) {
+            console.log('Sample pages:', pages.rows.slice(0, 3).map(p => 
+                `${p.page_id} (${p.comment_count} comments)`
+            ));
+        }
+        
         res.json(pages.rows);
     } catch (error) {
         console.error('Get pages error:', error);
@@ -1117,6 +1147,8 @@ app.get('/api/pages', authenticateUser, requireModerator, async (req, res) => {
 // Get reports with optional page filter (moderators only)
 app.get('/api/reports/filter', authenticateUser, requireModerator, async (req, res) => {
     const { pageId } = req.query;
+    
+    console.log(`Getting reports with filter - pageId: "${pageId}"`);
     
     try {
         let query = `
@@ -1132,11 +1164,22 @@ app.get('/api/reports/filter', authenticateUser, requireModerator, async (req, r
         if (pageId) {
             query += ' AND r.page_id = $1';
             params.push(pageId);
+            console.log(`Filtering reports for page: "${pageId}"`);
         }
         
         query += ' ORDER BY r.created_at DESC';
         
         const reports = await pgPool.query(query, params);
+        console.log(`Found ${reports.rows.length} reports${pageId ? ` for page "${pageId}"` : ' (all pages)'}`);
+        
+        // Log sample page_ids from reports to help debug
+        if (reports.rows.length === 0 && pageId) {
+            const allReports = await pgPool.query(
+                `SELECT DISTINCT page_id FROM reports WHERE status = 'pending' LIMIT 10`
+            );
+            console.log('Sample page_ids in reports table:', allReports.rows.map(r => r.page_id));
+        }
+        
         res.json(reports.rows);
     } catch (error) {
         console.error('Get filtered reports error:', error);
