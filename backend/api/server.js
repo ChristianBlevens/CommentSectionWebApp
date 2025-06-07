@@ -227,6 +227,47 @@ const initDatabase = async () => {
             )
         `);
         
+        // Migrate existing reports table if needed
+        // Check if comment_user_id column exists
+        const columnCheck = await client.query(`
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'reports' 
+            AND column_name = 'comment_user_id'
+        `);
+        
+        if (columnCheck.rows.length === 0) {
+            console.log('Migrating reports table schema...');
+            
+            // Add missing columns
+            await client.query(`
+                ALTER TABLE reports 
+                ADD COLUMN IF NOT EXISTS comment_content TEXT,
+                ADD COLUMN IF NOT EXISTS comment_user_id VARCHAR(255),
+                ADD COLUMN IF NOT EXISTS comment_user_name VARCHAR(255)
+            `);
+            
+            // Update existing reports with comment content (where possible)
+            await client.query(`
+                UPDATE reports r
+                SET comment_content = COALESCE(c.content, '[Comment deleted]'),
+                    comment_user_id = c.user_id,
+                    comment_user_name = u.name
+                FROM comments c
+                LEFT JOIN users u ON c.user_id = u.id
+                WHERE r.comment_id = c.id
+                AND r.comment_content IS NULL
+            `);
+            
+            // Set NOT NULL constraint after migration
+            await client.query(`
+                ALTER TABLE reports 
+                ALTER COLUMN comment_content SET NOT NULL
+            `);
+            
+            console.log('Reports table migration completed');
+        }
+        
         // Report rate limits table
         await client.query(`
             CREATE TABLE IF NOT EXISTS report_rate_limits (
