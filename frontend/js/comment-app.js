@@ -37,6 +37,7 @@ function commentApp() {
             this.user = await Auth.checkExistingSession();
             if (this.user) {
                 await this.checkBanStatus();
+                await this.checkForWarnings();
             }
             
             // Load comments
@@ -70,6 +71,9 @@ function commentApp() {
                 if (user.is_moderator) {
                     await this.loadPageReports();
                 }
+                
+                // Check for warnings
+                await this.checkForWarnings();
             });
             
             // Close dropdowns when clicking outside
@@ -749,6 +753,80 @@ function commentApp() {
         getRelativeTime(dateString) {
             return Utils.getRelativeTime(dateString);
         },
+        
+        async checkForWarnings() {
+            if (!this.user) return;
+            
+            try {
+                const sessionToken = localStorage.getItem('sessionToken');
+                const response = await fetch(`${this.apiUrl}/warnings`, {
+                    headers: {
+                        'Authorization': `Bearer ${sessionToken}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const warnings = await response.json();
+                    if (warnings.length > 0) {
+                        // Show each warning
+                        for (const warning of warnings) {
+                            await this.showWarning(warning);
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Error checking warnings:', error);
+            }
+        },
+        
+        async showWarning(warning) {
+            const severityColors = {
+                info: 'bg-blue-100 text-blue-800 border-blue-300',
+                warning: 'bg-yellow-100 text-yellow-800 border-yellow-300',
+                severe: 'bg-red-100 text-red-800 border-red-300'
+            };
+            
+            const severityIcons = {
+                info: 'ℹ️',
+                warning: '⚠️',
+                severe: '⛔'
+            };
+            
+            const warningHtml = `
+                <div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4" id="warning-${warning.id}">
+                    <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6 ${severityColors[warning.severity]} border-2">
+                        <div class="flex items-start space-x-3">
+                            <span class="text-2xl">${severityIcons[warning.severity]}</span>
+                            <div class="flex-1">
+                                <h3 class="text-lg font-semibold mb-2">Administrator Notice</h3>
+                                <p class="mb-4">${warning.message}</p>
+                                <p class="text-sm mb-4">Issued by: ${warning.issued_by_name} - ${Utils.getRelativeTime(warning.issued_at)}</p>
+                                <button onclick="window.commentAppInstance.acknowledgeWarning(${warning.id})" class="px-4 py-2 bg-gray-800 text-white rounded hover:bg-gray-700">
+                                    I understand
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', warningHtml);
+        },
+        
+        async acknowledgeWarning(warningId) {
+            try {
+                const sessionToken = localStorage.getItem('sessionToken');
+                await fetch(`${this.apiUrl}/warnings/${warningId}/acknowledge`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${sessionToken}`
+                    }
+                });
+                document.getElementById(`warning-${warningId}`).remove();
+            } catch (error) {
+                console.error('Error acknowledging warning:', error);
+            }
+        },
 
         // Moderation panel
         toggleReportsPanel() {
@@ -778,6 +856,10 @@ function commentApp() {
                 
                 if (response.ok) {
                     this.pageReports = await response.json();
+                    // Load user history for each report
+                    for (const report of this.pageReports) {
+                        await this.loadUserHistoryForReport(report);
+                    }
                 } else if (response.status === 401) {
                     this.user = null;
                     localStorage.removeItem('user');
@@ -788,6 +870,29 @@ function commentApp() {
             } finally {
                 this.loadingReports = false;
             }
+        },
+        
+        async loadUserHistoryForReport(report) {
+            if (!report.comment_user_id) return;
+            
+            try {
+                const sessionToken = localStorage.getItem('sessionToken');
+                const response = await fetch(`${this.apiUrl}/users/${report.comment_user_id}/history`, {
+                    headers: {
+                        'Authorization': `Bearer ${sessionToken}`
+                    }
+                });
+                
+                if (response.ok) {
+                    report.user_history = await response.json();
+                }
+            } catch (error) {
+                console.error('Error loading user history:', error);
+            }
+        },
+        
+        toggleUserHistory(report) {
+            report.showHistory = !report.showHistory;
         },
 
         jumpToComment(commentId) {
@@ -890,6 +995,42 @@ function commentApp() {
                 this.user = null;
                 localStorage.removeItem('user');
                 localStorage.removeItem('sessionToken');
+            }
+        },
+        
+        async warnUserFromReport(userId, userName) {
+            const message = prompt(`What warning would you like to send to ${userName}?`);
+            if (!message) return;
+            
+            const severityOptions = ['info', 'warning', 'severe'];
+            const severityIndex = prompt('Select severity:\n1. Info (blue)\n2. Warning (yellow)\n3. Severe (red)\n\nEnter 1, 2, or 3:');
+            
+            if (!severityIndex || !['1', '2', '3'].includes(severityIndex)) {
+                alert('Invalid severity selection');
+                return;
+            }
+            
+            const severity = severityOptions[parseInt(severityIndex) - 1];
+            
+            try {
+                const sessionToken = localStorage.getItem('sessionToken');
+                const response = await fetch(`${this.apiUrl}/users/${userId}/warn`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${sessionToken}`
+                    },
+                    body: JSON.stringify({ message, severity })
+                });
+                
+                if (response.ok) {
+                    alert(`Warning sent to ${userName}`);
+                } else {
+                    throw new Error('Failed to send warning');
+                }
+            } catch (error) {
+                console.error('Error warning user:', error);
+                alert('Failed to send warning');
             }
         },
 

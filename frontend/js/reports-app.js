@@ -82,6 +82,11 @@ function reportsApp() {
                     } else {
                         this.filteredReports = [...this.reports];
                     }
+                    
+                    // Load user history for each report
+                    for (const report of this.reports) {
+                        await this.loadUserHistoryForReport(report);
+                    }
                 } else if (response.status === 401) {
                     console.error('Session expired or invalid');
                     this.user = null;
@@ -277,10 +282,72 @@ function reportsApp() {
             }
         },
         
+        async warnUser(userId, userName) {
+            const message = prompt(`What warning would you like to send to ${userName}?`);
+            if (!message) return;
+            
+            const severityOptions = ['info', 'warning', 'severe'];
+            const severityIndex = prompt('Select severity:\n1. Info (blue)\n2. Warning (yellow)\n3. Severe (red)\n\nEnter 1, 2, or 3:');
+            
+            if (!severityIndex || !['1', '2', '3'].includes(severityIndex)) {
+                alert('Invalid severity selection');
+                return;
+            }
+            
+            const severity = severityOptions[parseInt(severityIndex) - 1];
+            
+            try {
+                const sessionToken = localStorage.getItem('sessionToken');
+                const response = await fetch(`${this.apiUrl}/users/${userId}/warn`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${sessionToken}`
+                    },
+                    body: JSON.stringify({ message, severity })
+                });
+                
+                if (response.ok) {
+                    alert(`Warning sent to ${userName}`);
+                } else if (response.status === 401) {
+                    alert('Session expired. Please sign in again.');
+                    this.handleSessionExpired();
+                } else {
+                    throw new Error('Failed to send warning');
+                }
+            } catch (error) {
+                console.error('Error warning user:', error);
+                alert('Failed to send warning');
+            }
+        },
+        
         handleSessionExpired() {
             this.user = null;
             localStorage.removeItem('user');
             localStorage.removeItem('sessionToken');
+        },
+        
+        async loadUserHistoryForReport(report) {
+            if (!report.comment_user_id) return;
+            
+            try {
+                const sessionToken = localStorage.getItem('sessionToken');
+                const response = await fetch(`${this.apiUrl}/users/${report.comment_user_id}/history`, {
+                    headers: {
+                        'Authorization': `Bearer ${sessionToken}`
+                    }
+                });
+                
+                if (response.ok) {
+                    report.user_history = await response.json();
+                }
+            } catch (error) {
+                console.error('Error loading user history:', error);
+            }
+        },
+        
+        toggleUserHistory(report) {
+            report.showHistory = !report.showHistory;
         },
         
         getRelativeTime(dateString) {

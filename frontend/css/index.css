@@ -449,3 +449,23 @@
 .comment-content.reported-comment:hover {
     box-shadow: 0 2px 8px rgba(220, 38, 38, 0.2);
 }
+
+/* Warn button style */
+.report-action-btn.warn {
+    background-color: #eab308;
+    color: white;
+}
+
+.report-action-btn.warn:hover {
+    background-color: #ca8a04;
+}
+
+/* History button style */
+.report-action-btn.history {
+    background-color: #8b5cf6;
+    color: white;
+}
+
+.report-action-btn.history:hover {
+    background-color: #7c3aed;
+}
