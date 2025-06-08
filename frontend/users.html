@@ -6,6 +6,7 @@
     <title>User Management</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/index.css">
     <link rel="stylesheet" href="css/users.css">
     <link rel="stylesheet" href="css/comment-highlight.css">
     <!-- Load core libraries first -->
@@ -255,7 +256,7 @@
                                     </div>
                                     <div x-show="userComments[user.id]" class="space-y-2">
                                         <template x-for="comment in userComments[user.id]" :key="comment.id">
-                                            <div x-html="renderCommentForUser(comment)"></div>
+                                            <div x-html="renderComment(comment, 0)"></div>
                                         </template>
                                     </div>
                                 </div>
