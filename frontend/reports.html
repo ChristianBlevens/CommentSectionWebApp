@@ -6,6 +6,8 @@
     <title>All Reports - Moderation Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="css/main.css" rel="stylesheet">
+    <link href="css/reports.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.12.0/dist/cdn.min.js" defer></script>
 </head>
 <body class="bg-gray-100">
@@ -109,97 +111,93 @@
                 <!-- Reports list -->
                 <div x-show="!loading && filteredReports.length > 0" class="space-y-4">
                     <template x-for="report in filteredReports" :key="report.id">
-                        <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-red-500">
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div class="report-card">
+                            <div class="report-header">
                                 <div>
-                                    <p class="text-sm text-gray-600">
-                                        <i class="fas fa-file-alt mr-1"></i>
+                                    <p class="report-meta">
+                                        <i class="fas fa-file-alt"></i>
                                         Page: <span class="font-medium" x-text="report.page_id"></span>
                                     </p>
-                                    <p class="text-sm text-gray-600">
-                                        <i class="fas fa-user mr-1"></i>
+                                    <p class="report-meta">
+                                        <i class="fas fa-user"></i>
                                         Reported by: <span class="font-medium" x-text="report.reporter_name"></span>
                                     </p>
-                                    <p class="text-sm text-gray-600">
-                                        <i class="fas fa-user-times mr-1"></i>
-                                        Comment by: <span class="font-medium" x-text="report.comment_user_name"></span>
+                                    <p class="report-meta">
+                                        <i class="fas fa-clock"></i>
+                                        <span x-text="getRelativeTime(report.created_at)"></span>
                                     </p>
                                 </div>
                                 <div>
-                                    <p class="text-sm text-gray-600">
-                                        <i class="fas fa-calendar mr-1"></i>
-                                        Reported: <span x-text="new Date(report.created_at).toLocaleString()"></span>
-                                    </p>
-                                    <p class="text-sm text-gray-600">
-                                        <i class="fas fa-exclamation-circle mr-1"></i>
+                                    <p class="report-meta">
+                                        <i class="fas fa-exclamation-circle"></i>
                                         Reason: <span class="font-medium" x-text="report.reason"></span>
                                     </p>
                                 </div>
                             </div>
                             
                             <!-- Comment content -->
-                            <div class="bg-gray-50 rounded-lg p-4 mb-4">
-                                <p class="text-sm font-medium text-gray-700 mb-2">Reported Comment:</p>
-                                <div class="bg-white rounded p-3 border border-gray-200">
-                                    <p x-text="report.content"></p>
-                                </div>
+                            <div class="report-content">
+                                <p class="report-content-label">
+                                    Comment by: <span x-text="report.comment_user_name"></span>
+                                </p>
+                                <div class="report-content-text" x-text="report.content"></div>
                             </div>
                             
                             <!-- Actions -->
-                            <div class="flex flex-wrap gap-2">
+                            <div class="report-actions">
                                 <a :href="`index.html?pageId=${report.page_id}#comment-${report.comment_id}`" 
                                    target="_blank"
-                                   class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md text-sm">
-                                    <i class="fas fa-external-link-alt mr-1"></i>View in Context
+                                   class="report-action-btn view">
+                                    <i class="fas fa-external-link-alt"></i>View in Context
                                 </a>
                                 <button @click="deleteComment(report)" 
-                                        class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm">
-                                    <i class="fas fa-trash mr-1"></i>Delete Comment
+                                        class="report-action-btn delete">
+                                    <i class="fas fa-trash"></i>Delete Comment
                                 </button>
-                                <div class="relative inline-block">
+                                <div class="ban-dropdown-container">
                                     <button @click="toggleBanDropdown(report.id, $event)" 
-                                            class="bg-red-800 hover:bg-red-900 text-white px-4 py-2 rounded-md text-sm">
-                                        <i class="fas fa-ban mr-1"></i>Ban User
+                                            class="report-action-btn ban">
+                                        <i class="fas fa-ban"></i>Ban User
                                     </button>
                                     <div x-show="showBanDropdown === report.id" 
                                          @click.away="showBanDropdown = null"
-                                         class="absolute left-0 mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-20">
-                                        <div class="py-1">
+                                         class="ban-dropdown">
+                                        <div class="ban-dropdown-inner">
                                             <button @click="banUserWithDuration(report.comment_user_id, report.comment_user_name, '30m')" 
-                                                    class="w-full text-left px-4 py-2 text-sm hover:bg-gray-100">
+                                                    class="ban-dropdown-item">
                                                 30 minutes
                                             </button>
                                             <button @click="banUserWithDuration(report.comment_user_id, report.comment_user_name, '6h')" 
-                                                    class="w-full text-left px-4 py-2 text-sm hover:bg-gray-100">
+                                                    class="ban-dropdown-item">
                                                 6 hours
                                             </button>
                                             <button @click="banUserWithDuration(report.comment_user_id, report.comment_user_name, '1d')" 
-                                                    class="w-full text-left px-4 py-2 text-sm hover:bg-gray-100">
+                                                    class="ban-dropdown-item">
                                                 1 day
                                             </button>
                                             <button @click="banUserWithDuration(report.comment_user_id, report.comment_user_name, '3d')" 
-                                                    class="w-full text-left px-4 py-2 text-sm hover:bg-gray-100">
+                                                    class="ban-dropdown-item">
                                                 3 days
                                             </button>
                                             <button @click="banUserWithDuration(report.comment_user_id, report.comment_user_name, '7d')" 
-                                                    class="w-full text-left px-4 py-2 text-sm hover:bg-gray-100">
+                                                    class="ban-dropdown-item">
                                                 1 week
                                             </button>
                                             <button @click="banUserWithDuration(report.comment_user_id, report.comment_user_name, '30d')" 
-                                                    class="w-full text-left px-4 py-2 text-sm hover:bg-gray-100">
+                                                    class="ban-dropdown-item">
                                                 1 month
                                             </button>
                                             <button @click="banUserWithDuration(report.comment_user_id, report.comment_user_name, '90d')" 
-                                                    class="w-full text-left px-4 py-2 text-sm hover:bg-gray-100">
+                                                    class="ban-dropdown-item">
                                                 3 months
                                             </button>
                                             <button @click="banUserWithDuration(report.comment_user_id, report.comment_user_name, 'permanent')" 
-                                                    class="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 text-red-600">
+                                                    class="ban-dropdown-item text-red-600">
                                                 Permanent
                                             </button>
-                                            <div class="border-t border-gray-200">
+                                            <div class="ban-dropdown-divider">
                                                 <button @click="showCustomBanInput(report.comment_user_id, report.comment_user_name)" 
-                                                        class="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 text-blue-600">
+                                                        class="ban-dropdown-item text-blue-600">
                                                     <i class="fas fa-clock mr-1"></i>Custom duration
                                                 </button>
                                             </div>
@@ -207,8 +205,8 @@
                                     </div>
                                 </div>
                                 <button @click="dismissReport(report.id)" 
-                                        class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md text-sm">
-                                    <i class="fas fa-times mr-1"></i>Dismiss Report
+                                        class="report-action-btn dismiss">
+                                    <i class="fas fa-times"></i>Dismiss Report
                                 </button>
                             </div>
                         </div>
@@ -218,418 +216,11 @@
         </div>
     </div>
     
-    <script>
-        // Dynamic configuration
-        let CONFIG = {};
-        
-        async function loadConfig() {
-            try {
-                const response = await fetch('/api/config');
-                if (response.ok) {
-                    CONFIG = await response.json();
-                    console.log('Configuration loaded:', CONFIG);
-                } else {
-                    console.error('Failed to load configuration');
-                    CONFIG = {
-                        discordClientId: '',
-                        discordRedirectUri: window.location.origin + '/oauth-callback.html'
-                    };
-                }
-            } catch (error) {
-                console.error('Error loading configuration:', error);
-                CONFIG = {
-                    discordClientId: '',
-                    discordRedirectUri: window.location.origin + '/oauth-callback.html'
-                };
-            }
-        }
-        
-        // Load config immediately
-        loadConfig();
-        
-        function reportsApp() {
-            return {
-                user: null,
-                reports: [],
-                filteredReports: [],
-                pages: [],
-                filteredPages: [],
-                selectedPage: null,
-                showPageDropdown: false,
-                pageSearchQuery: '',
-                loading: true,
-                apiUrl: '/api',
-                showBanDropdown: null,
-                
-                init() {
-                    console.log('Reports app initializing...');
-                    this.checkExistingSession();
-                    
-                    // Listen for login messages
-                    window.addEventListener('message', async (event) => {
-                        if (event.data && event.data.type === 'discord-login-success') {
-                            console.log('Received Discord login success');
-                            this.user = event.data.user;
-                            localStorage.setItem('user', JSON.stringify(this.user));
-                            if (event.data.sessionToken) {
-                                localStorage.setItem('sessionToken', event.data.sessionToken);
-                            }
-                            if (this.user.is_moderator) {
-                                // Load reports (pages will be extracted from reports)
-                                await this.loadReports();
-                            }
-                        }
-                    });
-                },
-                
-                async checkExistingSession() {
-                    const savedUser = localStorage.getItem('user');
-                    const sessionToken = localStorage.getItem('sessionToken');
-                    
-                    if (savedUser && sessionToken) {
-                        this.user = JSON.parse(savedUser);
-                        console.log('Found existing session:', this.user.username);
-                        
-                        // Try to load reports - server will verify permissions
-                        if (this.user.is_moderator) {
-                            // Load reports (pages will be extracted from reports)
-                            await this.loadReports();
-                        } else {
-                            this.loading = false;
-                        }
-                    } else {
-                        console.log('No existing user session found');
-                        // Clear any partial data
-                        localStorage.removeItem('user');
-                        localStorage.removeItem('sessionToken');
-                        this.loading = false;
-                    }
-                },
-                
-                signInWithDiscord() {
-                    // Normal Discord OAuth flow
-                    const state = Math.random().toString(36).substring(7);
-                    localStorage.setItem('discord_state', state);
-                    const clientId = CONFIG.discordClientId;
-                    const redirectUri = encodeURIComponent(CONFIG.discordRedirectUri);
-                    const scope = 'identify';
-                    const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&state=${state}`;
-                    
-                    const width = 500;
-                    const height = 700;
-                    const left = (window.screen.width - width) / 2;
-                    const top = (window.screen.height - height) / 2;
-                    
-                    window.open(
-                        discordAuthUrl,
-                        'discord-auth',
-                        `width=${width},height=${height},left=${left},top=${top}`
-                    );
-                },
-                
-                async loadReports() {
-                    this.loading = true;
-                    const sessionToken = localStorage.getItem('sessionToken');
-                    
-                    if (!sessionToken) {
-                        console.error('No session token found');
-                        this.loading = false;
-                        this.user = null;
-                        localStorage.removeItem('user');
-                        return;
-                    }
-                    
-                    try {
-                        // Always load all reports initially
-                        const response = await fetch(`${this.apiUrl}/reports`, {
-                            headers: { 
-                                'Authorization': `Bearer ${sessionToken}`
-                            }
-                        });
-                        
-                        if (response.ok) {
-                            this.reports = await response.json();
-                            console.log(`Loaded ${this.reports.length} reports`);
-                            
-                            // Extract unique pages from reports
-                            const pageMap = new Map();
-                            this.reports.forEach(report => {
-                                if (!pageMap.has(report.page_id)) {
-                                    pageMap.set(report.page_id, {
-                                        page_id: report.page_id,
-                                        report_count: 0
-                                    });
-                                }
-                                pageMap.get(report.page_id).report_count++;
-                            });
-                            
-                            // Convert to array and sort by report count (most reports first)
-                            this.pages = Array.from(pageMap.values()).sort((a, b) => b.report_count - a.report_count);
-                            this.filteredPages = [...this.pages];
-                            console.log(`Extracted ${this.pages.length} pages from reports:`, this.pages);
-                            
-                            // Apply selected page filter if any
-                            if (this.selectedPage) {
-                                this.filteredReports = this.reports.filter(r => r.page_id === this.selectedPage);
-                            } else {
-                                this.filteredReports = [...this.reports];
-                            }
-                        } else if (response.status === 401) {
-                            console.error('Session expired or invalid');
-                            this.user = null;
-                            localStorage.removeItem('user');
-                            localStorage.removeItem('sessionToken');
-                        } else if (response.status === 403) {
-                            console.error('Not authorized to view reports');
-                            this.user.is_moderator = false;
-                        }
-                    } catch (error) {
-                        console.error('Error loading reports:', error);
-                    } finally {
-                        this.loading = false;
-                    }
-                },
-                
-                
-                filterPages() {
-                    if (!this.pageSearchQuery) {
-                        this.filteredPages = [...this.pages];
-                    } else {
-                        const query = this.pageSearchQuery.toLowerCase();
-                        this.filteredPages = this.pages.filter(page => 
-                            page.page_id.toLowerCase().includes(query)
-                        );
-                    }
-                },
-                
-                updatePagesFromReports() {
-                    // Extract unique pages from reports
-                    const pageMap = new Map();
-                    this.reports.forEach(report => {
-                        if (!pageMap.has(report.page_id)) {
-                            pageMap.set(report.page_id, {
-                                page_id: report.page_id,
-                                report_count: 0
-                            });
-                        }
-                        pageMap.get(report.page_id).report_count++;
-                    });
-                    
-                    // Convert to array and sort by report count (most reports first)
-                    this.pages = Array.from(pageMap.values()).sort((a, b) => b.report_count - a.report_count);
-                    this.filteredPages = [...this.pages];
-                },
-                
-                selectPage(pageId) {
-                    this.selectedPage = pageId;
-                    this.showPageDropdown = false;
-                    
-                    // Filter reports based on selected page
-                    if (pageId) {
-                        this.filteredReports = this.reports.filter(r => r.page_id === pageId);
-                    } else {
-                        this.filteredReports = [...this.reports];
-                    }
-                },
-                
-                async deleteComment(report) {
-                    if (!confirm('Delete this reported comment?')) {
-                        return;
-                    }
-                    
-                    const sessionToken = localStorage.getItem('sessionToken');
-                    if (!sessionToken) {
-                        alert('Session expired. Please sign in again.');
-                        this.user = null;
-                        localStorage.removeItem('user');
-                        localStorage.removeItem('sessionToken');
-                        return;
-                    }
-                    
-                    try {
-                        // Delete the comment
-                        const deleteResponse = await fetch(`${this.apiUrl}/comments/${report.comment_id}`, {
-                            method: 'DELETE',
-                            headers: { 
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${sessionToken}`
-                            }
-                        });
-                        
-                        if (deleteResponse.status === 401) {
-                            alert('Session expired. Please sign in again.');
-                            this.user = null;
-                            localStorage.removeItem('user');
-                            localStorage.removeItem('sessionToken');
-                            return;
-                        }
-                        
-                        if (!deleteResponse.ok) {
-                            throw new Error('Failed to delete comment');
-                        }
-                        
-                        // Resolve the report
-                        await fetch(`${this.apiUrl}/reports/${report.id}/resolve`, {
-                            method: 'PUT',
-                            headers: { 
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${sessionToken}`
-                            },
-                            body: JSON.stringify({ 
-                                action: 'resolved'
-                            })
-                        });
-                        
-                        // Remove from list
-                        this.reports = this.reports.filter(r => r.id !== report.id);
-                        this.filteredReports = this.reports.filter(r => 
-                            !this.selectedPage || r.page_id === this.selectedPage
-                        );
-                        
-                        // Update pages array
-                        this.updatePagesFromReports();
-                        
-                        alert('Comment deleted successfully');
-                        
-                    } catch (error) {
-                        console.error('Error deleting comment:', error);
-                        alert('Failed to delete comment');
-                    }
-                },
-                
-                async dismissReport(reportId) {
-                    if (!confirm('Dismiss this report?')) {
-                        return;
-                    }
-                    
-                    const sessionToken = localStorage.getItem('sessionToken');
-                    if (!sessionToken) {
-                        alert('Session expired. Please sign in again.');
-                        this.user = null;
-                        localStorage.removeItem('user');
-                        localStorage.removeItem('sessionToken');
-                        return;
-                    }
-                    
-                    try {
-                        const response = await fetch(`${this.apiUrl}/reports/${reportId}/resolve`, {
-                            method: 'PUT',
-                            headers: { 
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${sessionToken}`
-                            },
-                            body: JSON.stringify({ 
-                                action: 'dismissed'
-                            })
-                        });
-                        
-                        if (response.status === 401) {
-                            alert('Session expired. Please sign in again.');
-                            this.user = null;
-                            localStorage.removeItem('user');
-                            localStorage.removeItem('sessionToken');
-                            return;
-                        }
-                        
-                        if (response.ok) {
-                            this.reports = this.reports.filter(r => r.id !== reportId);
-                            this.filteredReports = this.reports.filter(r => 
-                                !this.selectedPage || r.page_id === this.selectedPage
-                            );
-                            
-                            // Update pages array
-                            this.updatePagesFromReports();
-                            
-                            alert('Report dismissed');
-                        } else {
-                            throw new Error('Failed to dismiss report');
-                        }
-                    } catch (error) {
-                        console.error('Error dismissing report:', error);
-                        alert('Failed to dismiss report');
-                    }
-                },
-                
-                // Toggle ban dropdown
-                toggleBanDropdown(reportId, event) {
-                    event.stopPropagation();
-                    this.showBanDropdown = this.showBanDropdown === reportId ? null : reportId;
-                },
-                
-                // Ban user with duration
-                async banUserWithDuration(userId, userName, duration) {
-                    const reason = prompt(`Why are you banning ${userName}?`);
-                    if (!reason) return;
-                    
-                    await this.banUser(userId, userName, duration, reason);
-                },
-                
-                // Show custom ban input
-                async showCustomBanInput(userId, userName) {
-                    const duration = prompt('Enter ban duration (e.g., 30m, 6h, 1d):');
-                    if (!duration) return;
-                    
-                    // Validate duration format
-                    if (!/^\d+[mhd]?$/.test(duration)) {
-                        alert('Invalid duration format. Use format like: 30m, 6h, 1d');
-                        return;
-                    }
-                    
-                    await this.banUserWithDuration(userId, userName, duration);
-                },
-                
-                // Ban user
-                async banUser(userId, userName, duration, reason) {
-                    const sessionToken = localStorage.getItem('sessionToken');
-                    if (!sessionToken) {
-                        alert('Session expired. Please sign in again.');
-                        this.user = null;
-                        localStorage.removeItem('user');
-                        localStorage.removeItem('sessionToken');
-                        return;
-                    }
-                    
-                    try {
-                        const response = await fetch(`${this.apiUrl}/users/${userId}/ban`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${sessionToken}`
-                            },
-                            body: JSON.stringify({
-                                duration: duration,
-                                reason: reason,
-                                deleteComments: duration === 'permanent' // Only delete comments for permanent bans
-                            })
-                        });
-                        
-                        if (response.status === 401) {
-                            alert('Session expired. Please sign in again.');
-                            this.user = null;
-                            localStorage.removeItem('user');
-                            localStorage.removeItem('sessionToken');
-                            return;
-                        }
-                        
-                        if (response.ok) {
-                            const result = await response.json();
-                            alert(`${userName} has been banned.\n${result.ban_duration_text}`);
-                            
-                            // Reload reports to reflect changes
-                            await this.loadReports();
-                            
-                            // Close dropdown
-                            this.showBanDropdown = null;
-                        } else {
-                            throw new Error('Failed to ban user');
-                        }
-                    } catch (error) {
-                        console.error('Error banning user:', error);
-                        alert('Failed to ban user');
-                    }
-                }
-            }
-        }
-    </script>
+    <!-- JavaScript -->
+    <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/ban-handler.js"></script>
+    <script src="js/reports-app.js"></script>
 </body>
 </html>
