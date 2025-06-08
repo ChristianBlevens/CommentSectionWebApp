@@ -1,9 +1,6 @@
 // Reports App - Global reports management
 function reportsApp() {
     // Ensure components are initialized
-    if (!window.reportCard && window.ReportCard) {
-        window.reportCard = new ReportCard();
-    }
     if (!window.commentRenderer && window.CommentRenderer) {
         window.commentRenderer = new CommentRenderer();
     }
@@ -362,60 +359,123 @@ function reportsApp() {
         },
 
         renderReportCard(report) {
-            // Ensure reportCard is available
-            if (!window.reportCard || typeof window.reportCard.renderReportCard !== 'function') {
-                console.error('Report card component not loaded');
-                // Initialize if not available
-                if (!window.reportCard) {
-                    window.reportCard = new ReportCard();
-                }
-                // Retry if now available
-                if (window.reportCard && typeof window.reportCard.renderReportCard === 'function') {
-                    return window.reportCard.renderReportCard(report, {
-                showPageInfo: true,
-                showViewInContext: true,
-                onToggleHistory: (reportId) => this.toggleUserHistory(reportId),
-                onViewInContext: (report) => `index.html?pageId=${report.page_id}#comment-${report.comment_id}`,
-                onDeleteComment: (reportId) => {
-                    const report = this.filteredReports.find(r => r.id === reportId);
-                    if (report) this.deleteComment(report);
-                },
-                onBanUser: (userId, userName, duration) => {
-                    if (duration === 'custom') {
-                        this.showCustomBanInput(userId, userName);
-                    } else {
-                        this.banUserWithDuration(userId, userName, duration);
-                    }
-                },
-                onWarnUser: (userId, userName) => this.warnUser(userId, userName),
-                onDismiss: (reportId) => this.dismissReport(reportId),
-                onToggleBanDropdown: (reportId, event) => this.toggleBanDropdown(reportId, event),
-                showBanDropdown: this.showBanDropdown
-            });
-                }
-                return '<div class="text-gray-500">Loading report...</div>';
-            }
-            return window.reportCard.renderReportCard(report, {
-                showPageInfo: true,
-                showViewInContext: true,
-                onToggleHistory: (reportId) => this.toggleUserHistory(reportId),
-                onViewInContext: (report) => `index.html?pageId=${report.page_id}#comment-${report.comment_id}`,
-                onDeleteComment: (reportId) => {
-                    const report = this.filteredReports.find(r => r.id === reportId);
-                    if (report) this.deleteComment(report);
-                },
-                onBanUser: (userId, userName, duration) => {
-                    if (duration === 'custom') {
-                        this.showCustomBanInput(userId, userName);
-                    } else {
-                        this.banUserWithDuration(userId, userName, duration);
-                    }
-                },
-                onWarnUser: (userId, userName) => this.warnUser(userId, userName),
-                onDismiss: (reportId) => this.dismissReport(reportId),
-                onToggleBanDropdown: (reportId, event) => this.toggleBanDropdown(reportId, event),
-                showBanDropdown: this.showBanDropdown
-            });
+            // Integrated report card rendering
+            const viewInContextUrl = `index.html?pageId=${report.page_id}#comment-${report.comment_id}`;
+            
+            return `
+                <div class="report-card" data-report-id="${report.id}">
+                    <div class="report-header">
+                        <div>
+                            <div class="report-meta">
+                                <i class="fas fa-user"></i>
+                                Reported by: <span class="font-medium">${Utils.escapeHtml(report.reporter_username || 'Unknown')}</span>
+                            </div>
+                            <div class="report-meta">
+                                <i class="fas fa-clock"></i>
+                                ${this.getRelativeTime(report.created_at)}
+                            </div>
+                            ${report.page_id ? `
+                                <div class="report-meta">
+                                    <i class="fas fa-globe"></i>
+                                    Page: <span class="font-medium">${Utils.escapeHtml(report.page_id)}</span>
+                                </div>
+                            ` : ''}
+                        </div>
+                        <div>
+                            <div class="report-meta">
+                                <i class="fas fa-comment"></i>
+                                Comment by: <span class="font-medium">${Utils.escapeHtml(report.comment_username || 'Unknown')}</span>
+                            </div>
+                            <div class="report-meta">
+                                <i class="fas fa-flag"></i>
+                                Reason: <span class="font-medium">${Utils.escapeHtml(report.reason)}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="report-content">
+                        <div class="report-content-label">Reported Comment:</div>
+                        <div class="report-content-text markdown-content">
+                            ${window.MarkdownProcessor && window.MarkdownProcessor.instance 
+                                ? window.MarkdownProcessor.instance.render(report.comment_content || '')
+                                : Utils.escapeHtml(report.comment_content || '')}
+                        </div>
+                    </div>
+                    
+                    <div class="report-actions">
+                        <a href="${viewInContextUrl}" target="_blank" class="report-action-btn view">
+                            <i class="fas fa-external-link-alt"></i>
+                            View in Context
+                        </a>
+                        <button class="report-action-btn delete" @click="deleteComment(${report.id})">
+                            <i class="fas fa-trash"></i>
+                            Delete Comment
+                        </button>
+                        
+                        <div class="ban-dropdown-container">
+                            <button class="report-action-btn ban" @click="toggleBanDropdown(${report.id}, $event)">
+                                <i class="fas fa-ban"></i>
+                                Ban User
+                            </button>
+                            ${this.showBanDropdown === report.id ? `
+                                <div class="ban-dropdown" x-show="showBanDropdown === ${report.id}">
+                                    <div class="ban-dropdown-inner">
+                                        <button class="ban-dropdown-item" @click="banUserWithDuration(${report.comment_user_id}, '${Utils.escapeHtml(report.comment_username)}', '1h')">
+                                            Ban for 1 hour
+                                        </button>
+                                        <button class="ban-dropdown-item" @click="banUserWithDuration(${report.comment_user_id}, '${Utils.escapeHtml(report.comment_username)}', '1d')">
+                                            Ban for 1 day
+                                        </button>
+                                        <button class="ban-dropdown-item" @click="banUserWithDuration(${report.comment_user_id}, '${Utils.escapeHtml(report.comment_username)}', '1w')">
+                                            Ban for 1 week
+                                        </button>
+                                        <button class="ban-dropdown-item" @click="banUserWithDuration(${report.comment_user_id}, '${Utils.escapeHtml(report.comment_username)}', '30d')">
+                                            Ban for 30 days
+                                        </button>
+                                        <div class="ban-dropdown-divider"></div>
+                                        <button class="ban-dropdown-item text-red-600" @click="banUserWithDuration(${report.comment_user_id}, '${Utils.escapeHtml(report.comment_username)}', 'permanent')">
+                                            Permanent ban
+                                        </button>
+                                        <button class="ban-dropdown-item text-blue-600" @click="showCustomBanInput(${report.comment_user_id}, '${Utils.escapeHtml(report.comment_username)}')">
+                                            Custom duration...
+                                        </button>
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>
+                        
+                        <button class="report-action-btn warn" @click="warnUser(${report.comment_user_id}, '${Utils.escapeHtml(report.comment_username)}')">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            Warn User
+                        </button>
+                        
+                        <button class="report-action-btn history" @click="toggleUserHistory(${report.id})">
+                            <i class="fas fa-history"></i>
+                            User History
+                        </button>
+                        
+                        <button class="report-action-btn dismiss" @click="dismissReport(${report.id})">
+                            <i class="fas fa-times"></i>
+                            Dismiss
+                        </button>
+                    </div>
+                    
+                    ${report.showHistory && report.user_history ? `
+                        <div class="mt-4 p-4 bg-gray-50 rounded">
+                            <h4 class="font-semibold mb-2">User History</h4>
+                            <div class="space-y-2 text-sm">
+                                <div>Total Comments: ${report.user_history.total_comments || 0}</div>
+                                <div>Warnings: ${report.user_history.warnings || 0}</div>
+                                <div>Reports: ${report.user_history.reports || 0}</div>
+                                <div>Bans: ${report.user_history.bans || 0}</div>
+                                ${report.user_history.last_ban ? `
+                                    <div>Last Ban: ${this.getRelativeTime(report.user_history.last_ban)}</div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
         },
         
         getRelativeTime(dateString) {

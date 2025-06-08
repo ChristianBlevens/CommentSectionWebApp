@@ -1,9 +1,6 @@
 // Comment App - Main comment system functionality
 function commentApp() {
     // Ensure components are initialized
-    if (!window.reportCard && window.ReportCard) {
-        window.reportCard = new ReportCard();
-    }
     if (!window.commentRenderer && window.CommentRenderer) {
         window.commentRenderer = new CommentRenderer();
     }
@@ -87,6 +84,11 @@ function commentApp() {
                     document.querySelectorAll('.comment-dropdown.show').forEach(dropdown => {
                         dropdown.classList.remove('show');
                     });
+                    // Remove bottom padding when all dropdowns are closed
+                    const bottomPadding = document.querySelector('.comment-section-bottom-padding');
+                    if (bottomPadding) {
+                        bottomPadding.classList.remove('dropdown-open');
+                    }
                 }
             });
             
@@ -399,6 +401,11 @@ function commentApp() {
             document.querySelectorAll('.comment-dropdown.show').forEach(dropdown => {
                 dropdown.classList.remove('show');
             });
+            // Remove bottom padding when all dropdowns are closed
+            const bottomPadding = document.querySelector('.comment-section-bottom-padding');
+            if (bottomPadding) {
+                bottomPadding.classList.remove('dropdown-open');
+            }
             
             if (!this.user) {
                 alert('Please sign in to delete comments');
@@ -466,6 +473,11 @@ function commentApp() {
             document.querySelectorAll('.comment-dropdown.show').forEach(dropdown => {
                 dropdown.classList.remove('show');
             });
+            // Remove bottom padding when all dropdowns are closed
+            const bottomPadding = document.querySelector('.comment-section-bottom-padding');
+            if (bottomPadding) {
+                bottomPadding.classList.remove('dropdown-open');
+            }
             
             if (!this.user) {
                 alert('Please sign in to report comments');
@@ -732,6 +744,7 @@ function commentApp() {
             const dropdown = document.getElementById(`dropdown-${commentId}`);
             const button = document.getElementById(`options-btn-${commentId}`);
             const allDropdowns = document.querySelectorAll('.comment-dropdown');
+            const bottomPadding = document.querySelector('.comment-section-bottom-padding');
             
             allDropdowns.forEach(d => {
                 if (d !== dropdown) {
@@ -759,6 +772,16 @@ function commentApp() {
                 
                 if (dropdownRect.bottom > window.innerHeight - 10) {
                     dropdown.style.top = (buttonRect.top - dropdown.offsetHeight - 4) + 'px';
+                }
+                
+                // Add bottom padding class when dropdown is open
+                if (bottomPadding) {
+                    bottomPadding.classList.add('dropdown-open');
+                }
+            } else {
+                // Remove bottom padding class when no dropdowns are open
+                if (bottomPadding && !document.querySelector('.comment-dropdown.show')) {
+                    bottomPadding.classList.remove('dropdown-open');
                 }
             }
         },
@@ -912,60 +935,115 @@ function commentApp() {
         },
 
         renderReportCard(report) {
-            // Ensure reportCard is available
-            if (!window.reportCard || typeof window.reportCard.renderReportCard !== 'function') {
-                console.error('Report card component not loaded');
-                // Initialize if not available
-                if (!window.reportCard) {
-                    window.reportCard = new ReportCard();
-                }
-                // Retry if now available
-                if (window.reportCard && typeof window.reportCard.renderReportCard === 'function') {
-                    return window.reportCard.renderReportCard(report, {
-                showPageInfo: false,
-                showViewInContext: false,
-                onToggleHistory: (reportId) => this.toggleUserHistory(reportId),
-                onJumpToComment: (commentId) => this.jumpToComment(commentId),
-                onDeleteComment: (reportId) => {
-                    const report = this.pageReports.find(r => r.id === reportId);
-                    if (report) this.deleteReportedComment(report);
-                },
-                onBanUser: (userId, userName, duration) => {
-                    if (duration === 'custom') {
-                        this.showCustomBanInput(userId, userName);
-                    } else {
-                        this.banUserWithDuration(userId, userName, duration);
-                    }
-                },
-                onWarnUser: (userId, userName) => this.warnUserFromReport(userId, userName),
-                onDismiss: (reportId) => this.dismissReport(reportId),
-                onToggleBanDropdown: (reportId, event) => this.toggleBanDropdown(reportId, event),
-                showBanDropdown: this.showBanDropdown
-            });
-                }
-                return '<div class="text-gray-500">Loading report...</div>';
-            }
-            return window.reportCard.renderReportCard(report, {
-                showPageInfo: false,
-                showViewInContext: false,
-                onToggleHistory: (reportId) => this.toggleUserHistory(reportId),
-                onJumpToComment: (commentId) => this.jumpToComment(commentId),
-                onDeleteComment: (reportId) => {
-                    const report = this.pageReports.find(r => r.id === reportId);
-                    if (report) this.deleteReportedComment(report);
-                },
-                onBanUser: (userId, userName, duration) => {
-                    if (duration === 'custom') {
-                        this.showCustomBanInput(userId, userName);
-                    } else {
-                        this.banUserWithDuration(userId, userName, duration);
-                    }
-                },
-                onWarnUser: (userId, userName) => this.warnUserFromReport(userId, userName),
-                onDismiss: (reportId) => this.dismissReport(reportId),
-                onToggleBanDropdown: (reportId, event) => this.toggleBanDropdown(reportId, event),
-                showBanDropdown: this.showBanDropdown
-            });
+            // Integrated report card rendering for moderation panel
+            return `
+                <div class="report-card" data-report-id="${report.id}">
+                    <div class="report-header">
+                        <div>
+                            <div class="report-meta">
+                                <i class="fas fa-user"></i>
+                                Reported by: <span class="font-medium">${Utils.escapeHtml(report.reporter_username || 'Unknown')}</span>
+                            </div>
+                            <div class="report-meta">
+                                <i class="fas fa-clock"></i>
+                                ${this.getRelativeTime(report.created_at)}
+                            </div>
+                        </div>
+                        <div>
+                            <div class="report-meta">
+                                <i class="fas fa-comment"></i>
+                                Comment by: <span class="font-medium">${Utils.escapeHtml(report.comment_username || 'Unknown')}</span>
+                            </div>
+                            <div class="report-meta">
+                                <i class="fas fa-flag"></i>
+                                Reason: <span class="font-medium">${Utils.escapeHtml(report.reason)}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="report-content">
+                        <div class="report-content-label">Reported Comment:</div>
+                        <div class="report-content-text markdown-content">
+                            ${window.MarkdownProcessor && window.MarkdownProcessor.instance 
+                                ? window.MarkdownProcessor.instance.render(report.comment_content || '')
+                                : Utils.escapeHtml(report.comment_content || '')}
+                        </div>
+                    </div>
+                    
+                    <div class="report-actions">
+                        <button class="report-action-btn view" @click="jumpToComment('${report.comment_id}')">
+                            <i class="fas fa-arrow-down"></i>
+                            Jump to Comment
+                        </button>
+                        <button class="report-action-btn delete" @click="deleteReportedComment(${report.id})">
+                            <i class="fas fa-trash"></i>
+                            Delete Comment
+                        </button>
+                        
+                        <div class="ban-dropdown-container">
+                            <button class="report-action-btn ban" @click="toggleBanDropdown(${report.id}, $event)">
+                                <i class="fas fa-ban"></i>
+                                Ban User
+                            </button>
+                            ${this.showBanDropdown === report.id ? `
+                                <div class="ban-dropdown" x-show="showBanDropdown === ${report.id}">
+                                    <div class="ban-dropdown-inner">
+                                        <button class="ban-dropdown-item" @click="banUserWithDuration(${report.comment_user_id}, '${Utils.escapeHtml(report.comment_username)}', '1h')">
+                                            Ban for 1 hour
+                                        </button>
+                                        <button class="ban-dropdown-item" @click="banUserWithDuration(${report.comment_user_id}, '${Utils.escapeHtml(report.comment_username)}', '1d')">
+                                            Ban for 1 day
+                                        </button>
+                                        <button class="ban-dropdown-item" @click="banUserWithDuration(${report.comment_user_id}, '${Utils.escapeHtml(report.comment_username)}', '1w')">
+                                            Ban for 1 week
+                                        </button>
+                                        <button class="ban-dropdown-item" @click="banUserWithDuration(${report.comment_user_id}, '${Utils.escapeHtml(report.comment_username)}', '30d')">
+                                            Ban for 30 days
+                                        </button>
+                                        <div class="ban-dropdown-divider"></div>
+                                        <button class="ban-dropdown-item text-red-600" @click="banUserWithDuration(${report.comment_user_id}, '${Utils.escapeHtml(report.comment_username)}', 'permanent')">
+                                            Permanent ban
+                                        </button>
+                                        <button class="ban-dropdown-item text-blue-600" @click="showCustomBanInput(${report.comment_user_id}, '${Utils.escapeHtml(report.comment_username)}')">
+                                            Custom duration...
+                                        </button>
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>
+                        
+                        <button class="report-action-btn warn" @click="warnUserFromReport(${report.comment_user_id}, '${Utils.escapeHtml(report.comment_username)}')">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            Warn User
+                        </button>
+                        
+                        <button class="report-action-btn history" @click="toggleUserHistory(${report.id})">
+                            <i class="fas fa-history"></i>
+                            User History
+                        </button>
+                        
+                        <button class="report-action-btn dismiss" @click="dismissReport(${report.id})">
+                            <i class="fas fa-times"></i>
+                            Dismiss
+                        </button>
+                    </div>
+                    
+                    ${report.showHistory && report.user_history ? `
+                        <div class="mt-4 p-4 bg-gray-50 rounded">
+                            <h4 class="font-semibold mb-2">User History</h4>
+                            <div class="space-y-2 text-sm">
+                                <div>Total Comments: ${report.user_history.total_comments || 0}</div>
+                                <div>Warnings: ${report.user_history.warnings || 0}</div>
+                                <div>Reports: ${report.user_history.reports || 0}</div>
+                                <div>Bans: ${report.user_history.bans || 0}</div>
+                                ${report.user_history.last_ban ? `
+                                    <div>Last Ban: ${this.getRelativeTime(report.user_history.last_ban)}</div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
         },
 
         jumpToComment(commentId) {

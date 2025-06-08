@@ -440,8 +440,14 @@
     transition: all 0.2s;
 }
 
-/* Bottom padding for dropdown */
+/* Bottom padding for dropdown - only add when needed */
 .comment-section-bottom-padding {
+    height: 0;
+    transition: height 0.3s ease;
+}
+
+/* Add padding when dropdown is open */
+.comment-section-bottom-padding.dropdown-open {
     height: 150px;
 }
 

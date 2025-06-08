@@ -6,12 +6,6 @@
     
     // Wait for DOM and all scripts to load
     function initializeComponents() {
-        // Initialize ReportCard if not already initialized
-        if (!window.reportCard && window.ReportCard) {
-            window.reportCard = new ReportCard();
-            console.log('Initialized ReportCard component');
-        }
-        
         // Initialize CommentRenderer if not already initialized
         if (!window.commentRenderer && window.CommentRenderer) {
             window.commentRenderer = new CommentRenderer();
