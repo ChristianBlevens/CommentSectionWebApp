@@ -1058,3 +1058,6 @@ function commentApp() {
         }
     };
 }
+
+// Expose to global scope for Alpine.js
+window.commentApp = commentApp;
