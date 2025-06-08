@@ -206,9 +206,14 @@ class CommentRenderer {
     renderCommentActions(comment, context) {
         const { user, appInstance } = context;
         
-        // For users page - simplified actions
+        // For users page - simplified actions with view in context
         if (appInstance === 'window.usersAppInstance') {
             return `
+                <button onclick="${appInstance}.viewInContext('${comment.id}', '${comment.pageId || 'default'}')" 
+                        class="comment-action">
+                    <i class="fas fa-external-link-alt"></i>
+                    View in Context
+                </button>
                 <button onclick="${appInstance}.deleteComment('${comment.id}')" 
                         class="comment-action">
                     <i class="fas fa-trash"></i>

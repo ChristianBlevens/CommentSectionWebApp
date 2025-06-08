@@ -809,7 +809,8 @@ app.get('/api/comments/user/:userId', authenticateUser, requireModerator, async 
     
     try {
         const comments = await pgPool.query(
-            `SELECT c.*, u.name as user_name, u.picture as user_picture
+            `SELECT c.*, u.name as user_name, u.picture as user_picture,
+                    c.page_id
              FROM comments c
              JOIN users u ON c.user_id = u.id
              WHERE c.user_id = $1

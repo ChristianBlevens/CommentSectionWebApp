@@ -89,7 +89,7 @@ function usersApp() {
         async loadUserComments(userId) {
             try {
                 const sessionToken = localStorage.getItem('sessionToken');
-                const response = await fetch(`${this.apiUrl}/comments/user/${userId}?limit=10`, {
+                const response = await fetch(`${this.apiUrl}/comments/user/${userId}?limit=20`, {
                     headers: {
                         'Authorization': `Bearer ${sessionToken}`
                     }
@@ -98,9 +98,21 @@ function usersApp() {
                 if (!response.ok) throw new Error('Failed to load user comments');
                 
                 const comments = await response.json();
+                
+                // Convert database field names to match frontend expectations
+                const formattedComments = comments.map(comment => ({
+                    ...comment,
+                    userName: comment.user_name,
+                    userPicture: comment.user_picture,
+                    pageId: comment.page_id,
+                    parentId: comment.parent_id,
+                    createdAt: comment.created_at,
+                    userId: comment.user_id
+                }));
+                
                 // Build comment tree structure using centralized renderer
                 if (window.commentRenderer && window.commentRenderer.buildCommentTree) {
-                    this.userComments[userId] = window.commentRenderer.buildCommentTree(comments);
+                    this.userComments[userId] = window.commentRenderer.buildCommentTree(formattedComments);
                 } else {
                     console.error('Comment renderer not available');
                     this.userComments[userId] = [];
@@ -331,6 +343,12 @@ function usersApp() {
         viewReplies(commentId) {
             // For now, just alert - could implement a modal or navigation
             alert('View replies functionality not implemented in users page');
+        },
+        
+        viewInContext(commentId, pageId) {
+            // Navigate to the page with the comment, focusing on parent if it has one
+            const targetUrl = `index.html?pageId=${pageId}#comment-${commentId}`;
+            window.open(targetUrl, '_blank');
         },
 
         getRelativeTime(dateString) {

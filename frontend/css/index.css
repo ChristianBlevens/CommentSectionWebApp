@@ -161,6 +161,11 @@
     color: #f87171;
 }
 
+/* View in context button style */
+.comment-action i.fa-external-link-alt {
+    font-size: 0.875rem;
+}
+
 /* Options menu button */
 .comment-options-btn {
     padding: 0.25rem 0.5rem;
