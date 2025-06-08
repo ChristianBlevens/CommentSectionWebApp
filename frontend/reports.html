@@ -9,7 +9,17 @@
     <link href="css/main.css" rel="stylesheet">
     <link href="css/reports.css" rel="stylesheet">
     <link href="css/comment-highlight.css" rel="stylesheet">
+    <!-- Load core libraries first -->
     <script src="https://cdn.jsdelivr.net/npm/markdown-it/dist/markdown-it.min.js"></script>
+    <!-- Load app scripts before Alpine.js -->
+    <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/ban-handler.js"></script>
+    <script src="js/components/comment-renderer.js"></script>
+    <script src="js/components/report-card.js"></script>
+    <script src="js/reports-app.js"></script>
+    <!-- Load Alpine.js last with defer -->
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.12.0/dist/cdn.min.js" defer></script>
 </head>
 <body class="bg-gray-100">
@@ -299,14 +309,5 @@
             </div>
         </div>
     </div>
-    
-    <!-- JavaScript -->
-    <script src="js/config.js"></script>
-    <script src="js/auth.js"></script>
-    <script src="js/utils.js"></script>
-    <script src="js/ban-handler.js"></script>
-    <script src="js/components/comment-renderer.js"></script>
-    <script src="js/components/report-card.js"></script>
-    <script src="js/reports-app.js"></script>
 </body>
 </html>

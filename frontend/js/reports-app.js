@@ -354,6 +354,11 @@ function reportsApp() {
         },
 
         renderReportCard(report) {
+            // Check if reportCard is available
+            if (!window.reportCard || !window.reportCard.renderReportCard) {
+                console.error('Report card component not loaded yet');
+                return '<div class="text-gray-500">Loading report...</div>';
+            }
             return window.reportCard.renderReportCard(report, {
                 showPageInfo: true,
                 showViewInContext: true,
