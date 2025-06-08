@@ -188,6 +188,3 @@ function moderatorApp() {
         }
     };
 }
-
-// Expose to global scope for Alpine.js
-window.moderatorApp = moderatorApp;

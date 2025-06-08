@@ -288,6 +288,3 @@ function reportsApp() {
         }
     };
 }
-
-// Expose to global scope for Alpine.js
-window.reportsApp = reportsApp;
