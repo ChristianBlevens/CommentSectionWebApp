@@ -147,7 +147,14 @@ function commentApp() {
         async loadComments() {
             try {
                 const url = `${this.apiUrl}/comments/${this.pageId}${this.user ? `?userId=${this.user.id}` : ''}`;
-                const response = await fetch(url);
+                const sessionToken = localStorage.getItem('sessionToken');
+                
+                const headers = {};
+                if (sessionToken) {
+                    headers['Authorization'] = `Bearer ${sessionToken}`;
+                }
+                
+                const response = await fetch(url, { headers });
                 const data = await response.json();
                 
                 this.comments = data;

@@ -1,5 +1,10 @@
 /* Index.html specific styles - Comment System */
 
+/* Moderation Panel spacing */
+#moderation-panel {
+    margin-top: 1rem;
+}
+
 /* Mobile-first comment system styles */
 :root {
     --comment-line-color: #dae0e6;

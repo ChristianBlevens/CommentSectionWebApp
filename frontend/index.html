@@ -41,7 +41,7 @@
         </div>
         
         <!-- Moderation Panel for Reports -->
-        <div x-show="user && user.is_moderator" class="bg-white rounded-lg shadow-md p-4 mb-4">
+        <div x-show="user && user.is_moderator" id="moderation-panel" class="bg-white rounded-lg shadow-md p-4 mb-4">
             <div class="border-l-4 border-orange-500 pl-4">
                 <button @click="toggleReportsPanel()" 
                         class="w-full flex justify-between items-center hover:bg-gray-50 p-2 rounded transition-colors">
