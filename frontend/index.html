@@ -469,6 +469,16 @@
         .mt-2 {
             margin-top: 0.5rem;
         }
+        
+        /* Reported comment tint */
+        .comment-content.reported-comment {
+            background-color: #fee2e2; /* Light red tint */
+            border: 1px solid #fecaca;
+        }
+        
+        .comment-content.reported-comment:hover {
+            box-shadow: 0 2px 8px rgba(220, 38, 38, 0.2);
+        }
     </style>
 </head>
 <body class="bg-gray-100">
@@ -849,6 +859,16 @@
                         this.loadPageReports();
                     }
                     
+                    // Check for comment hash in URL
+                    const hash = window.location.hash;
+                    if (hash && hash.startsWith('#comment-')) {
+                        const commentId = hash.substring(9); // Remove '#comment-' prefix
+                        // Wait for comments to load before focusing
+                        setTimeout(() => {
+                            this.focusOnComment(commentId);
+                        }, 1000);
+                    }
+                    
                     // Listen for OAuth messages
                     window.addEventListener('message', (event) => {
                         if (event.data?.type === 'discord-login-success') {
@@ -879,6 +899,20 @@
                             document.querySelectorAll('.comment-dropdown.show').forEach(dropdown => {
                                 dropdown.classList.remove('show');
                             });
+                        }
+                    });
+                    
+                    // Listen for hash changes (browser back/forward)
+                    window.addEventListener('hashchange', () => {
+                        const hash = window.location.hash;
+                        if (hash && hash.startsWith('#comment-')) {
+                            const commentId = hash.substring(9);
+                            this.focusOnComment(commentId);
+                        } else {
+                            // No hash, exit focus mode if we're in it
+                            if (this.focusedCommentId || this.reportedCommentId) {
+                                this.exitFocusMode();
+                            }
                         }
                     });
                 },
@@ -1431,7 +1465,7 @@
                              data-comment-id="${comment.id}">
                             ${depth > 0 ? '<div class="comment-line" onclick="window.commentAppInstance.toggleCollapse(event)"></div>' : ''}
                             
-                            <div class="comment-content ${this.reportedCommentId == comment.id ? 'reported' : ''}" id="comment-${comment.id}">
+                            <div class="comment-content ${this.reportedCommentId == comment.id ? 'reported-comment' : ''}" id="comment-${comment.id}">
                                 
                                 <div class="comment-header">
                                     ${!isDeleted ? `<img src="${comment.userPicture}" class="comment-avatar">` : '<div class="comment-avatar bg-gray-300"></div>'}
@@ -1778,6 +1812,9 @@
                     // Create focused comments array with just this comment
                     this.focusedComments = [comment];
                     
+                    // Update URL with the comment ID
+                    history.replaceState(null, null, `#comment-${commentId}`);
+                    
                     // Scroll to top
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 },
@@ -1788,8 +1825,111 @@
                     this.focusedComments = [];
                     this.reportedCommentId = null;
                     
+                    // Remove hash from URL
+                    history.pushState(null, null, window.location.pathname + window.location.search);
+                    
                     // Reload all comments to ensure replies are included
                     this.loadComments();
+                },
+                
+                // Focus on a specific comment (with parent loading if necessary)
+                async focusOnComment(commentId) {
+                    // First, try to find the comment in the current tree
+                    let comment = this.findComment(commentId, this.comments);
+                    
+                    if (!comment) {
+                        // Comment not in current view, need to load it
+                        await this.loadParentThread(commentId);
+                        return; // loadParentThread will handle the focusing
+                    }
+                    
+                    // Check if this comment has a parent that should be shown
+                    const parentComment = this.findParentOfComment(commentId, this.comments);
+                    
+                    if (parentComment) {
+                        // Focus on the parent but mark the target comment as reported
+                        this.reportedCommentId = commentId;
+                        this.focusedCommentId = parentComment.id;
+                        this.focusedComments = [parentComment];
+                        
+                        // Update URL with the comment ID
+                        history.replaceState(null, null, `#comment-${commentId}`);
+                        
+                        // Scroll to top
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    } else {
+                        // This is a top-level comment, just highlight it
+                        this.reportedCommentId = commentId;
+                        
+                        // Update URL with the comment ID
+                        history.replaceState(null, null, `#comment-${commentId}`);
+                        
+                        // Scroll to the comment
+                        setTimeout(() => {
+                            const element = document.getElementById(`comment-${commentId}`);
+                            if (element) {
+                                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            }
+                        }, 100);
+                    }
+                },
+                
+                // Load parent thread for a comment
+                async loadParentThread(commentId) {
+                    // Since we might not have a specific thread endpoint, we'll reload all comments
+                    // and then try to find the comment's parent
+                    await this.loadComments();
+                    
+                    // Now try to find the comment and its parent
+                    const comment = this.findComment(commentId, this.comments);
+                    
+                    if (comment) {
+                        const parentComment = this.findParentOfComment(commentId, this.comments);
+                        
+                        if (parentComment) {
+                            // Focus on the parent but mark the target comment as reported
+                            this.reportedCommentId = commentId;
+                            this.focusedCommentId = parentComment.id;
+                            this.focusedComments = [parentComment];
+                            
+                            // Update URL with the comment ID
+                            history.replaceState(null, null, `#comment-${commentId}`);
+                            
+                            // Scroll to top
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                        } else {
+                            // It's a top-level comment
+                            this.reportedCommentId = commentId;
+                            
+                            // Update URL with the comment ID
+                            history.replaceState(null, null, `#comment-${commentId}`);
+                            
+                            // Scroll to the comment
+                            setTimeout(() => {
+                                const element = document.getElementById(`comment-${commentId}`);
+                                if (element) {
+                                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                }
+                            }, 100);
+                        }
+                    } else {
+                        // Comment not found at all
+                        alert('Comment not found. It may have been deleted.');
+                    }
+                },
+                
+                // Find parent of a comment
+                findParentOfComment(targetId, comments, parent = null) {
+                    for (const comment of comments) {
+                        if (comment.id == targetId) {
+                            return parent;
+                        }
+                        if (comment.children?.length > 0) {
+                            const found = this.findParentOfComment(targetId, comment.children, comment);
+                            if (found !== null) return found;
+                        }
+                    }
+                    return null;
                 },
                 
                 // Toggle reports panel
@@ -1833,19 +1973,9 @@
                     }
                 },
                 
-                // Jump to comment
+                // Jump to comment (updated to use focusOnComment)
                 jumpToComment(commentId) {
-                    const commentElement = document.querySelector(`[data-comment-id="${commentId}"]`);
-                    if (commentElement) {
-                        commentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        // Highlight the comment briefly
-                        commentElement.style.backgroundColor = '#fef3c7';
-                        setTimeout(() => {
-                            commentElement.style.backgroundColor = '';
-                        }, 2000);
-                    } else {
-                        alert('Comment not found on this page. It may have been deleted.');
-                    }
+                    this.focusOnComment(commentId);
                 },
                 
                 // Delete reported comment
