@@ -19,14 +19,10 @@ function usersApp() {
         searchTimeout: null,
         apiUrl: '/api',
         moderationUrl: '/moderation',
-        md: null,  // Markdown-it instance
 
         async init() {
             // Set global instance for event handlers
             window.usersAppInstance = this;
-            
-            // Initialize markdown-it (same as comment-app.js)
-            this.md = MarkdownProcessor.createInstance();
             
             this.user = await Auth.checkExistingSession();
             if (!this.user || !this.user.is_moderator) {
@@ -102,40 +98,19 @@ function usersApp() {
                 if (!response.ok) throw new Error('Failed to load user comments');
                 
                 const comments = await response.json();
-                // Build comment tree structure (same as comment-app.js)
-                this.userComments[userId] = this.buildCommentTree(comments);
+                // Build comment tree structure using centralized renderer
+                if (window.commentRenderer && window.commentRenderer.buildCommentTree) {
+                    this.userComments[userId] = window.commentRenderer.buildCommentTree(comments);
+                } else {
+                    console.error('Comment renderer not available');
+                    this.userComments[userId] = [];
+                }
             } catch (error) {
                 console.error('Error loading user comments:', error);
                 this.userComments[userId] = [];
             }
         },
         
-        buildCommentTree(comments) {
-            const commentMap = {};
-            const rootComments = [];
-
-            // Create map
-            comments.forEach(comment => {
-                comment.children = [];
-                commentMap[comment.id] = comment;
-            });
-
-            // Build tree
-            comments.forEach(comment => {
-                if (comment.parentId) {
-                    const parent = commentMap[comment.parentId];
-                    if (parent) {
-                        parent.children.push(comment);
-                    } else {
-                        rootComments.push(comment);
-                    }
-                } else {
-                    rootComments.push(comment);
-                }
-            });
-
-            return rootComments;
-        },
 
         toggleUserDetails(userId) {
             if (this.expandedUser === userId) {
@@ -329,76 +304,22 @@ function usersApp() {
         },
 
 
-        // Exact same renderComment method as comment-app.js
         renderComment(comment, depth = 0) {
-            if (!comment) return '';
+            // Use the centralized comment renderer
+            if (!window.commentRenderer) {
+                console.error('Comment renderer not loaded');
+                return '<div class="text-gray-500">Comment renderer not available</div>';
+            }
             
-            const MAX_DEPTH = 4;
-            const isDeleted = !comment.content || comment.content === '[deleted]' || comment.deleted;
-            const displayContent = isDeleted ? '[Comment deleted]' : comment.content;
-            const displayAuthor = isDeleted ? '[deleted]' : comment.userName;
-            
-            const processed = isDeleted ? '' : MarkdownProcessor.preprocessMarkdown(displayContent);
-            const content = isDeleted ? '' : this.md.render(processed);
-            
-            let html = `
-                <div class="comment-container ${depth > 0 ? 'comment-depth-' + Math.min(depth, MAX_DEPTH) : ''}" 
-                     data-comment-id="${comment.id}">
-                    ${depth > 0 ? '<div class="comment-line" onclick="window.usersAppInstance.toggleCollapse(event)"></div>' : ''}
-                    
-                    <div class="comment-content" id="comment-${comment.id}">
-                        
-                        <div class="comment-header">
-                            ${!isDeleted ? `<img src="${comment.userPicture}" class="comment-avatar">` : '<div class="comment-avatar bg-gray-300"></div>'}
-                            <div class="comment-meta">
-                                <span class="comment-author">${displayAuthor}</span>
-                                <span class="comment-time">${this.getRelativeTime(comment.createdAt)}</span>
-                            </div>
-                        </div>
-                        
-                        <div class="comment-body">
-                            ${isDeleted ? '<span class="text-gray-500 italic">[Comment deleted]</span>' : `<div class="markdown-content">${content}</div>`}
-                        </div>
-                        
-                        ${!isDeleted ? `
-                            <div class="comment-actions">
-                                <button onclick="window.usersAppInstance.deleteComment('${comment.id}')" 
-                                        class="comment-action">
-                                    <i class="fas fa-trash"></i>
-                                    Delete
-                                </button>
-                                <button onclick="window.usersAppInstance.reportComment('${comment.id}')" 
-                                        class="comment-action">
-                                    <i class="fas fa-flag"></i>
-                                    Report
-                                </button>
-                            </div>
-                        ` : ''}
-                    </div>
-                    
-                    <div class="comment-children">
-                        ${depth < MAX_DEPTH && comment.children?.length > 0 ? 
-                            comment.children.map(child => this.renderComment(child, depth + 1)).join('') : 
-                            (depth >= MAX_DEPTH && comment.children?.length > 0 ? `
-                                <div class="ml-4 mt-2">
-                                    <button onclick="window.usersAppInstance.viewReplies('${comment.id}')" 
-                                            class="text-blue-600 hover:text-blue-800 text-sm font-medium px-3 py-2 rounded hover:bg-blue-50 transition-colors">
-                                        <i class="fas fa-comments mr-1"></i>
-                                        View ${comment.children.length} ${comment.children.length === 1 ? 'reply' : 'replies'}
-                                    </button>
-                                </div>
-                            ` : '')
-                        }
-                    </div>
-                </div>
-            `;
-            
-            setTimeout(() => Utils.attachSpoilerHandlers(), 0);
-            
-            return html;
+            return window.commentRenderer.renderComment(comment, {
+                depth: depth,
+                user: this.user,
+                reportedCommentId: null,
+                appInstance: 'window.usersAppInstance'
+            });
         },
         
-        // Add helper methods that the renderComment needs
+        // Helper methods needed by the comment renderer
         toggleCollapse(event) {
             event.stopPropagation();
             const container = event.target.closest('.comment-container');

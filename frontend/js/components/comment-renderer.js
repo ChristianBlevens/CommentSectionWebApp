@@ -113,7 +113,230 @@ class CommentRenderer {
         return 'just now';
     }
 
-    renderComment(comment, options = {}) {
+    // Build comment tree from flat array
+    buildCommentTree(comments) {
+        const commentMap = {};
+        const rootComments = [];
+
+        // Create map
+        comments.forEach(comment => {
+            comment.children = [];
+            commentMap[comment.id] = comment;
+        });
+
+        // Build tree
+        comments.forEach(comment => {
+            if (comment.parentId) {
+                const parent = commentMap[comment.parentId];
+                if (parent) {
+                    parent.children.push(comment);
+                } else {
+                    rootComments.push(comment);
+                }
+            } else {
+                rootComments.push(comment);
+            }
+        });
+
+        return rootComments;
+    }
+
+    // Main render method that matches comment-app.js exactly
+    renderComment(comment, context = {}) {
+        const {
+            depth = 0,
+            user = null,
+            reportedCommentId = null,
+            appInstance = null // Either commentAppInstance or usersAppInstance
+        } = context;
+
+        if (!comment) return '';
+        
+        const MAX_DEPTH = 4;
+        const isDeleted = !comment.content || comment.content === '[deleted]' || comment.deleted;
+        const displayContent = isDeleted ? '[Comment deleted]' : comment.content;
+        const displayAuthor = isDeleted ? '[deleted]' : comment.userName;
+        
+        const processed = isDeleted ? '' : this.preprocessMarkdown(displayContent);
+        const content = isDeleted ? '' : this.renderMarkdown(processed);
+        
+        let html = `
+            <div class="comment-container ${depth > 0 ? 'comment-depth-' + Math.min(depth, MAX_DEPTH) : ''}" 
+                 data-comment-id="${comment.id}">
+                ${depth > 0 ? `<div class="comment-line" onclick="${appInstance}.toggleCollapse(event)"></div>` : ''}
+                
+                <div class="comment-content ${reportedCommentId == comment.id ? 'reported-comment' : ''}" id="comment-${comment.id}">
+                    
+                    <div class="comment-header">
+                        ${!isDeleted ? `<img src="${comment.userPicture}" class="comment-avatar">` : '<div class="comment-avatar bg-gray-300"></div>'}
+                        <div class="comment-meta">
+                            <span class="comment-author">${displayAuthor}</span>
+                            <span class="comment-time">${this.getRelativeTime(comment.createdAt)}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="comment-body">
+                        ${isDeleted ? '<span class="text-gray-500 italic">[Comment deleted]</span>' : `<div class="markdown-content">${content}</div>`}
+                    </div>
+                    
+                    ${!isDeleted ? `
+                        <div class="comment-actions">
+                            ${this.renderCommentActions(comment, context)}
+                        </div>
+                    ` : ''}
+                    
+                    ${this.renderReplyForm(comment.id, appInstance)}
+                </div>
+                
+                <div class="comment-children">
+                    ${this.renderChildren(comment, depth, context, MAX_DEPTH)}
+                </div>
+            </div>
+        `;
+        
+        setTimeout(() => {
+            if (typeof Utils !== 'undefined' && Utils.attachSpoilerHandlers) {
+                Utils.attachSpoilerHandlers();
+            }
+        }, 0);
+        
+        return html;
+    }
+
+    renderCommentActions(comment, context) {
+        const { user, appInstance } = context;
+        
+        // For users page - simplified actions
+        if (appInstance === 'window.usersAppInstance') {
+            return `
+                <button onclick="${appInstance}.deleteComment('${comment.id}')" 
+                        class="comment-action">
+                    <i class="fas fa-trash"></i>
+                    Delete
+                </button>
+                <button onclick="${appInstance}.reportComment('${comment.id}')" 
+                        class="comment-action">
+                    <i class="fas fa-flag"></i>
+                    Report
+                </button>
+            `;
+        }
+        
+        // For index page - full actions
+        return `
+            <button onclick="${appInstance}.voteComment('${comment.id}', 'like')" 
+                    class="comment-action ${comment.userVote === 'like' ? 'active-like' : ''}">
+                <i class="fas fa-thumbs-up"></i>
+                <span>${comment.likes}</span>
+            </button>
+            <button onclick="${appInstance}.voteComment('${comment.id}', 'dislike')" 
+                    class="comment-action ${comment.userVote === 'dislike' ? 'active-dislike' : ''}">
+                <i class="fas fa-thumbs-down"></i>
+                <span>${comment.dislikes}</span>
+            </button>
+            <button onclick="${appInstance}.showReplyForm('${comment.id}')" 
+                    class="comment-action">
+                <i class="fas fa-comment"></i>
+                Reply
+            </button>
+            ${user ? `
+                <div class="comment-dropdown-container">
+                    <button onclick="${appInstance}.toggleDropdown('${comment.id}', event)" 
+                            class="comment-options-btn" id="options-btn-${comment.id}">
+                        <i class="fas fa-ellipsis-v"></i>
+                    </button>
+                    <div id="dropdown-${comment.id}" class="comment-dropdown">
+                        <button onclick="${appInstance}.reportComment('${comment.id}')" 
+                                class="comment-dropdown-item">
+                            <i class="fas fa-flag"></i>
+                            Report
+                        </button>
+                        ${(comment.userId === user.id || user.is_moderator) ? `
+                            <button onclick="${appInstance}.deleteComment('${comment.id}')" 
+                                    class="comment-dropdown-item">
+                                <i class="fas fa-trash"></i>
+                                Delete
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+            ` : ''}
+        `;
+    }
+
+    renderReplyForm(commentId, appInstance) {
+        // Only render reply form for comment app
+        if (appInstance !== 'window.commentAppInstance') {
+            return '';
+        }
+        
+        return `
+            <div id="reply-form-${commentId}" style="display: none;" class="reply-form">
+                <textarea id="reply-textarea-${commentId}" 
+                          placeholder="Write a reply..."
+                          class="reply-textarea"></textarea>
+                <div class="reply-toolbar">
+                    <div class="markdown-buttons">
+                        <button onclick="${appInstance}.insertMarkdownForReply('${commentId}', '**', '**')" class="markdown-btn">
+                            <i class="fas fa-bold"></i>
+                        </button>
+                        <button onclick="${appInstance}.insertMarkdownForReply('${commentId}', '*', '*')" class="markdown-btn">
+                            <i class="fas fa-italic"></i>
+                        </button>
+                        <button onclick="${appInstance}.insertMarkdownForReply('${commentId}', '~~', '~~')" class="markdown-btn">
+                            <i class="fas fa-strikethrough"></i>
+                        </button>
+                        <button onclick="${appInstance}.insertMarkdownForReply('${commentId}', '## ', '')" class="markdown-btn">
+                            <i class="fas fa-heading"></i>
+                        </button>
+                        <button onclick="${appInstance}.insertMarkdownForReply('${commentId}', '||', '||')" class="markdown-btn">
+                            <i class="fas fa-eye-slash"></i>
+                        </button>
+                        <button onclick="${appInstance}.insertImageForReply('${commentId}')" class="markdown-btn">
+                            <i class="fas fa-image"></i>
+                        </button>
+                        <button onclick="${appInstance}.insertVideoForReply('${commentId}')" class="markdown-btn">
+                            <i class="fas fa-video"></i>
+                        </button>
+                    </div>
+                    <div class="reply-actions">
+                        <button onclick="${appInstance}.cancelReply('${commentId}')" 
+                                class="btn-secondary">
+                            Cancel
+                        </button>
+                        <button onclick="${appInstance}.submitReply('${commentId}')" 
+                                class="btn-primary">
+                            Reply
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    renderChildren(comment, depth, context, maxDepth) {
+        const { appInstance } = context;
+        
+        if (depth < maxDepth && comment.children?.length > 0) {
+            return comment.children.map(child => 
+                this.renderComment(child, { ...context, depth: depth + 1 })
+            ).join('');
+        } else if (depth >= maxDepth && comment.children?.length > 0) {
+            return `
+                <div class="ml-4 mt-2">
+                    <button onclick="${appInstance}.viewReplies('${comment.id}')" 
+                            class="text-blue-600 hover:text-blue-800 text-sm font-medium px-3 py-2 rounded hover:bg-blue-50 transition-colors">
+                        <i class="fas fa-comments mr-1"></i>
+                        View ${comment.children.length} ${comment.children.length === 1 ? 'reply' : 'replies'}
+                    </button>
+                </div>
+            `;
+        }
+        return '';
+    }
+
+    // Legacy method for backward compatibility
+    renderComment_old(comment, options = {}) {
         const {
             showActions = true,
             showVoting = true,
