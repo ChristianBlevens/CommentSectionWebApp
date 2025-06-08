@@ -283,4 +283,6 @@ const commentRenderer = new CommentRenderer();
 if (typeof window !== 'undefined') {
     window.CommentRenderer = CommentRenderer;
     window.commentRenderer = commentRenderer;
+    // Log availability for debugging
+    console.log('CommentRenderer component loaded and available');
 }

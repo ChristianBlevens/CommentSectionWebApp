@@ -1,5 +1,10 @@
 // Users management application
 function usersApp() {
+    // Ensure components are initialized
+    if (!window.commentRenderer && window.CommentRenderer) {
+        window.commentRenderer = new CommentRenderer();
+    }
+    
     return {
         user: null,
         users: [],
@@ -16,6 +21,9 @@ function usersApp() {
         moderationUrl: '/moderation',
 
         async init() {
+            // Set global instance for event handlers
+            window.usersAppInstance = this;
+            
             this.user = await Auth.checkExistingSession();
             if (!this.user || !this.user.is_moderator) {
                 window.location.href = 'index.html';
@@ -295,6 +303,44 @@ function usersApp() {
             }
             // Fallback
             return content;
+        },
+
+        renderCommentForUser(comment) {
+            // Check if comment renderer is available
+            if (!window.commentRenderer || typeof window.commentRenderer.renderSimpleComment !== 'function') {
+                console.error('Comment renderer component not loaded');
+                // Initialize if not available
+                if (!window.commentRenderer) {
+                    window.commentRenderer = new CommentRenderer();
+                }
+            }
+            
+            // Add custom actions to the simple comment
+            const renderedComment = window.commentRenderer ? window.commentRenderer.renderSimpleComment(comment) : '';
+            
+            // Add action buttons
+            const actionsHtml = `
+                <div class="flex space-x-2 mt-2">
+                    <button onclick="window.usersAppInstance.deleteComment(${comment.id})" 
+                            class="text-xs text-red-600 hover:text-red-800">
+                        Delete
+                    </button>
+                    <button onclick="window.usersAppInstance.reportComment(${comment.id})" 
+                            class="text-xs text-yellow-600 hover:text-yellow-800">
+                        Report
+                    </button>
+                </div>
+            `;
+            
+            // Insert actions before the closing div
+            if (renderedComment) {
+                const closingDivIndex = renderedComment.lastIndexOf('</div>');
+                if (closingDivIndex > -1) {
+                    return renderedComment.slice(0, closingDivIndex) + actionsHtml + renderedComment.slice(closingDivIndex);
+                }
+            }
+            
+            return renderedComment + actionsHtml;
         },
 
         getRelativeTime(dateString) {

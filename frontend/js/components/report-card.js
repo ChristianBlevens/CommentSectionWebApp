@@ -355,4 +355,6 @@ const reportCard = new ReportCard();
 if (typeof window !== 'undefined') {
     window.ReportCard = ReportCard;
     window.reportCard = reportCard;
+    // Log availability for debugging
+    console.log('ReportCard component loaded and available');
 }

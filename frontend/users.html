@@ -9,7 +9,6 @@
     <link rel="stylesheet" href="css/users.css">
     <link rel="stylesheet" href="css/comment-highlight.css">
     <!-- Load core libraries first -->
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/markdown-it/dist/markdown-it.min.js"></script>
     <!-- Load app scripts before Alpine.js -->
     <script src="js/config.js"></script>
@@ -19,6 +18,8 @@
     <script src="js/markdown.js"></script>
     <script src="js/components/comment-renderer.js"></script>
     <script src="js/users-app.js"></script>
+    <!-- Initialize components before Alpine.js -->
+    <script src="js/init-components.js"></script>
     <!-- Load Alpine.js last with defer -->
     <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
 </head>
@@ -254,26 +255,7 @@
                                     </div>
                                     <div x-show="userComments[user.id]" class="space-y-2">
                                         <template x-for="comment in userComments[user.id]" :key="comment.id">
-                                            <div class="comment-item bg-gray-50 p-3 rounded">
-                                                <div class="flex justify-between items-start mb-2">
-                                                    <span class="text-xs text-gray-500" x-text="getRelativeTime(comment.created_at)"></span>
-                                                    <div class="flex space-x-2">
-                                                        <button @click="deleteComment(comment.id)" 
-                                                                class="text-xs text-red-600 hover:text-red-800">
-                                                            Delete
-                                                        </button>
-                                                        <button @click="reportComment(comment.id)" 
-                                                                class="text-xs text-yellow-600 hover:text-yellow-800">
-                                                            Report
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                                <div class="text-sm" x-html="renderMarkdown(comment.content)"></div>
-                                                <div class="mt-2 flex items-center space-x-4 text-xs text-gray-500">
-                                                    <span>👍 <span x-text="comment.likes"></span></span>
-                                                    <span>👎 <span x-text="comment.dislikes"></span></span>
-                                                </div>
-                                            </div>
+                                            <div x-html="renderCommentForUser(comment)"></div>
                                         </template>
                                     </div>
                                 </div>

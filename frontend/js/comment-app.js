@@ -1,5 +1,13 @@
 // Comment App - Main comment system functionality
 function commentApp() {
+    // Ensure components are initialized
+    if (!window.reportCard && window.ReportCard) {
+        window.reportCard = new ReportCard();
+    }
+    if (!window.commentRenderer && window.CommentRenderer) {
+        window.commentRenderer = new CommentRenderer();
+    }
+    
     return {
         // State
         user: null,
@@ -921,9 +929,37 @@ function commentApp() {
         },
 
         renderReportCard(report) {
-            // Check if reportCard is available
-            if (!window.reportCard || !window.reportCard.renderReportCard) {
-                console.error('Report card component not loaded yet');
+            // Ensure reportCard is available
+            if (!window.reportCard || typeof window.reportCard.renderReportCard !== 'function') {
+                console.error('Report card component not loaded');
+                // Initialize if not available
+                if (!window.reportCard) {
+                    window.reportCard = new ReportCard();
+                }
+                // Retry if now available
+                if (window.reportCard && typeof window.reportCard.renderReportCard === 'function') {
+                    return window.reportCard.renderReportCard(report, {
+                showPageInfo: false,
+                showViewInContext: false,
+                onToggleHistory: (reportId) => this.toggleUserHistory(reportId),
+                onJumpToComment: (commentId) => this.jumpToComment(commentId),
+                onDeleteComment: (reportId) => {
+                    const report = this.pageReports.find(r => r.id === reportId);
+                    if (report) this.deleteReportedComment(report);
+                },
+                onBanUser: (userId, userName, duration) => {
+                    if (duration === 'custom') {
+                        this.showCustomBanInput(userId, userName);
+                    } else {
+                        this.banUserWithDuration(userId, userName, duration);
+                    }
+                },
+                onWarnUser: (userId, userName) => this.warnUserFromReport(userId, userName),
+                onDismiss: (reportId) => this.dismissReport(reportId),
+                onToggleBanDropdown: (reportId, event) => this.toggleBanDropdown(reportId, event),
+                showBanDropdown: this.showBanDropdown
+            });
+                }
                 return '<div class="text-gray-500">Loading report...</div>';
             }
             return window.reportCard.renderReportCard(report, {
