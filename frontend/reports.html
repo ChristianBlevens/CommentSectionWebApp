@@ -144,15 +144,15 @@
                             </div>
                             
                             <!-- User History Summary -->
-                            <div x-show="report.user_history && (report.user_history.banHistory.length > 0 || report.user_history.reportedHistory.length > 0)" class="mt-3 p-3 bg-gray-50 rounded text-sm">
-                                <div x-show="report.user_history.banHistory.length > 0" class="mb-2">
+                            <div x-show="report.user_history && ((report.user_history.banHistory && report.user_history.banHistory.length > 0) || (report.user_history.reportedHistory && report.user_history.reportedHistory.length > 0))" class="mt-3 p-3 bg-gray-50 rounded text-sm">
+                                <div x-show="report.user_history?.banHistory?.length > 0" class="mb-2">
                                     <span class="font-semibold text-red-600">Previous Bans:</span> 
                                     <span x-text="report.user_history.banHistory.length"></span>
                                     <span x-show="report.user_history.banHistory[0]" class="text-gray-600">
                                         (Last: <span x-text="getRelativeTime(report.user_history.banHistory[0].performed_at)"></span>)
                                     </span>
                                 </div>
-                                <div x-show="report.user_history.reportedHistory.length > 0">
+                                <div x-show="report.user_history?.reportedHistory?.length > 0">
                                     <span class="font-semibold text-yellow-600">Times Reported:</span> 
                                     <span x-text="report.user_history.reportedHistory.length"></span>
                                     <span class="text-gray-600">
@@ -242,10 +242,10 @@
                                 <h4 class="font-semibold mb-2">Full User History</h4>
                                 
                                 <!-- Ban History -->
-                                <div x-show="report.user_history.banHistory.length > 0" class="mb-3">
+                                <div x-show="report.user_history?.banHistory?.length > 0" class="mb-3">
                                     <h5 class="font-medium text-red-600 mb-1">Ban History:</h5>
                                     <div class="space-y-1">
-                                        <template x-for="ban in report.user_history.banHistory.slice(0, 5)" :key="ban.id">
+                                        <template x-for="ban in (report.user_history.banHistory || []).slice(0, 5)" :key="ban.id">
                                             <div class="text-xs">
                                                 <span x-text="ban.action === 'ban' ? '🚫' : '✅'"></span>
                                                 <span x-text="ban.action"></span>
@@ -259,10 +259,10 @@
                                 </div>
                                 
                                 <!-- Reported History -->
-                                <div x-show="report.user_history.reportedHistory.length > 0" class="mb-3">
+                                <div x-show="report.user_history?.reportedHistory?.length > 0" class="mb-3">
                                     <h5 class="font-medium text-yellow-600 mb-1">Reported History:</h5>
                                     <div class="space-y-1">
-                                        <template x-for="rep in report.user_history.reportedHistory.slice(0, 5)" :key="rep.id">
+                                        <template x-for="rep in (report.user_history.reportedHistory || []).slice(0, 5)" :key="rep.id">
                                             <div class="text-xs">
                                                 Reported by <span x-text="rep.reporter_name"></span>
                                                 - <span x-text="getRelativeTime(rep.reported_at)"></span>
@@ -278,12 +278,12 @@
                                 </div>
                                 
                                 <!-- Report History (reports made by user) -->
-                                <div x-show="report.user_history.reportHistory.length > 0">
+                                <div x-show="report.user_history?.reportHistory?.length > 0">
                                     <h5 class="font-medium text-blue-600 mb-1">Reports Made by User:</h5>
                                     <div class="text-xs text-gray-600">
                                         Total reports: <span x-text="report.user_history.reportHistory.length"></span>
-                                        (Resolved: <span x-text="report.user_history.reportHistory.filter(r => r.status === 'resolved').length"></span>,
-                                        Dismissed: <span x-text="report.user_history.reportHistory.filter(r => r.status === 'dismissed').length"></span>)
+                                        (Resolved: <span x-text="(report.user_history.reportHistory || []).filter(r => r.status === 'resolved').length"></span>,
+                                        Dismissed: <span x-text="(report.user_history.reportHistory || []).filter(r => r.status === 'dismissed').length"></span>)
                                     </div>
                                 </div>
                             </div>

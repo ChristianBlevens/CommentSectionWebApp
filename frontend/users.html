@@ -182,7 +182,7 @@
                                 <div x-show="userHistory[user.id]?.banHistory?.length > 0">
                                     <h4 class="font-semibold text-gray-700 mb-2">Ban History</h4>
                                     <div class="space-y-2">
-                                        <template x-for="ban in userHistory[user.id].banHistory" :key="ban.id">
+                                        <template x-for="ban in (userHistory[user.id]?.banHistory || [])" :key="ban.id">
                                             <div class="text-sm bg-gray-50 p-2 rounded">
                                                 <span class="font-medium" x-text="ban.action === 'ban' ? 'Banned' : 'Unbanned'"></span>
                                                 <span x-text="ban.duration || 'permanent'"></span>
@@ -198,7 +198,7 @@
                                 <div x-show="userHistory[user.id]?.reportedHistory?.length > 0">
                                     <h4 class="font-semibold text-gray-700 mb-2">Times Reported</h4>
                                     <div class="space-y-2">
-                                        <template x-for="report in userHistory[user.id].reportedHistory" :key="report.id">
+                                        <template x-for="report in (userHistory[user.id]?.reportedHistory || [])" :key="report.id">
                                             <div class="text-sm bg-gray-50 p-2 rounded">
                                                 Reported by <span x-text="report.reporter_name"></span>
                                                 - <span x-text="getRelativeTime(report.reported_at)"></span>
@@ -217,7 +217,7 @@
                                 <div x-show="userHistory[user.id]?.reportHistory?.length > 0">
                                     <h4 class="font-semibold text-gray-700 mb-2">Reports Made</h4>
                                     <div class="space-y-2">
-                                        <template x-for="report in userHistory[user.id].reportHistory" :key="report.id">
+                                        <template x-for="report in (userHistory[user.id]?.reportHistory || [])" :key="report.id">
                                             <div class="text-sm bg-gray-50 p-2 rounded">
                                                 Reported <span x-text="report.reported_user_name"></span>
                                                 - <span x-text="getRelativeTime(report.reported_at)"></span>
