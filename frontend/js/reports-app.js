@@ -346,8 +346,35 @@ function reportsApp() {
             }
         },
         
-        toggleUserHistory(report) {
-            report.showHistory = !report.showHistory;
+        toggleUserHistory(reportId) {
+            const report = this.reports.find(r => r.id === reportId);
+            if (report) {
+                this.$set(report, 'showHistory', !report.showHistory);
+            }
+        },
+
+        renderReportCard(report) {
+            return window.reportCard.renderReportCard(report, {
+                showPageInfo: true,
+                showViewInContext: true,
+                onToggleHistory: (reportId) => this.toggleUserHistory(reportId),
+                onViewInContext: (report) => `index.html?pageId=${report.page_id}#comment-${report.comment_id}`,
+                onDeleteComment: (reportId) => {
+                    const report = this.filteredReports.find(r => r.id === reportId);
+                    if (report) this.deleteComment(report);
+                },
+                onBanUser: (userId, userName, duration) => {
+                    if (duration === 'custom') {
+                        this.showCustomBanInput(userId, userName);
+                    } else {
+                        this.banUserWithDuration(userId, userName, duration);
+                    }
+                },
+                onWarnUser: (userId, userName) => this.warnUser(userId, userName),
+                onDismiss: (reportId) => this.dismissReport(reportId),
+                onToggleBanDropdown: (reportId, event) => this.toggleBanDropdown(reportId, event),
+                showBanDropdown: this.showBanDropdown
+            });
         },
         
         getRelativeTime(dateString) {

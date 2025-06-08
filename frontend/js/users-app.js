@@ -289,7 +289,12 @@ function usersApp() {
         },
 
         renderMarkdown(content) {
-            return Markdown.render(content);
+            // Use the global comment renderer
+            if (window.commentRenderer) {
+                return window.commentRenderer.renderMarkdown(content);
+            }
+            // Fallback
+            return content;
         },
 
         getRelativeTime(dateString) {

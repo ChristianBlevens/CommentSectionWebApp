@@ -8,8 +8,9 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="css/main.css" rel="stylesheet">
     <link href="css/index.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.12.0/dist/cdn.min.js" defer></script>
+    <link href="css/comment-highlight.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/markdown-it/dist/markdown-it.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.12.0/dist/cdn.min.js" defer></script>
 </head>
 <body class="bg-gray-100">
     <div x-data="commentApp()" x-init="init()" class="container mx-auto px-4 max-w-4xl">
@@ -74,6 +75,10 @@
                     <!-- Reports list -->
                     <div x-show="!loadingReports && pageReports.length > 0" class="space-y-3">
                         <template x-for="report in pageReports" :key="report.id">
+                            <div x-html="renderReportCard(report)"></div>
+                        </template>
+                        <!-- Old report card code replaced with modular component -->
+                        <template x-if="false">
                             <div class="report-card">
                                 <div class="report-header">
                                     <div>
@@ -103,20 +108,20 @@
                                 </div>
                                 
                                 <!-- User History -->
-                                <div x-show="report.user_history && ((report.user_history.banHistory && report.user_history.banHistory.length > 0) || (report.user_history.reportedHistory && report.user_history.reportedHistory.length > 0))" class="mb-3 p-3 bg-gray-50 rounded text-sm">
+                                <div x-show="report.user_history && ((report.user_history?.banHistory?.length > 0) || (report.user_history?.reportedHistory?.length > 0))" class="mb-3 p-3 bg-gray-50 rounded text-sm">
                                     <div x-show="report.user_history?.banHistory?.length > 0" class="mb-2">
                                         <span class="font-semibold text-red-600">Previous Bans:</span> 
-                                        <span x-text="report.user_history.banHistory.length"></span>
-                                        <span x-show="report.user_history.banHistory[0]" class="text-gray-600">
-                                            (Last: <span x-text="getRelativeTime(report.user_history.banHistory[0].performed_at)"></span>)
+                                        <span x-text="report.user_history?.banHistory?.length || 0"></span>
+                                        <span x-show="report.user_history?.banHistory?.[0]" class="text-gray-600">
+                                            (Last: <span x-text="getRelativeTime(report.user_history?.banHistory?.[0]?.performed_at)"></span>)
                                         </span>
                                     </div>
                                     <div x-show="report.user_history?.reportedHistory?.length > 0">
                                         <span class="font-semibold text-yellow-600">Times Reported:</span> 
-                                        <span x-text="report.user_history.reportedHistory.length"></span>
+                                        <span x-text="report.user_history?.reportedHistory?.length || 0"></span>
                                         <span class="text-gray-600">
-                                            (<span x-text="report.user_history.reportedHistory.filter(r => r.status === 'resolved').length"></span> resolved,
-                                            <span x-text="report.user_history.reportedHistory.filter(r => r.status === 'dismissed').length"></span> dismissed)
+                                            (<span x-text="(report.user_history?.reportedHistory || []).filter(r => r.status === 'resolved').length"></span> resolved,
+                                            <span x-text="(report.user_history?.reportedHistory || []).filter(r => r.status === 'dismissed').length"></span> dismissed)
                                         </span>
                                     </div>
                                 </div>
@@ -239,9 +244,9 @@
                                     <div x-show="report.user_history?.reportHistory?.length > 0">
                                         <h5 class="font-medium text-blue-600 mb-1">Reports Made by User:</h5>
                                         <div class="text-xs text-gray-600">
-                                            Total reports: <span x-text="report.user_history.reportHistory.length"></span>
-                                            (Resolved: <span x-text="(report.user_history.reportHistory || []).filter(r => r.status === 'resolved').length"></span>,
-                                            Dismissed: <span x-text="(report.user_history.reportHistory || []).filter(r => r.status === 'dismissed').length"></span>)
+                                            Total reports: <span x-text="report.user_history?.reportHistory?.length || 0"></span>
+                                            (Resolved: <span x-text="(report.user_history?.reportHistory || []).filter(r => r.status === 'resolved').length"></span>,
+                                            Dismissed: <span x-text="(report.user_history?.reportHistory || []).filter(r => r.status === 'dismissed').length"></span>)
                                         </div>
                                     </div>
                                 </div>
@@ -406,6 +411,8 @@
     <script src="js/utils.js"></script>
     <script src="js/ban-handler.js"></script>
     <script src="js/markdown.js"></script>
+    <script src="js/components/comment-renderer.js"></script>
+    <script src="js/components/report-card.js"></script>
     <script src="js/comment-app.js"></script>
 </body>
 </html>

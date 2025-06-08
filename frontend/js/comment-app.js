@@ -519,6 +519,17 @@ function commentApp() {
             }
         },
 
+        // Edit functionality
+        editComment(commentId) {
+            // Placeholder for edit functionality
+            console.log('Edit comment:', commentId);
+            alert('Edit functionality coming soon!');
+        },
+
+        showReplyBox(commentId) {
+            this.showReplyForm(commentId);
+        },
+
         // Reply functionality
         showReplyForm(commentId) {
             if (!this.user) {
@@ -616,6 +627,17 @@ function commentApp() {
             const url = prompt('Enter video URL (YouTube or Vimeo):');
             if (url) {
                 this.insertMarkdownForReply(commentId, `!video[Video](${url})`, '');
+            }
+        },
+
+        async jumpToComment(commentId) {
+            const element = document.getElementById(`comment-${commentId}`);
+            if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                element.classList.add('highlight-comment');
+                setTimeout(() => {
+                    element.classList.remove('highlight-comment');
+                }, 2000);
             }
         },
 
@@ -891,8 +913,35 @@ function commentApp() {
             }
         },
         
-        toggleUserHistory(report) {
-            report.showHistory = !report.showHistory;
+        toggleUserHistory(reportId) {
+            const report = this.pageReports.find(r => r.id === reportId);
+            if (report) {
+                this.$set(report, 'showHistory', !report.showHistory);
+            }
+        },
+
+        renderReportCard(report) {
+            return window.reportCard.renderReportCard(report, {
+                showPageInfo: false,
+                showViewInContext: false,
+                onToggleHistory: (reportId) => this.toggleUserHistory(reportId),
+                onJumpToComment: (commentId) => this.jumpToComment(commentId),
+                onDeleteComment: (reportId) => {
+                    const report = this.pageReports.find(r => r.id === reportId);
+                    if (report) this.deleteReportedComment(report);
+                },
+                onBanUser: (userId, userName, duration) => {
+                    if (duration === 'custom') {
+                        this.showCustomBanInput(userId, userName);
+                    } else {
+                        this.banUserWithDuration(userId, userName, duration);
+                    }
+                },
+                onWarnUser: (userId, userName) => this.warnUserFromReport(userId, userName),
+                onDismiss: (reportId) => this.dismissReport(reportId),
+                onToggleBanDropdown: (reportId, event) => this.toggleBanDropdown(reportId, event),
+                showBanDropdown: this.showBanDropdown
+            });
         },
 
         jumpToComment(commentId) {
@@ -1081,7 +1130,7 @@ function commentApp() {
             const content = isDeleted ? '' : this.md.render(processed);
             
             let html = `
-                <div class="comment-container ${depth > 0 ? 'comment-depth-' + depth : ''}" 
+                <div class="comment-container ${depth > 0 ? 'comment-depth-' + Math.min(depth, MAX_DEPTH) : ''}" 
                      data-comment-id="${comment.id}">
                     ${depth > 0 ? '<div class="comment-line" onclick="window.commentAppInstance.toggleCollapse(event)"></div>' : ''}
                     
