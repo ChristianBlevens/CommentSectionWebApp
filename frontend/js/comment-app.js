@@ -1,10 +1,5 @@
 // Comment App - Main comment system functionality
 function commentApp() {
-    // Ensure components are initialized
-    if (!window.commentRenderer && window.CommentRenderer) {
-        window.commentRenderer = new CommentRenderer();
-    }
-    
     return {
         // State
         user: null,
@@ -16,6 +11,7 @@ function commentApp() {
         replyTexts: {},
         sortBy: 'likes',
         pageId: '',
+        md: null,
         apiUrl: '/api',
         moderationUrl: '/moderation/api',
         focusedCommentId: null,
@@ -34,12 +30,13 @@ function commentApp() {
             // Get page ID
             this.pageId = this.getPageId();
             
+            // Initialize markdown
+            this.md = MarkdownProcessor.createInstance();
             
             // Check session
             this.user = await Auth.checkExistingSession();
             if (this.user) {
                 await this.checkBanStatus();
-                await this.checkForWarnings();
             }
             
             // Load comments
@@ -73,9 +70,6 @@ function commentApp() {
                 if (user.is_moderator) {
                     await this.loadPageReports();
                 }
-                
-                // Check for warnings
-                await this.checkForWarnings();
             });
             
             // Close dropdowns when clicking outside
@@ -84,11 +78,6 @@ function commentApp() {
                     document.querySelectorAll('.comment-dropdown.show').forEach(dropdown => {
                         dropdown.classList.remove('show');
                     });
-                    // Remove bottom padding when all dropdowns are closed
-                    const bottomPadding = document.querySelector('.comment-section-bottom-padding');
-                    if (bottomPadding) {
-                        bottomPadding.classList.remove('dropdown-open');
-                    }
                 }
             });
             
@@ -183,12 +172,30 @@ function commentApp() {
         },
 
         buildCommentTree() {
-            // Use the centralized comment renderer's tree builder
-            if (window.commentRenderer && window.commentRenderer.buildCommentTree) {
-                this.comments = window.commentRenderer.buildCommentTree(this.comments);
-            } else {
-                console.error('Comment renderer not available for tree building');
-            }
+            const commentMap = {};
+            const rootComments = [];
+
+            // Create map
+            this.comments.forEach(comment => {
+                comment.children = [];
+                commentMap[comment.id] = comment;
+            });
+
+            // Build tree
+            this.comments.forEach(comment => {
+                if (comment.parentId) {
+                    const parent = commentMap[comment.parentId];
+                    if (parent) {
+                        parent.children.push(comment);
+                    } else {
+                        rootComments.push(comment);
+                    }
+                } else {
+                    rootComments.push(comment);
+                }
+            });
+
+            this.comments = rootComments;
         },
 
         sortComments() {
@@ -401,11 +408,6 @@ function commentApp() {
             document.querySelectorAll('.comment-dropdown.show').forEach(dropdown => {
                 dropdown.classList.remove('show');
             });
-            // Remove bottom padding when all dropdowns are closed
-            const bottomPadding = document.querySelector('.comment-section-bottom-padding');
-            if (bottomPadding) {
-                bottomPadding.classList.remove('dropdown-open');
-            }
             
             if (!this.user) {
                 alert('Please sign in to delete comments');
@@ -473,11 +475,6 @@ function commentApp() {
             document.querySelectorAll('.comment-dropdown.show').forEach(dropdown => {
                 dropdown.classList.remove('show');
             });
-            // Remove bottom padding when all dropdowns are closed
-            const bottomPadding = document.querySelector('.comment-section-bottom-padding');
-            if (bottomPadding) {
-                bottomPadding.classList.remove('dropdown-open');
-            }
             
             if (!this.user) {
                 alert('Please sign in to report comments');
@@ -516,17 +513,6 @@ function commentApp() {
                 console.error('Error reporting comment:', error);
                 alert(error.message || 'Failed to report comment');
             }
-        },
-
-        // Edit functionality
-        editComment(commentId) {
-            // Placeholder for edit functionality
-            console.log('Edit comment:', commentId);
-            alert('Edit functionality coming soon!');
-        },
-
-        showReplyBox(commentId) {
-            this.showReplyForm(commentId);
         },
 
         // Reply functionality
@@ -575,12 +561,8 @@ function commentApp() {
 
         // Markdown editing
         updatePreview() {
-            if (!window.commentRenderer) {
-                this.commentPreview = this.newCommentText;
-                return;
-            }
             const processed = MarkdownProcessor.preprocessMarkdown(this.newCommentText);
-            this.commentPreview = window.commentRenderer.renderMarkdown(processed);
+            this.commentPreview = this.md.render(processed);
             this.$nextTick(() => Utils.attachSpoilerHandlers());
         },
 
@@ -630,17 +612,6 @@ function commentApp() {
             const url = prompt('Enter video URL (YouTube or Vimeo):');
             if (url) {
                 this.insertMarkdownForReply(commentId, `!video[Video](${url})`, '');
-            }
-        },
-
-        async jumpToComment(commentId) {
-            const element = document.getElementById(`comment-${commentId}`);
-            if (element) {
-                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                element.classList.add('highlight-comment');
-                setTimeout(() => {
-                    element.classList.remove('highlight-comment');
-                }, 2000);
             }
         },
 
@@ -744,7 +715,6 @@ function commentApp() {
             const dropdown = document.getElementById(`dropdown-${commentId}`);
             const button = document.getElementById(`options-btn-${commentId}`);
             const allDropdowns = document.querySelectorAll('.comment-dropdown');
-            const bottomPadding = document.querySelector('.comment-section-bottom-padding');
             
             allDropdowns.forEach(d => {
                 if (d !== dropdown) {
@@ -773,95 +743,11 @@ function commentApp() {
                 if (dropdownRect.bottom > window.innerHeight - 10) {
                     dropdown.style.top = (buttonRect.top - dropdown.offsetHeight - 4) + 'px';
                 }
-                
-                // Add bottom padding class when dropdown is open
-                if (bottomPadding) {
-                    bottomPadding.classList.add('dropdown-open');
-                }
-            } else {
-                // Remove bottom padding class when no dropdowns are open
-                if (bottomPadding && !document.querySelector('.comment-dropdown.show')) {
-                    bottomPadding.classList.remove('dropdown-open');
-                }
             }
         },
 
         getRelativeTime(dateString) {
             return Utils.getRelativeTime(dateString);
-        },
-        
-        async checkForWarnings() {
-            if (!this.user) return;
-            
-            try {
-                const sessionToken = localStorage.getItem('sessionToken');
-                const response = await fetch(`${this.apiUrl}/warnings`, {
-                    headers: {
-                        'Authorization': `Bearer ${sessionToken}`
-                    }
-                });
-                
-                if (response.ok) {
-                    const warnings = await response.json();
-                    if (warnings.length > 0) {
-                        // Show each warning
-                        for (const warning of warnings) {
-                            await this.showWarning(warning);
-                        }
-                    }
-                }
-            } catch (error) {
-                console.error('Error checking warnings:', error);
-            }
-        },
-        
-        async showWarning(warning) {
-            const severityColors = {
-                info: 'bg-blue-100 text-blue-800 border-blue-300',
-                warning: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-                severe: 'bg-red-100 text-red-800 border-red-300'
-            };
-            
-            const severityIcons = {
-                info: 'ℹ️',
-                warning: '⚠️',
-                severe: '⛔'
-            };
-            
-            const warningHtml = `
-                <div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4" id="warning-${warning.id}">
-                    <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6 ${severityColors[warning.severity]} border-2">
-                        <div class="flex items-start space-x-3">
-                            <span class="text-2xl">${severityIcons[warning.severity]}</span>
-                            <div class="flex-1">
-                                <h3 class="text-lg font-semibold mb-2">Administrator Notice</h3>
-                                <p class="mb-4">${warning.message}</p>
-                                <p class="text-sm mb-4">Issued by: ${warning.issued_by_name} - ${Utils.getRelativeTime(warning.issued_at)}</p>
-                                <button onclick="window.commentAppInstance.acknowledgeWarning(${warning.id})" class="px-4 py-2 bg-gray-800 text-white rounded hover:bg-gray-700">
-                                    I understand
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            document.body.insertAdjacentHTML('beforeend', warningHtml);
-        },
-        
-        async acknowledgeWarning(warningId) {
-            try {
-                const sessionToken = localStorage.getItem('sessionToken');
-                await fetch(`${this.apiUrl}/warnings/${warningId}/acknowledge`, {
-                    method: 'PUT',
-                    headers: {
-                        'Authorization': `Bearer ${sessionToken}`
-                    }
-                });
-                document.getElementById(`warning-${warningId}`).remove();
-            } catch (error) {
-                console.error('Error acknowledging warning:', error);
-            }
         },
 
         // Moderation panel
@@ -892,10 +778,6 @@ function commentApp() {
                 
                 if (response.ok) {
                     this.pageReports = await response.json();
-                    // Load user history for each report
-                    for (const report of this.pageReports) {
-                        await this.loadUserHistoryForReport(report);
-                    }
                 } else if (response.status === 401) {
                     this.user = null;
                     localStorage.removeItem('user');
@@ -906,144 +788,6 @@ function commentApp() {
             } finally {
                 this.loadingReports = false;
             }
-        },
-        
-        async loadUserHistoryForReport(report) {
-            if (!report.comment_user_id) return;
-            
-            try {
-                const sessionToken = localStorage.getItem('sessionToken');
-                const response = await fetch(`${this.apiUrl}/users/${report.comment_user_id}/history`, {
-                    headers: {
-                        'Authorization': `Bearer ${sessionToken}`
-                    }
-                });
-                
-                if (response.ok) {
-                    report.user_history = await response.json();
-                }
-            } catch (error) {
-                console.error('Error loading user history:', error);
-            }
-        },
-        
-        toggleUserHistory(reportId) {
-            const report = this.pageReports.find(r => r.id === reportId);
-            if (report) {
-                this.$set(report, 'showHistory', !report.showHistory);
-            }
-        },
-
-        renderReportCard(report) {
-            // Integrated report card rendering for moderation panel
-            return `
-                <div class="report-card" data-report-id="${report.id}">
-                    <div class="report-header">
-                        <div>
-                            <div class="report-meta">
-                                <i class="fas fa-user"></i>
-                                Reported by: <span class="font-medium">${Utils.escapeHtml(report.reporter_username || 'Unknown')}</span>
-                            </div>
-                            <div class="report-meta">
-                                <i class="fas fa-clock"></i>
-                                ${this.getRelativeTime(report.created_at)}
-                            </div>
-                        </div>
-                        <div>
-                            <div class="report-meta">
-                                <i class="fas fa-comment"></i>
-                                Comment by: <span class="font-medium">${Utils.escapeHtml(report.comment_username || 'Unknown')}</span>
-                            </div>
-                            <div class="report-meta">
-                                <i class="fas fa-flag"></i>
-                                Reason: <span class="font-medium">${Utils.escapeHtml(report.reason)}</span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="report-content">
-                        <div class="report-content-label">Reported Comment:</div>
-                        <div class="report-content-text markdown-content">
-                            ${window.MarkdownProcessor && window.MarkdownProcessor.instance 
-                                ? window.MarkdownProcessor.instance.render(report.comment_content || '')
-                                : Utils.escapeHtml(report.comment_content || '')}
-                        </div>
-                    </div>
-                    
-                    <div class="report-actions">
-                        <button class="report-action-btn view" @click="jumpToComment('${report.comment_id}')">
-                            <i class="fas fa-arrow-down"></i>
-                            Jump to Comment
-                        </button>
-                        <button class="report-action-btn delete" @click="deleteReportedComment(${report.id})">
-                            <i class="fas fa-trash"></i>
-                            Delete Comment
-                        </button>
-                        
-                        <div class="ban-dropdown-container">
-                            <button class="report-action-btn ban" @click="toggleBanDropdown(${report.id}, $event)">
-                                <i class="fas fa-ban"></i>
-                                Ban User
-                            </button>
-                            ${this.showBanDropdown === report.id ? `
-                                <div class="ban-dropdown" x-show="showBanDropdown === ${report.id}">
-                                    <div class="ban-dropdown-inner">
-                                        <button class="ban-dropdown-item" @click="banUserWithDuration(${report.comment_user_id}, '${Utils.escapeHtml(report.comment_username)}', '1h')">
-                                            Ban for 1 hour
-                                        </button>
-                                        <button class="ban-dropdown-item" @click="banUserWithDuration(${report.comment_user_id}, '${Utils.escapeHtml(report.comment_username)}', '1d')">
-                                            Ban for 1 day
-                                        </button>
-                                        <button class="ban-dropdown-item" @click="banUserWithDuration(${report.comment_user_id}, '${Utils.escapeHtml(report.comment_username)}', '1w')">
-                                            Ban for 1 week
-                                        </button>
-                                        <button class="ban-dropdown-item" @click="banUserWithDuration(${report.comment_user_id}, '${Utils.escapeHtml(report.comment_username)}', '30d')">
-                                            Ban for 30 days
-                                        </button>
-                                        <div class="ban-dropdown-divider"></div>
-                                        <button class="ban-dropdown-item text-red-600" @click="banUserWithDuration(${report.comment_user_id}, '${Utils.escapeHtml(report.comment_username)}', 'permanent')">
-                                            Permanent ban
-                                        </button>
-                                        <button class="ban-dropdown-item text-blue-600" @click="showCustomBanInput(${report.comment_user_id}, '${Utils.escapeHtml(report.comment_username)}')">
-                                            Custom duration...
-                                        </button>
-                                    </div>
-                                </div>
-                            ` : ''}
-                        </div>
-                        
-                        <button class="report-action-btn warn" @click="warnUserFromReport(${report.comment_user_id}, '${Utils.escapeHtml(report.comment_username)}')">
-                            <i class="fas fa-exclamation-triangle"></i>
-                            Warn User
-                        </button>
-                        
-                        <button class="report-action-btn history" @click="toggleUserHistory(${report.id})">
-                            <i class="fas fa-history"></i>
-                            User History
-                        </button>
-                        
-                        <button class="report-action-btn dismiss" @click="dismissReport(${report.id})">
-                            <i class="fas fa-times"></i>
-                            Dismiss
-                        </button>
-                    </div>
-                    
-                    ${report.showHistory && report.user_history ? `
-                        <div class="mt-4 p-4 bg-gray-50 rounded">
-                            <h4 class="font-semibold mb-2">User History</h4>
-                            <div class="space-y-2 text-sm">
-                                <div>Total Comments: ${report.user_history.total_comments || 0}</div>
-                                <div>Warnings: ${report.user_history.warnings || 0}</div>
-                                <div>Reports: ${report.user_history.reports || 0}</div>
-                                <div>Bans: ${report.user_history.bans || 0}</div>
-                                ${report.user_history.last_ban ? `
-                                    <div>Last Ban: ${this.getRelativeTime(report.user_history.last_ban)}</div>
-                                ` : ''}
-                            </div>
-                        </div>
-                    ` : ''}
-                </div>
-            `;
         },
 
         jumpToComment(commentId) {
@@ -1148,42 +892,6 @@ function commentApp() {
                 localStorage.removeItem('sessionToken');
             }
         },
-        
-        async warnUserFromReport(userId, userName) {
-            const message = prompt(`What warning would you like to send to ${userName}?`);
-            if (!message) return;
-            
-            const severityOptions = ['info', 'warning', 'severe'];
-            const severityIndex = prompt('Select severity:\n1. Info (blue)\n2. Warning (yellow)\n3. Severe (red)\n\nEnter 1, 2, or 3:');
-            
-            if (!severityIndex || !['1', '2', '3'].includes(severityIndex)) {
-                alert('Invalid severity selection');
-                return;
-            }
-            
-            const severity = severityOptions[parseInt(severityIndex) - 1];
-            
-            try {
-                const sessionToken = localStorage.getItem('sessionToken');
-                const response = await fetch(`${this.apiUrl}/users/${userId}/warn`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${sessionToken}`
-                    },
-                    body: JSON.stringify({ message, severity })
-                });
-                
-                if (response.ok) {
-                    alert(`Warning sent to ${userName}`);
-                } else {
-                    throw new Error('Failed to send warning');
-                }
-            } catch (error) {
-                console.error('Error warning user:', error);
-                alert('Failed to send warning');
-            }
-        },
 
         showBanNotification(banInfo) {
             const message = banInfo.permanent 
@@ -1221,18 +929,139 @@ function commentApp() {
 
         // Render comment HTML
         renderComment(comment, depth = 0) {
-            // Use the centralized comment renderer
-            if (!window.commentRenderer) {
-                console.error('Comment renderer not loaded');
-                return '<div class="text-gray-500">Comment renderer not available</div>';
-            }
+            if (!comment) return '';
             
-            return window.commentRenderer.renderComment(comment, {
-                depth: depth,
-                user: this.user,
-                reportedCommentId: this.reportedCommentId,
-                appInstance: 'window.commentAppInstance'
-            });
+            const MAX_DEPTH = 4;
+            const isDeleted = !comment.content || comment.content === '[deleted]' || comment.deleted;
+            const displayContent = isDeleted ? '[Comment deleted]' : comment.content;
+            const displayAuthor = isDeleted ? '[deleted]' : comment.userName;
+            
+            const processed = isDeleted ? '' : MarkdownProcessor.preprocessMarkdown(displayContent);
+            const content = isDeleted ? '' : this.md.render(processed);
+            
+            let html = `
+                <div class="comment-container ${depth > 0 ? 'comment-depth-' + depth : ''}" 
+                     data-comment-id="${comment.id}">
+                    ${depth > 0 ? '<div class="comment-line" onclick="window.commentAppInstance.toggleCollapse(event)"></div>' : ''}
+                    
+                    <div class="comment-content ${this.reportedCommentId == comment.id ? 'reported-comment' : ''}" id="comment-${comment.id}">
+                        
+                        <div class="comment-header">
+                            ${!isDeleted ? `<img src="${comment.userPicture}" class="comment-avatar">` : '<div class="comment-avatar bg-gray-300"></div>'}
+                            <div class="comment-meta">
+                                <span class="comment-author">${displayAuthor}</span>
+                                <span class="comment-time">${this.getRelativeTime(comment.createdAt)}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="comment-body">
+                            ${isDeleted ? '<span class="text-gray-500 italic">[Comment deleted]</span>' : `<div class="markdown-content">${content}</div>`}
+                        </div>
+                        
+                        ${!isDeleted ? `
+                            <div class="comment-actions">
+                                <button onclick="window.commentAppInstance.voteComment('${comment.id}', 'like')" 
+                                        class="comment-action ${comment.userVote === 'like' ? 'active-like' : ''}">
+                                    <i class="fas fa-thumbs-up"></i>
+                                    <span>${comment.likes}</span>
+                                </button>
+                                <button onclick="window.commentAppInstance.voteComment('${comment.id}', 'dislike')" 
+                                        class="comment-action ${comment.userVote === 'dislike' ? 'active-dislike' : ''}">
+                                    <i class="fas fa-thumbs-down"></i>
+                                    <span>${comment.dislikes}</span>
+                                </button>
+                                <button onclick="window.commentAppInstance.showReplyForm('${comment.id}')" 
+                                        class="comment-action">
+                                    <i class="fas fa-comment"></i>
+                                    Reply
+                                </button>
+                                ${this.user ? `
+                                    <div class="comment-dropdown-container">
+                                        <button onclick="window.commentAppInstance.toggleDropdown('${comment.id}', event)" 
+                                                class="comment-options-btn" id="options-btn-${comment.id}">
+                                            <i class="fas fa-ellipsis-v"></i>
+                                        </button>
+                                        <div id="dropdown-${comment.id}" class="comment-dropdown">
+                                            <button onclick="window.commentAppInstance.reportComment('${comment.id}')" 
+                                                    class="comment-dropdown-item">
+                                                <i class="fas fa-flag"></i>
+                                                Report
+                                            </button>
+                                            ${(comment.userId === this.user.id || this.user.is_moderator) ? `
+                                                <button onclick="window.commentAppInstance.deleteComment('${comment.id}')" 
+                                                        class="comment-dropdown-item">
+                                                    <i class="fas fa-trash"></i>
+                                                    Delete
+                                                </button>
+                                            ` : ''}
+                                        </div>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        ` : ''}
+                        
+                        <!-- Reply form -->
+                        <div id="reply-form-${comment.id}" style="display: none;" class="reply-form">
+                            <textarea id="reply-textarea-${comment.id}" 
+                                      placeholder="Write a reply..."
+                                      class="reply-textarea"></textarea>
+                            <div class="reply-toolbar">
+                                <div class="markdown-buttons">
+                                    <button onclick="window.commentAppInstance.insertMarkdownForReply('${comment.id}', '**', '**')" class="markdown-btn">
+                                        <i class="fas fa-bold"></i>
+                                    </button>
+                                    <button onclick="window.commentAppInstance.insertMarkdownForReply('${comment.id}', '*', '*')" class="markdown-btn">
+                                        <i class="fas fa-italic"></i>
+                                    </button>
+                                    <button onclick="window.commentAppInstance.insertMarkdownForReply('${comment.id}', '~~', '~~')" class="markdown-btn">
+                                        <i class="fas fa-strikethrough"></i>
+                                    </button>
+                                    <button onclick="window.commentAppInstance.insertMarkdownForReply('${comment.id}', '## ', '')" class="markdown-btn">
+                                        <i class="fas fa-heading"></i>
+                                    </button>
+                                    <button onclick="window.commentAppInstance.insertMarkdownForReply('${comment.id}', '||', '||')" class="markdown-btn">
+                                        <i class="fas fa-eye-slash"></i>
+                                    </button>
+                                    <button onclick="window.commentAppInstance.insertImageForReply('${comment.id}')" class="markdown-btn">
+                                        <i class="fas fa-image"></i>
+                                    </button>
+                                    <button onclick="window.commentAppInstance.insertVideoForReply('${comment.id}')" class="markdown-btn">
+                                        <i class="fas fa-video"></i>
+                                    </button>
+                                </div>
+                                <div class="reply-actions">
+                                    <button onclick="window.commentAppInstance.cancelReply('${comment.id}')" 
+                                            class="btn-secondary">
+                                        Cancel
+                                    </button>
+                                    <button onclick="window.commentAppInstance.submitReply('${comment.id}')" 
+                                            class="btn-primary">
+                                        Reply
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="comment-children">
+                        ${depth < MAX_DEPTH && comment.children?.length > 0 ? 
+                            comment.children.map(child => this.renderComment(child, depth + 1)).join('') : 
+                            (depth >= MAX_DEPTH && comment.children?.length > 0 ? `
+                                <div class="ml-4 mt-2">
+                                    <button onclick="window.commentAppInstance.viewReplies('${comment.id}')" 
+                                            class="text-blue-600 hover:text-blue-800 text-sm font-medium px-3 py-2 rounded hover:bg-blue-50 transition-colors">
+                                        <i class="fas fa-comments mr-1"></i>
+                                        View ${comment.children.length} ${comment.children.length === 1 ? 'reply' : 'replies'}
+                                    </button>
+                                </div>
+                            ` : '')
+                        }
+                </div>
+            `;
+            
+            setTimeout(() => Utils.attachSpoilerHandlers(), 0);
+            
+            return html;
         }
     };
 }

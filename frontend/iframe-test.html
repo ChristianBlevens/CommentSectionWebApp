@@ -164,22 +164,16 @@
             if (e.data && e.data.type === 'resize-iframe') {
                 const iframe = document.querySelector(`iframe[src*="${e.data.pageId}"]`);
                 if (iframe && e.data.height) {
-                    iframe.style.height = (e.data.height + 50) + 'px';
+                    // Only update if height has changed significantly (more than 5px difference)
+                    const currentHeight = parseInt(iframe.style.height) || 0;
+                    const newHeight = e.data.height + 20; // Small padding
+                    
+                    if (Math.abs(currentHeight - newHeight) > 5) {
+                        iframe.style.height = newHeight + 'px';
+                    }
                 }
             }
         });
-        
-        // Optional: Auto-resize iframes periodically
-        setInterval(() => {
-            document.querySelectorAll('iframe').forEach(iframe => {
-                try {
-                    const height = iframe.contentWindow.document.body.scrollHeight;
-                    iframe.style.height = (height + 50) + 'px';
-                } catch (e) {
-                    // Cross-origin, can't access
-                }
-            });
-        }, 100);
     </script>
 </body>
 </html>

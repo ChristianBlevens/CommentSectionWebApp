@@ -202,6 +202,10 @@ const authenticateUser = async (req, res, next) => {
         
         const user = userResult.rows[0];
         
+        // Check if user is an initial moderator
+        const initialModerators = process.env.INITIAL_MODERATORS?.split(',').map(id => id.trim()) || [];
+        user.is_initial_moderator = initialModerators.includes(user.id);
+        
         // Check if user is banned and handle expired bans
         if (user.is_banned) {
             if (user.ban_expires_at && new Date(user.ban_expires_at) <= new Date()) {
@@ -261,6 +265,14 @@ const authenticateUser = async (req, res, next) => {
 const requireModerator = (req, res, next) => {
     if (!req.user?.is_moderator) {
         return res.status(403).json({ error: 'Moderator access required' });
+    }
+    next();
+};
+
+// Initial moderator middleware
+const requireInitialModerator = (req, res, next) => {
+    if (!req.user?.is_initial_moderator) {
+        return res.status(403).json({ error: 'Initial moderator access required' });
     }
     next();
 };
@@ -648,6 +660,7 @@ app.post('/api/discord/callback', authLimiter, async (req, res) => {
         if (userResult.rows.length > 0) {
             const userData = userResult.rows[0];
             user.is_moderator = userData.is_moderator;
+            user.is_initial_moderator = isInitialModerator;
             user.is_banned = userData.is_banned;
             
             // Check if ban has expired
@@ -788,12 +801,18 @@ app.get('/api/users/:userId', authenticateUser, async (req, res) => {
         }
         
         const user = result.rows[0];
+        
+        // Check if user is an initial moderator
+        const initialModerators = process.env.INITIAL_MODERATORS?.split(',').map(id => id.trim()) || [];
+        const isInitialModerator = initialModerators.includes(user.id);
+        
         res.json({
             id: user.id,
             username: user.name,
             email: user.email,
             avatar: user.picture,
             is_moderator: user.is_moderator,
+            is_initial_moderator: isInitialModerator,
             is_banned: user.is_banned
         });
     } catch (error) {
@@ -1690,7 +1709,15 @@ app.get('/api/moderators', authenticateUser, requireModerator, async (req, res) 
         const moderators = await pgPool.query(
             'SELECT id, name, picture, email FROM users WHERE is_moderator = TRUE ORDER BY name'
         );
-        res.json(moderators.rows);
+        
+        // Add is_initial_moderator flag to each moderator
+        const initialModerators = process.env.INITIAL_MODERATORS?.split(',').map(id => id.trim()) || [];
+        const moderatorsWithFlags = moderators.rows.map(mod => ({
+            ...mod,
+            is_initial_moderator: initialModerators.includes(mod.id)
+        }));
+        
+        res.json(moderatorsWithFlags);
     } catch (error) {
         console.error('Get moderators error:', error);
         res.status(500).json({ error: 'Failed to get moderators' });
@@ -1788,6 +1815,13 @@ app.get('/api/users', authenticateUser, requireModerator, async (req, res) => {
         
         const result = await pgPool.query(query, params);
         
+        // Add is_initial_moderator flag to each user
+        const initialModerators = process.env.INITIAL_MODERATORS?.split(',').map(id => id.trim()) || [];
+        const usersWithFlags = result.rows.map(user => ({
+            ...user,
+            is_initial_moderator: initialModerators.includes(user.id)
+        }));
+        
         // Get total count
         let countQuery = 'SELECT COUNT(*) FROM users';
         const countParams = [];
@@ -1800,7 +1834,7 @@ app.get('/api/users', authenticateUser, requireModerator, async (req, res) => {
         const countResult = await pgPool.query(countQuery, countParams);
         
         res.json({
-            users: result.rows,
+            users: usersWithFlags,
             total: parseInt(countResult.rows[0].count),
             page: parseInt(page),
             limit: parseInt(limit)
@@ -1811,19 +1845,28 @@ app.get('/api/users', authenticateUser, requireModerator, async (req, res) => {
     }
 });
 
-// Set moderator status (moderators only)
-app.put('/api/users/:targetUserId/moderator', authenticateUser, requireModerator, async (req, res) => {
+// Set moderator status (initial moderators only)
+app.put('/api/users/:targetUserId/moderator', authenticateUser, requireInitialModerator, async (req, res) => {
     const { targetUserId } = req.params;
-    const { isModerator } = req.body;
+    const { is_moderator } = req.body;
     
-    if (typeof isModerator !== 'boolean') {
+    if (typeof is_moderator !== 'boolean') {
         return res.status(400).json({ error: 'Moderator status required' });
+    }
+    
+    // Check if target is an initial moderator
+    const initialModerators = process.env.INITIAL_MODERATORS?.split(',').map(id => id.trim()) || [];
+    const isTargetInitialModerator = initialModerators.includes(targetUserId);
+    
+    // Prevent removal of initial moderators
+    if (isTargetInitialModerator && !is_moderator) {
+        return res.status(403).json({ error: 'Cannot remove initial moderator status' });
     }
     
     try {
         await pgPool.query(
             'UPDATE users SET is_moderator = $1 WHERE id = $2',
-            [isModerator, targetUserId]
+            [is_moderator, targetUserId]
         );
         res.json({ success: true });
     } catch (error) {

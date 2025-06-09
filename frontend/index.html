@@ -78,7 +78,8 @@
                             <span x-text="globalReports.length"></span>
                         </span>
                     </button>
-                    <button @click="activeTab = 'moderators'" 
+                    <button x-show="user.is_initial_moderator"
+                            @click="activeTab = 'moderators'" 
                             :class="activeTab === 'moderators' ? 'text-gray-900 font-semibold border-b-2 border-blue-500' : 'text-gray-600 hover:text-gray-900'"
                             class="transition-colors pb-3">Moderators</button>
                     <button @click="activeTab = 'users'" 
@@ -323,7 +324,7 @@
             </div>
 
             <!-- Moderators View -->
-            <div x-show="activeTab === 'moderators'" class="max-w-4xl mx-auto">
+            <div x-show="activeTab === 'moderators' && user?.is_initial_moderator" class="max-w-4xl mx-auto">
                 <div class="bg-white rounded-lg shadow-md p-6 mb-6">
                     <h2 class="text-xl font-bold mb-4">
                         <i class="fas fa-shield-alt mr-2 text-blue-600"></i>
@@ -365,13 +366,21 @@
                                         <img :src="mod.picture || 'https://cdn.discordapp.com/embed/avatars/1.png'" 
                                              class="w-10 h-10 rounded-full mr-3">
                                         <div>
-                                            <p class="font-medium" x-text="mod.name"></p>
+                                            <div class="flex items-center space-x-2">
+                                                <p class="font-medium" x-text="mod.name"></p>
+                                                <span x-show="mod.is_initial_moderator" 
+                                                      class="px-2 py-0.5 text-xs bg-purple-100 text-purple-800 rounded-full"
+                                                      title="Initial Moderator - Cannot be removed">
+                                                    <i class="fas fa-crown mr-1"></i>Initial
+                                                </span>
+                                            </div>
                                             <p class="text-sm text-gray-600" x-text="mod.id"></p>
                                         </div>
                                     </div>
                                     <button @click="removeModerator(mod.id, mod.name)" 
-                                            :disabled="mod.id === user.id"
-                                            class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm disabled:bg-gray-300">
+                                            :disabled="mod.id === user.id || mod.is_initial_moderator"
+                                            class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm disabled:bg-gray-300 disabled:cursor-not-allowed"
+                                            :title="mod.is_initial_moderator ? 'Initial moderators cannot be removed' : ''">
                                         <i class="fas fa-times mr-1"></i>Remove
                                     </button>
                                 </div>
@@ -411,7 +420,12 @@
                                     <div>
                                         <div class="flex items-center space-x-2">
                                             <h3 class="font-semibold text-lg" x-text="user.name"></h3>
-                                            <template x-if="user.is_moderator">
+                                            <template x-if="user.is_initial_moderator">
+                                                <span class="px-2 py-1 text-xs bg-purple-100 text-purple-800 rounded-full" title="Initial Moderator">
+                                                    <i class="fas fa-crown mr-1"></i>Initial Moderator
+                                                </span>
+                                            </template>
+                                            <template x-if="user.is_moderator && !user.is_initial_moderator">
                                                 <span class="px-2 py-1 text-xs bg-purple-100 text-purple-800 rounded-full">Moderator</span>
                                             </template>
                                             <template x-if="user.is_banned">
@@ -511,9 +525,16 @@
                                     </button>
                                     
                                     <button
+                                        x-show="$data.user?.is_initial_moderator"
                                         @click="toggleModerator(user.id, !user.is_moderator)"
                                         class="px-3 py-1 text-sm rounded"
-                                        :class="user.is_moderator ? 'bg-gray-600 text-white hover:bg-gray-700' : 'bg-purple-600 text-white hover:bg-purple-700'"
+                                        :class="{
+                                            'bg-gray-600 text-white hover:bg-gray-700': user.is_moderator && !(user.is_initial_moderator && user.is_moderator),
+                                            'bg-purple-600 text-white hover:bg-purple-700': !user.is_moderator,
+                                            'bg-gray-400 text-gray-200 cursor-not-allowed': user.is_initial_moderator && user.is_moderator
+                                        }"
+                                        :disabled="user.is_initial_moderator && user.is_moderator"
+                                        :title="user.is_initial_moderator && user.is_moderator ? 'Initial moderators cannot be demoted' : ''"
                                         x-text="user.is_moderator ? 'Remove Mod' : 'Make Mod'"
                                     ></button>
                                 </div>
@@ -690,7 +711,12 @@
                     // Set default filter to current page
                     this.selectedPage = this.currentPageId;
                     await this.loadGlobalReports();
-                    await this.loadModerators();
+                    
+                    // Only load moderators list if user is an initial moderator
+                    if (this.user.is_initial_moderator) {
+                        await this.loadModerators();
+                    }
+                    
                     await this.loadUsers();
                 }
             },
@@ -842,6 +868,13 @@
             },
             
             async removeModerator(userId, userName) {
+                // Find the moderator in the list to check if they're an initial moderator
+                const mod = this.moderators.find(m => m.id === userId);
+                if (mod && mod.is_initial_moderator) {
+                    alert('Initial moderators cannot be removed');
+                    return;
+                }
+                
                 if (!confirm(`Remove moderator privileges from ${userName}?`)) return;
                 
                 const sessionToken = localStorage.getItem('sessionToken');
@@ -860,8 +893,8 @@
                         await this.loadModerators();
                         alert('Moderator removed successfully');
                     } else {
-                        const error = await response.text();
-                        alert(`Failed to remove moderator: ${error}`);
+                        const error = await response.json();
+                        alert(error.error || 'Failed to remove moderator');
                     }
                 } catch (error) {
                     console.error('Error removing moderator:', error);
@@ -980,6 +1013,13 @@
             },
             
             async toggleModerator(userId, isModerator) {
+                // Check if trying to remove an initial moderator
+                const targetUser = this.users.find(u => u.id === userId);
+                if (targetUser && targetUser.is_initial_moderator && !isModerator) {
+                    alert('Initial moderators cannot be demoted');
+                    return;
+                }
+                
                 const action = isModerator ? 'grant' : 'revoke';
                 if (!confirm(`${action} moderator privileges?`)) return;
                 
@@ -1002,8 +1042,8 @@
                         }
                         alert(`Moderator privileges ${action}ed successfully`);
                     } else {
-                        const error = await response.text();
-                        alert(`Failed to ${action} moderator: ${error}`);
+                        const error = await response.json();
+                        alert(error.error || `Failed to ${action} moderator privileges`);
                     }
                 } catch (error) {
                     console.error(`Error ${action}ing moderator:`, error);
@@ -1135,6 +1175,64 @@
                 await window.BanHandler.warnUser(userId, userName);
             }
         };
+    }
+    
+    // Iframe resize functionality
+    function setupIframeResize() {
+        let lastHeight = 0;
+        
+        // Function to send height to parent
+        function sendHeightToParent() {
+            const height = document.body.scrollHeight;
+            const pageId = new URLSearchParams(window.location.search).get('pageId') || 'default';
+            
+            // Only send if height has changed
+            if (window.parent !== window && Math.abs(height - lastHeight) > 5) {
+                lastHeight = height;
+                window.parent.postMessage({
+                    type: 'resize-iframe',
+                    height: height,
+                    pageId: pageId
+                }, '*');
+            }
+        }
+        
+        // Set up ResizeObserver to watch for content changes
+        const resizeObserver = new ResizeObserver((entries) => {
+            // Debounce resize events
+            clearTimeout(window.resizeTimeout);
+            window.resizeTimeout = setTimeout(() => {
+                sendHeightToParent();
+            }, 100);
+        });
+        
+        // Observe the body element
+        resizeObserver.observe(document.body);
+        
+        // Also check on various events
+        window.addEventListener('load', sendHeightToParent);
+        
+        // Check periodically for dynamic content changes (less frequently)
+        setInterval(sendHeightToParent, 1000);
+        
+        // Listen for Alpine.js updates
+        document.addEventListener('alpine:initialized', () => {
+            sendHeightToParent();
+        });
+        
+        // Watch for tab changes
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('[x-on\\:click*="activeTab"]')) {
+                setTimeout(sendHeightToParent, 100);
+            }
+        });
+    }
+    
+    // Initialize iframe resize when DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', setupIframeResize);
+    } else {
+        setupIframeResize();
     }
     </script>
 </body>
