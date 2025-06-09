@@ -202,10 +202,6 @@ const authenticateUser = async (req, res, next) => {
         
         const user = userResult.rows[0];
         
-        // Check if user is an initial moderator
-        const initialModerators = process.env.INITIAL_MODERATORS?.split(',').map(id => id.trim()) || [];
-        user.is_initial_moderator = initialModerators.includes(user.id);
-        
         // Check if user is banned and handle expired bans
         if (user.is_banned) {
             if (user.ban_expires_at && new Date(user.ban_expires_at) <= new Date()) {
@@ -219,13 +215,6 @@ const authenticateUser = async (req, res, next) => {
                          banned_at = NULL 
                      WHERE id = $1`,
                     [userId]
-                );
-                
-                // Record automatic unban in history
-                await pgPool.query(
-                    `INSERT INTO ban_history (user_id, action, duration, expires_at, reason, performed_by)
-                     VALUES ($1, 'unban', NULL, NULL, 'Ban expired', $2)`,
-                    [userId, 'system']
                 );
                 user.is_banned = false;
                 user.ban_expired = true; // Flag for notification
@@ -265,14 +254,6 @@ const authenticateUser = async (req, res, next) => {
 const requireModerator = (req, res, next) => {
     if (!req.user?.is_moderator) {
         return res.status(403).json({ error: 'Moderator access required' });
-    }
-    next();
-};
-
-// Initial moderator middleware
-const requireInitialModerator = (req, res, next) => {
-    if (!req.user?.is_initial_moderator) {
-        return res.status(403).json({ error: 'Initial moderator access required' });
     }
     next();
 };
@@ -446,85 +427,6 @@ const initDatabase = async () => {
             )
         `);
         
-        // Ban history table
-        await client.query(`
-            CREATE TABLE IF NOT EXISTS ban_history (
-                id SERIAL PRIMARY KEY,
-                user_id VARCHAR(255) NOT NULL,
-                action VARCHAR(20) NOT NULL CHECK (action IN ('ban', 'unban')),
-                duration VARCHAR(20),
-                expires_at TIMESTAMP,
-                reason TEXT,
-                performed_by VARCHAR(255) NOT NULL,
-                performed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-                FOREIGN KEY (performed_by) REFERENCES users(id) ON DELETE CASCADE
-            )
-        `);
-        
-        // User reported history table (when user's comments are reported)
-        await client.query(`
-            CREATE TABLE IF NOT EXISTS user_reported_history (
-                id SERIAL PRIMARY KEY,
-                user_id VARCHAR(255) NOT NULL,
-                comment_id INTEGER NOT NULL,
-                reporter_id VARCHAR(255) NOT NULL,
-                reason VARCHAR(500),
-                reported_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'resolved', 'dismissed')),
-                resolved_by VARCHAR(255),
-                resolved_at TIMESTAMP,
-                resolution_action VARCHAR(50),
-                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-                FOREIGN KEY (reporter_id) REFERENCES users(id) ON DELETE CASCADE,
-                FOREIGN KEY (resolved_by) REFERENCES users(id) ON DELETE SET NULL
-            )
-        `);
-        
-        // User report history table (when user reports others)
-        await client.query(`
-            CREATE TABLE IF NOT EXISTS user_report_history (
-                id SERIAL PRIMARY KEY,
-                reporter_id VARCHAR(255) NOT NULL,
-                reported_user_id VARCHAR(255) NOT NULL,
-                comment_id INTEGER NOT NULL,
-                reason VARCHAR(500),
-                reported_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'resolved', 'dismissed')),
-                FOREIGN KEY (reporter_id) REFERENCES users(id) ON DELETE CASCADE,
-                FOREIGN KEY (reported_user_id) REFERENCES users(id) ON DELETE CASCADE
-            )
-        `);
-        
-        // Warnings table
-        await client.query(`
-            CREATE TABLE IF NOT EXISTS warnings (
-                id SERIAL PRIMARY KEY,
-                user_id VARCHAR(255) NOT NULL,
-                message TEXT NOT NULL,
-                severity VARCHAR(20) DEFAULT 'info' CHECK (severity IN ('info', 'warning', 'severe')),
-                issued_by VARCHAR(255) NOT NULL,
-                issued_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                acknowledged BOOLEAN DEFAULT FALSE,
-                acknowledged_at TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-                FOREIGN KEY (issued_by) REFERENCES users(id) ON DELETE CASCADE
-            )
-        `);
-        
-        // Add trust_score and comment_count to users table if they don't exist
-        await client.query(`
-            DO $$ 
-            BEGIN
-                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='trust_score') THEN
-                    ALTER TABLE users ADD COLUMN trust_score INTEGER DEFAULT 100;
-                END IF;
-                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='comment_count') THEN
-                    ALTER TABLE users ADD COLUMN comment_count INTEGER DEFAULT 0;
-                END IF;
-            END $$;
-        `);
-        
         // Create indexes
         await client.query(`
             CREATE INDEX IF NOT EXISTS idx_comments_page_id ON comments(page_id);
@@ -536,10 +438,6 @@ const initDatabase = async () => {
             CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status);
             CREATE INDEX IF NOT EXISTS idx_users_is_moderator ON users(is_moderator);
             CREATE INDEX IF NOT EXISTS idx_users_is_banned ON users(is_banned);
-            CREATE INDEX IF NOT EXISTS idx_ban_history_user_id ON ban_history(user_id);
-            CREATE INDEX IF NOT EXISTS idx_user_reported_history_user_id ON user_reported_history(user_id);
-            CREATE INDEX IF NOT EXISTS idx_user_report_history_reporter_id ON user_report_history(reporter_id);
-            CREATE INDEX IF NOT EXISTS idx_warnings_user_id_acknowledged ON warnings(user_id, acknowledged);
         `);
         
         await client.query('COMMIT');
@@ -660,7 +558,6 @@ app.post('/api/discord/callback', authLimiter, async (req, res) => {
         if (userResult.rows.length > 0) {
             const userData = userResult.rows[0];
             user.is_moderator = userData.is_moderator;
-            user.is_initial_moderator = isInitialModerator;
             user.is_banned = userData.is_banned;
             
             // Check if ban has expired
@@ -801,47 +698,17 @@ app.get('/api/users/:userId', authenticateUser, async (req, res) => {
         }
         
         const user = result.rows[0];
-        
-        // Check if user is an initial moderator
-        const initialModerators = process.env.INITIAL_MODERATORS?.split(',').map(id => id.trim()) || [];
-        const isInitialModerator = initialModerators.includes(user.id);
-        
         res.json({
             id: user.id,
             username: user.name,
             email: user.email,
             avatar: user.picture,
             is_moderator: user.is_moderator,
-            is_initial_moderator: isInitialModerator,
             is_banned: user.is_banned
         });
     } catch (error) {
         console.error('Get user error:', error);
         res.status(500).json({ error: 'Failed to get user data' });
-    }
-});
-
-// Get comments by user (moderators only)
-app.get('/api/comments/user/:userId', authenticateUser, requireModerator, async (req, res) => {
-    const { userId } = req.params;
-    const { limit = 10, offset = 0 } = req.query;
-    
-    try {
-        const comments = await pgPool.query(
-            `SELECT c.*, u.name as user_name, u.picture as user_picture,
-                    c.page_id
-             FROM comments c
-             JOIN users u ON c.user_id = u.id
-             WHERE c.user_id = $1
-             ORDER BY c.created_at DESC
-             LIMIT $2 OFFSET $3`,
-            [userId, parseInt(limit), parseInt(offset)]
-        );
-        
-        res.json(comments.rows);
-    } catch (error) {
-        console.error('Get user comments error:', error);
-        res.status(500).json({ error: 'Failed to get user comments' });
     }
 });
 
@@ -935,14 +802,6 @@ app.post('/api/comments', authenticateUser, async (req, res) => {
              VALUES ($1, $2, $3, $4) 
              RETURNING *`,
             [pageId, userId, parentId || null, content]
-        );
-        
-        // Update user's comment count
-        await client.query(
-            `UPDATE users 
-             SET comment_count = COALESCE(comment_count, 0) + 1
-             WHERE id = $1`,
-            [userId]
         );
         
         const comment = result.rows[0];
@@ -1264,39 +1123,13 @@ app.post('/api/comments/:commentId/report', authenticateUser, async (req, res) =
         // Create report with comment copy
         console.log(`Creating report for comment ${commentIdNum} on page "${comment.page_id}" (length: ${comment.page_id.length})`);
         
-        const reportResult = await client.query(
+        await client.query(
             `INSERT INTO reports (comment_id, reporter_id, page_id, reason, comment_content, comment_user_id, comment_user_name) 
              VALUES ($1, $2, $3, $4, $5, $6, $7) 
-             ON CONFLICT (comment_id, reporter_id) DO NOTHING
-             RETURNING id`,
+             ON CONFLICT (comment_id, reporter_id) DO NOTHING`,
             [commentIdNum, userId, comment.page_id, reason || 'No reason provided', 
              comment.content, comment.user_id, comment.user_name]
         );
-        
-        // If report was created (not duplicate), track in history
-        if (reportResult.rows.length > 0) {
-            // Track in user_reported_history (user being reported)
-            await client.query(
-                `INSERT INTO user_reported_history (user_id, comment_id, reporter_id, reason)
-                 VALUES ($1, $2, $3, $4)`,
-                [comment.user_id, commentIdNum, userId, reason || 'No reason provided']
-            );
-            
-            // Track in user_report_history (user making the report)
-            await client.query(
-                `INSERT INTO user_report_history (reporter_id, reported_user_id, comment_id, reason)
-                 VALUES ($1, $2, $3, $4)`,
-                [userId, comment.user_id, commentIdNum, reason || 'No reason provided']
-            );
-            
-            // Update user's trust score (decrease for being reported)
-            await client.query(
-                `UPDATE users 
-                 SET trust_score = GREATEST(0, trust_score - 5)
-                 WHERE id = $1`,
-                [comment.user_id]
-            );
-        }
         
         await client.query('COMMIT');
         res.json({ success: true });
@@ -1454,74 +1287,18 @@ app.put('/api/reports/:reportId/resolve', authenticateUser, requireModerator, as
         return res.status(400).json({ error: 'Invalid action' });
     }
     
-    const client = await pgPool.connect();
     try {
-        await client.query('BEGIN');
-        
-        // Get report details
-        const reportResult = await client.query(
-            'SELECT comment_user_id, comment_id, reporter_id FROM reports WHERE id = $1',
-            [reportId]
-        );
-        
-        if (reportResult.rows.length === 0) {
-            await client.query('ROLLBACK');
-            return res.status(404).json({ error: 'Report not found' });
-        }
-        
-        const report = reportResult.rows[0];
-        
-        // Update report status
-        await client.query(
+        await pgPool.query(
             `UPDATE reports 
              SET status = $1, resolved_at = CURRENT_TIMESTAMP, resolved_by = $2
              WHERE id = $3`,
             [action, userId, reportId]
         );
         
-        // Update user_reported_history
-        await client.query(
-            `UPDATE user_reported_history 
-             SET status = $1, resolved_by = $2, resolved_at = CURRENT_TIMESTAMP, resolution_action = $3
-             WHERE user_id = $4 AND comment_id = $5 AND reporter_id = $6 AND status = 'pending'`,
-            [action, userId, action, report.comment_user_id, report.comment_id, report.reporter_id]
-        );
-        
-        // Update user_report_history
-        await client.query(
-            `UPDATE user_report_history 
-             SET status = $1
-             WHERE reporter_id = $2 AND comment_id = $3 AND status = 'pending'`,
-            [action, report.reporter_id, report.comment_id]
-        );
-        
-        // Update trust scores based on resolution
-        if (action === 'dismissed') {
-            // Restore trust to reported user if report was dismissed
-            await client.query(
-                `UPDATE users 
-                 SET trust_score = LEAST(100, trust_score + 5)
-                 WHERE id = $1`,
-                [report.comment_user_id]
-            );
-            
-            // Decrease trust of false reporter
-            await client.query(
-                `UPDATE users 
-                 SET trust_score = GREATEST(0, trust_score - 10)
-                 WHERE id = $1`,
-                [report.reporter_id]
-            );
-        }
-        
-        await client.query('COMMIT');
         res.json({ success: true });
     } catch (error) {
-        await client.query('ROLLBACK');
         console.error('Resolve report error:', error);
         res.status(500).json({ error: 'Failed to resolve report' });
-    } finally {
-        client.release();
     }
 });
 
@@ -1560,13 +1337,6 @@ app.post('/api/users/:targetUserId/ban', authenticateUser, requireModerator, asy
                  banned_at = CURRENT_TIMESTAMP
              WHERE id = $1`,
             [targetUserId, banExpiresAt, reason || 'No reason provided', userId]
-        );
-        
-        // Record ban in history
-        await client.query(
-            `INSERT INTO ban_history (user_id, action, duration, expires_at, reason, performed_by)
-             VALUES ($1, $2, $3, $4, $5, $6)`,
-            [targetUserId, 'ban', duration || 'permanent', banExpiresAt, reason || 'No reason provided', userId]
         );
         
         // Optionally delete comments
@@ -1612,261 +1382,32 @@ app.post('/api/users/:targetUserId/ban', authenticateUser, requireModerator, asy
     }
 });
 
-// Issue warning to user (moderators only)
-app.post('/api/users/:targetUserId/warn', authenticateUser, requireModerator, async (req, res) => {
-    const { targetUserId } = req.params;
-    const { message, severity = 'info' } = req.body;
-    const userId = req.user.id;
-    
-    if (!message) {
-        return res.status(400).json({ error: 'Warning message is required' });
-    }
-    
-    if (!['info', 'warning', 'severe'].includes(severity)) {
-        return res.status(400).json({ error: 'Invalid severity level' });
-    }
-    
-    try {
-        // Check if user exists
-        const userCheck = await pgPool.query(
-            'SELECT id, name FROM users WHERE id = $1',
-            [targetUserId]
-        );
-        
-        if (userCheck.rows.length === 0) {
-            return res.status(404).json({ error: 'User not found' });
-        }
-        
-        // Create warning
-        await pgPool.query(
-            `INSERT INTO warnings (user_id, message, severity, issued_by)
-             VALUES ($1, $2, $3, $4)`,
-            [targetUserId, message, severity, userId]
-        );
-        
-        res.json({ 
-            success: true, 
-            warned_user: userCheck.rows[0].name,
-            message: message,
-            severity: severity
-        });
-    } catch (error) {
-        console.error('Warn user error:', error);
-        res.status(500).json({ error: 'Failed to issue warning' });
-    }
-});
-
-// Get user's pending warnings
-app.get('/api/warnings', authenticateUser, async (req, res) => {
-    const userId = req.user.id;
-    
-    try {
-        // Get all unacknowledged warnings
-        const warnings = await pgPool.query(
-            `SELECT w.*, u.name as issued_by_name
-             FROM warnings w
-             JOIN users u ON w.issued_by = u.id
-             WHERE w.user_id = $1 AND w.acknowledged = FALSE
-             ORDER BY w.issued_at DESC`,
-            [userId]
-        );
-        
-        res.json(warnings.rows);
-    } catch (error) {
-        console.error('Get warnings error:', error);
-        res.status(500).json({ error: 'Failed to get warnings' });
-    }
-});
-
-// Acknowledge warning
-app.put('/api/warnings/:warningId/acknowledge', authenticateUser, async (req, res) => {
-    const { warningId } = req.params;
-    const userId = req.user.id;
-    
-    try {
-        const result = await pgPool.query(
-            `UPDATE warnings 
-             SET acknowledged = TRUE, acknowledged_at = CURRENT_TIMESTAMP
-             WHERE id = $1 AND user_id = $2 AND acknowledged = FALSE
-             RETURNING id`,
-            [warningId, userId]
-        );
-        
-        if (result.rows.length === 0) {
-            return res.status(404).json({ error: 'Warning not found or already acknowledged' });
-        }
-        
-        res.json({ success: true });
-    } catch (error) {
-        console.error('Acknowledge warning error:', error);
-        res.status(500).json({ error: 'Failed to acknowledge warning' });
-    }
-});
-
 // Get moderators (moderators only)
 app.get('/api/moderators', authenticateUser, requireModerator, async (req, res) => {
     try {
         const moderators = await pgPool.query(
             'SELECT id, name, picture, email FROM users WHERE is_moderator = TRUE ORDER BY name'
         );
-        
-        // Add is_initial_moderator flag to each moderator
-        const initialModerators = process.env.INITIAL_MODERATORS?.split(',').map(id => id.trim()) || [];
-        const moderatorsWithFlags = moderators.rows.map(mod => ({
-            ...mod,
-            is_initial_moderator: initialModerators.includes(mod.id)
-        }));
-        
-        res.json(moderatorsWithFlags);
+        res.json(moderators.rows);
     } catch (error) {
         console.error('Get moderators error:', error);
         res.status(500).json({ error: 'Failed to get moderators' });
     }
 });
 
-// Get user history (moderators only)
-app.get('/api/users/:userId/history', authenticateUser, requireModerator, async (req, res) => {
-    const { userId } = req.params;
-    
-    try {
-        // Get ban history
-        const banHistory = await pgPool.query(
-            `SELECT bh.*, u.name as performed_by_name
-             FROM ban_history bh
-             JOIN users u ON bh.performed_by = u.id
-             WHERE bh.user_id = $1
-             ORDER BY bh.performed_at DESC
-             LIMIT 10`,
-            [userId]
-        );
-        
-        // Get reported history (times user has been reported)
-        const reportedHistory = await pgPool.query(
-            `SELECT urh.*, u.name as reporter_name
-             FROM user_reported_history urh
-             JOIN users u ON urh.reporter_id = u.id
-             WHERE urh.user_id = $1
-             ORDER BY urh.reported_at DESC
-             LIMIT 10`,
-            [userId]
-        );
-        
-        // Get report history (times user has reported others)
-        const reportHistory = await pgPool.query(
-            `SELECT urh.*, u.name as reported_user_name
-             FROM user_report_history urh
-             JOIN users u ON urh.reported_user_id = u.id
-             WHERE urh.reporter_id = $1
-             ORDER BY urh.reported_at DESC
-             LIMIT 10`,
-            [userId]
-        );
-        
-        res.json({
-            banHistory: banHistory.rows,
-            reportedHistory: reportedHistory.rows,
-            reportHistory: reportHistory.rows
-        });
-    } catch (error) {
-        console.error('Get user history error:', error);
-        res.status(500).json({ error: 'Failed to get user history' });
-    }
-});
-
-// Get all users with stats (moderators only)
-app.get('/api/users', authenticateUser, requireModerator, async (req, res) => {
-    const { search, page = 1, limit = 50 } = req.query;
-    const offset = (parseInt(page) - 1) * parseInt(limit);
-    
-    try {
-        let query = `
-            SELECT 
-                u.*,
-                COUNT(DISTINCT c.id) as comment_count,
-                COUNT(DISTINCT urh.id) as times_reported,
-                COUNT(DISTINCT urh2.id) as reports_made,
-                COUNT(DISTINCT bh.id) as ban_count,
-                CASE WHEN u.is_banned = TRUE THEN 
-                    CASE WHEN u.ban_expires_at IS NULL THEN 'permanent'
-                         ELSE 'temporary'
-                    END
-                ELSE NULL END as current_ban_status
-            FROM users u
-            LEFT JOIN comments c ON u.id = c.user_id
-            LEFT JOIN user_reported_history urh ON u.id = urh.user_id
-            LEFT JOIN user_report_history urh2 ON u.id = urh2.reporter_id
-            LEFT JOIN ban_history bh ON u.id = bh.user_id AND bh.action = 'ban'
-        `;
-        
-        const params = [];
-        
-        if (search) {
-            query += ` WHERE (LOWER(u.name) LIKE LOWER($1) OR LOWER(u.email) LIKE LOWER($1) OR u.id LIKE $1)`;
-            params.push(`%${search}%`);
-        }
-        
-        query += `
-            GROUP BY u.id
-            ORDER BY u.created_at DESC
-            LIMIT $${params.length + 1} OFFSET $${params.length + 2}
-        `;
-        
-        params.push(parseInt(limit), offset);
-        
-        const result = await pgPool.query(query, params);
-        
-        // Add is_initial_moderator flag to each user
-        const initialModerators = process.env.INITIAL_MODERATORS?.split(',').map(id => id.trim()) || [];
-        const usersWithFlags = result.rows.map(user => ({
-            ...user,
-            is_initial_moderator: initialModerators.includes(user.id)
-        }));
-        
-        // Get total count
-        let countQuery = 'SELECT COUNT(*) FROM users';
-        const countParams = [];
-        
-        if (search) {
-            countQuery += ` WHERE (LOWER(name) LIKE LOWER($1) OR LOWER(email) LIKE LOWER($1) OR id LIKE $1)`;
-            countParams.push(`%${search}%`);
-        }
-        
-        const countResult = await pgPool.query(countQuery, countParams);
-        
-        res.json({
-            users: usersWithFlags,
-            total: parseInt(countResult.rows[0].count),
-            page: parseInt(page),
-            limit: parseInt(limit)
-        });
-    } catch (error) {
-        console.error('Get users error:', error);
-        res.status(500).json({ error: 'Failed to get users' });
-    }
-});
-
-// Set moderator status (initial moderators only)
-app.put('/api/users/:targetUserId/moderator', authenticateUser, requireInitialModerator, async (req, res) => {
+// Set moderator status (moderators only)
+app.put('/api/users/:targetUserId/moderator', authenticateUser, requireModerator, async (req, res) => {
     const { targetUserId } = req.params;
-    const { is_moderator } = req.body;
+    const { isModerator } = req.body;
     
-    if (typeof is_moderator !== 'boolean') {
+    if (typeof isModerator !== 'boolean') {
         return res.status(400).json({ error: 'Moderator status required' });
-    }
-    
-    // Check if target is an initial moderator
-    const initialModerators = process.env.INITIAL_MODERATORS?.split(',').map(id => id.trim()) || [];
-    const isTargetInitialModerator = initialModerators.includes(targetUserId);
-    
-    // Prevent removal of initial moderators
-    if (isTargetInitialModerator && !is_moderator) {
-        return res.status(403).json({ error: 'Cannot remove initial moderator status' });
     }
     
     try {
         await pgPool.query(
             'UPDATE users SET is_moderator = $1 WHERE id = $2',
-            [is_moderator, targetUserId]
+            [isModerator, targetUserId]
         );
         res.json({ success: true });
     } catch (error) {

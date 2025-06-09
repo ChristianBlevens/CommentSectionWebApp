@@ -38,18 +38,14 @@
 
 .comment-container {
     position: relative;
-    max-width: 100%;
-}
-
-/* Apply indent only to nested comments (depth > 0) */
-.comment-container[class*="comment-depth-"] {
     padding-left: var(--comment-indent);
+    max-width: 100%;
 }
 
 /* Vertical line for nested comments */
 .comment-line {
     position: absolute;
-    left: 0.5rem;
+    left: 0.375rem;
     top: 0;
     bottom: 0;
     width: 2px;
@@ -161,11 +157,6 @@
     color: #f87171;
 }
 
-/* View in context button style */
-.comment-action i.fa-external-link-alt {
-    font-size: 0.875rem;
-}
-
 /* Options menu button */
 .comment-options-btn {
     padding: 0.25rem 0.5rem;
@@ -245,11 +236,6 @@
 
 .comment-content.reported:hover {
     box-shadow: 0 2px 8px rgba(239, 68, 68, 0.2);
-}
-
-/* Comment children container */
-.comment-children {
-    position: relative;
 }
 
 /* Collapsed comments */
@@ -440,14 +426,8 @@
     transition: all 0.2s;
 }
 
-/* Bottom padding for dropdown - only add when needed */
+/* Bottom padding for dropdown */
 .comment-section-bottom-padding {
-    height: 0;
-    transition: height 0.3s ease;
-}
-
-/* Add padding when dropdown is open */
-.comment-section-bottom-padding.dropdown-open {
     height: 150px;
 }
 
@@ -468,24 +448,4 @@
 
 .comment-content.reported-comment:hover {
     box-shadow: 0 2px 8px rgba(220, 38, 38, 0.2);
-}
-
-/* Warn button style */
-.report-action-btn.warn {
-    background-color: #eab308;
-    color: white;
-}
-
-.report-action-btn.warn:hover {
-    background-color: #ca8a04;
-}
-
-/* History button style */
-.report-action-btn.history {
-    background-color: #8b5cf6;
-    color: white;
-}
-
-.report-action-btn.history:hover {
-    background-color: #7c3aed;
 }
