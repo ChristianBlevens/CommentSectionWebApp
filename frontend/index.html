@@ -94,11 +94,8 @@
             </div>
 
             <!-- Tab Content -->
-            <div class="p-4">
-                <!-- Comments Tab (Hidden when in moderation panel) -->
-                <div x-show="activeTab === 'comments'" class="text-center py-8 text-gray-500">
-                    <p>Close the moderation panel to view comments</p>
-                </div>
+            <div class="p-4" x-show="activeTab !== 'comments'">
+                <!-- Tab content is only shown for non-comment tabs -->
 
                 <!-- Reports Tab -->
                 <div x-show="activeTab === 'reports'">
@@ -543,8 +540,8 @@
             </div>
         </div>
 
-        <!-- Main Comments Section (shown when moderation panel is closed or comments tab is active) -->
-        <div x-show="!user || !user.is_moderator || activeTab === 'comments'">
+        <!-- Main Comments Section (always shown) -->
+        <div>
             <!-- Header -->
             <div class="bg-white rounded-lg shadow-md p-4 md:p-6 mb-4">
                 <h1 class="text-xl md:text-2xl font-bold mb-4">Comments</h1>

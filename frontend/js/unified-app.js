@@ -30,7 +30,7 @@ async function banUserWithDuration(userId, userName, duration) {
     const reason = prompt(`Why are you banning ${userName}?`);
     if (!reason) return;
     
-    const response = await BanHandler.banUser(API_URL + '/api', userId, userName, duration, reason);
+    const response = await BanHandler.banUser(API_URL, userId, userName, duration, reason);
     if (response.success) {
         // Show ban notification
         if (window.unifiedAppInstance) {
@@ -70,6 +70,18 @@ Auth.setupOAuthListener((user, data) => {
         window.unifiedAppInstance.loadComments();
     }
 });
+
+// Helper function to get auth headers
+function getAuthHeaders() {
+    const sessionToken = localStorage.getItem('sessionToken');
+    const headers = {
+        'Content-Type': 'application/json'
+    };
+    if (sessionToken) {
+        headers['Authorization'] = `Bearer ${sessionToken}`;
+    }
+    return headers;
+}
 
 function unifiedApp() {
     return {
@@ -172,6 +184,7 @@ function unifiedApp() {
         async checkWarnings() {
             try {
                 const response = await fetch(`${API_URL}/api/users/warnings/unread`, {
+                    headers: getAuthHeaders(),
                     credentials: 'include'
                 });
                 
@@ -196,6 +209,7 @@ function unifiedApp() {
             try {
                 await fetch(`${API_URL}/api/users/warnings/acknowledge`, {
                     method: 'POST',
+                    headers: getAuthHeaders(),
                     credentials: 'include'
                 });
                 this.warningNotification = null;
@@ -208,6 +222,7 @@ function unifiedApp() {
         async loadReportCount() {
             try {
                 const response = await fetch(`${API_URL}/api/reports/count`, {
+                    headers: getAuthHeaders(),
                     credentials: 'include'
                 });
                 
@@ -240,6 +255,7 @@ function unifiedApp() {
                 const pageId = params.get('pageId') || 'default';
                 
                 const response = await fetch(`${API_URL}/api/comments?pageId=${encodeURIComponent(pageId)}`, {
+                    headers: getAuthHeaders(),
                     credentials: 'include'
                 });
                 
@@ -285,7 +301,7 @@ function unifiedApp() {
                 
                 const response = await fetch(`${API_URL}/api/comments`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: getAuthHeaders(),
                     credentials: 'include',
                     body: JSON.stringify({
                         content: this.newCommentText.trim(),
@@ -314,6 +330,7 @@ function unifiedApp() {
             this.loadingReports = true;
             try {
                 const response = await fetch(`${API_URL}/api/reports/all`, {
+                    headers: getAuthHeaders(),
                     credentials: 'include'
                 });
                 
@@ -362,6 +379,7 @@ function unifiedApp() {
             try {
                 const response = await fetch(`${API_URL}/api/comments/${report.comment_id}`, {
                     method: 'DELETE',
+                    headers: getAuthHeaders(),
                     credentials: 'include'
                 });
                 
@@ -380,6 +398,7 @@ function unifiedApp() {
             try {
                 const response = await fetch(`${API_URL}/api/reports/${reportId}/resolve`, {
                     method: 'PUT',
+                    headers: getAuthHeaders(),
                     credentials: 'include'
                 });
                 
@@ -400,6 +419,7 @@ function unifiedApp() {
             this.loadingUsers = true;
             try {
                 const response = await fetch(`${API_URL}/api/users`, {
+                    headers: getAuthHeaders(),
                     credentials: 'include'
                 });
                 
@@ -467,6 +487,7 @@ function unifiedApp() {
         async loadUserDetails(userId) {
             try {
                 const response = await fetch(`${API_URL}/api/users/${userId}/full`, {
+                    headers: getAuthHeaders(),
                     credentials: 'include'
                 });
                 
@@ -492,7 +513,7 @@ function unifiedApp() {
             try {
                 const response = await fetch(`${API_URL}/api/users/${userId}/warn`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: getAuthHeaders(),
                     credentials: 'include',
                     body: JSON.stringify({ reason, message })
                 });
@@ -513,7 +534,7 @@ function unifiedApp() {
             try {
                 const response = await fetch(`${API_URL}/api/users/${userId}/moderator`, {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: getAuthHeaders(),
                     credentials: 'include',
                     body: JSON.stringify({ is_moderator: makeMod })
                 });
@@ -532,6 +553,7 @@ function unifiedApp() {
             try {
                 const response = await fetch(`${API_URL}/api/users/${userId}/unban`, {
                     method: 'POST',
+                    headers: getAuthHeaders(),
                     credentials: 'include'
                 });
                 
@@ -550,6 +572,7 @@ function unifiedApp() {
             try {
                 const response = await fetch(`${API_URL}/api/comments/${commentId}`, {
                     method: 'DELETE',
+                    headers: getAuthHeaders(),
                     credentials: 'include'
                 });
                 
@@ -797,7 +820,7 @@ function unifiedApp() {
             try {
                 const response = await fetch(`${API_URL}/api/comments/${commentId}/vote`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: getAuthHeaders(),
                     credentials: 'include',
                     body: JSON.stringify({ vote_type: voteType })
                 });
@@ -822,6 +845,7 @@ function unifiedApp() {
             try {
                 const response = await fetch(`${API_URL}/api/comments/${commentId}`, {
                     method: 'DELETE',
+                    headers: getAuthHeaders(),
                     credentials: 'include'
                 });
                 
@@ -840,7 +864,7 @@ function unifiedApp() {
             try {
                 const response = await fetch(`${API_URL}/api/comments/${commentId}/report`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: getAuthHeaders(),
                     credentials: 'include',
                     body: JSON.stringify({ reason })
                 });
@@ -874,7 +898,7 @@ function unifiedApp() {
             try {
                 const response = await fetch(`${API_URL}/api/comments`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: getAuthHeaders(),
                     credentials: 'include',
                     body: JSON.stringify({
                         content: textarea.value.trim(),

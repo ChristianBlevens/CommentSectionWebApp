@@ -36,7 +36,7 @@ const BanHandler = {
         }
         
         try {
-            const response = await fetch(`${apiUrl}/users/${userId}/ban`, {
+            const response = await fetch(`${apiUrl}/api/users/${userId}/ban`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
