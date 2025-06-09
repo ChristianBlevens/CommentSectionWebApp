@@ -501,6 +501,25 @@ const initDatabase = async () => {
             )
         `);
         
+        // Add missing columns to warnings table if they don't exist
+        await client.query(`
+            DO $$ 
+            BEGIN
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='warnings' AND column_name='reason') THEN
+                    ALTER TABLE warnings ADD COLUMN reason VARCHAR(500) NOT NULL DEFAULT 'No reason provided';
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='warnings' AND column_name='message') THEN
+                    ALTER TABLE warnings ADD COLUMN message TEXT;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='warnings' AND column_name='acknowledged') THEN
+                    ALTER TABLE warnings ADD COLUMN acknowledged BOOLEAN DEFAULT FALSE;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='warnings' AND column_name='acknowledged_at') THEN
+                    ALTER TABLE warnings ADD COLUMN acknowledged_at TIMESTAMP;
+                END IF;
+            END $$;
+        `);
+        
         // Create indexes
         await client.query(`
             CREATE INDEX IF NOT EXISTS idx_comments_page_id ON comments(page_id);

@@ -173,14 +173,6 @@ function unifiedApp() {
             if (window.initializeMarkdown) {
                 window.initializeMarkdown();
             }
-            
-            // Set up auto-refresh
-            setInterval(() => {
-                this.loadComments();
-                if (this.user?.is_moderator) {
-                    this.loadReportCount();
-                }
-            }, 30000);
         },
         
         // Check for warnings
