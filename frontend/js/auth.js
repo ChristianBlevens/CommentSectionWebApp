@@ -5,8 +5,23 @@ const Auth = {
         const savedUser = localStorage.getItem('user');
         const sessionToken = localStorage.getItem('sessionToken');
         
+        console.log('Checking existing session:', {
+            hasUser: !!savedUser,
+            hasToken: !!sessionToken,
+            token: sessionToken ? sessionToken.substring(0, 10) + '...' : null
+        });
+        
         if (savedUser && sessionToken) {
-            return JSON.parse(savedUser);
+            try {
+                const user = JSON.parse(savedUser);
+                console.log('Loaded user from localStorage:', user);
+                return user;
+            } catch (e) {
+                console.error('Failed to parse saved user:', e);
+                localStorage.removeItem('user');
+                localStorage.removeItem('sessionToken');
+                return null;
+            }
         } else {
             localStorage.removeItem('user');
             localStorage.removeItem('sessionToken');

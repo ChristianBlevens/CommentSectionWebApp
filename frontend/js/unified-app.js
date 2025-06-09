@@ -79,6 +79,9 @@ function getAuthHeaders() {
     };
     if (sessionToken) {
         headers['Authorization'] = `Bearer ${sessionToken}`;
+        console.log('Using session token:', sessionToken.substring(0, 10) + '...');
+    } else {
+        console.log('No session token found in localStorage');
     }
     return headers;
 }
@@ -254,10 +257,17 @@ function unifiedApp() {
                 const params = new URLSearchParams(window.location.search);
                 const pageId = params.get('pageId') || 'default';
                 
-                const response = await fetch(`${API_URL}/api/comments?pageId=${encodeURIComponent(pageId)}`, {
-                    headers: getAuthHeaders(),
+                // Build request options - only add auth headers if user is logged in
+                const options = {
                     credentials: 'include'
-                });
+                };
+                
+                const sessionToken = localStorage.getItem('sessionToken');
+                if (sessionToken) {
+                    options.headers = getAuthHeaders();
+                }
+                
+                const response = await fetch(`${API_URL}/api/comments/${encodeURIComponent(pageId)}`, options);
                 
                 if (response.ok) {
                     const flatComments = await response.json();

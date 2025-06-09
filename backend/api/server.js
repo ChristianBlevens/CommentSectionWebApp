@@ -175,6 +175,42 @@ const parseBanDuration = (duration) => {
     return value * multipliers[unit];
 };
 
+// Optional authentication middleware
+const optionalAuth = async (req, res, next) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith('Bearer ')) {
+        req.user = null;
+        return next();
+    }
+    
+    const token = authHeader.substring(7);
+    try {
+        // Get user from session
+        const userId = await safeRedisOp(() => redisClient.get(`session:${token}`));
+        if (!userId) {
+            req.user = null;
+            return next();
+        }
+        
+        // Get user from database
+        const userResult = await pgPool.query(
+            'SELECT id, name, is_moderator, is_super_moderator FROM users WHERE id = $1',
+            [userId]
+        );
+        
+        if (userResult.rows.length > 0) {
+            req.user = userResult.rows[0];
+        } else {
+            req.user = null;
+        }
+    } catch (error) {
+        console.error('Optional auth error:', error);
+        req.user = null;
+    }
+    
+    next();
+};
+
 // Authentication middleware
 const authenticateUser = async (req, res, next) => {
     const authHeader = req.headers.authorization;
@@ -821,9 +857,8 @@ app.get('/api/users/:userId', authenticateUser, async (req, res) => {
 });
 
 // Get comments for page
-app.get('/api/comments/:pageId', async (req, res) => {
+app.get('/api/comments/:pageId', optionalAuth, async (req, res) => {
     const { pageId } = req.params;
-    const { userId } = req.query;
     
     if (!pageId || pageId.length > 255) {
         return res.status(400).json({ error: 'Invalid page ID' });
@@ -844,7 +879,7 @@ app.get('/api/comments/:pageId', async (req, res) => {
             ORDER BY c.created_at ASC
         `;
         
-        const result = await pgPool.query(query, [pageId, userId || null]);
+        const result = await pgPool.query(query, [pageId, req.user?.id || null]);
         
         // Transform to API format
         const comments = result.rows.map(row => ({

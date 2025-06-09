@@ -67,34 +67,35 @@
         </div>
 
         <!-- Moderation Panel with Tabs -->
-        <div x-show="user && user.is_moderator" id="moderation-panel" class="bg-white rounded-lg shadow-md mb-4">
-            <!-- Tab Navigation -->
-            <div class="border-b border-gray-200">
-                <nav class="flex -mb-px">
-                    <button @click="activeTab = 'comments'" 
-                            :class="{'border-blue-500 text-blue-600': activeTab === 'comments', 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300': activeTab !== 'comments'}"
-                            class="py-2 px-4 border-b-2 font-medium text-sm transition-colors">
-                        <i class="fas fa-comments mr-2"></i>Comments
-                    </button>
-                    <button @click="activeTab = 'reports'; loadReports()" 
-                            :class="{'border-blue-500 text-blue-600': activeTab === 'reports', 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300': activeTab !== 'reports'}"
-                            class="py-2 px-4 border-b-2 font-medium text-sm transition-colors relative">
-                        <i class="fas fa-flag mr-2"></i>Reports
-                        <span x-show="totalPendingReports > 0" 
-                              class="absolute -top-1 -right-1 bg-red-500 text-white px-2 py-1 rounded-full text-xs">
-                            <span x-text="totalPendingReports"></span>
-                        </span>
-                    </button>
-                    <button @click="activeTab = 'users'; loadUsers()" 
-                            :class="{'border-blue-500 text-blue-600': activeTab === 'users', 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300': activeTab !== 'users'}"
-                            class="py-2 px-4 border-b-2 font-medium text-sm transition-colors">
-                        <i class="fas fa-users mr-2"></i>Users
-                    </button>
-                </nav>
-            </div>
+        <div x-show="user && user.is_moderator" id="moderation-panel" class="mb-4">
+            <!-- Tab Navigation - Always visible for moderators -->
+            <div class="bg-white rounded-lg shadow-md">
+                <div class="border-b border-gray-200">
+                    <nav class="flex -mb-px">
+                        <button @click="activeTab = 'comments'" 
+                                :class="{'border-blue-500 text-blue-600': activeTab === 'comments', 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300': activeTab !== 'comments'}"
+                                class="py-2 px-4 border-b-2 font-medium text-sm transition-colors">
+                            <i class="fas fa-comments mr-2"></i>Comments
+                        </button>
+                        <button @click="activeTab = 'reports'; loadReports()" 
+                                :class="{'border-blue-500 text-blue-600': activeTab === 'reports', 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300': activeTab !== 'reports'}"
+                                class="py-2 px-4 border-b-2 font-medium text-sm transition-colors relative">
+                            <i class="fas fa-flag mr-2"></i>Reports
+                            <span x-show="totalPendingReports > 0" 
+                                  class="absolute -top-1 -right-1 bg-red-500 text-white px-2 py-1 rounded-full text-xs">
+                                <span x-text="totalPendingReports"></span>
+                            </span>
+                        </button>
+                        <button @click="activeTab = 'users'; loadUsers()" 
+                                :class="{'border-blue-500 text-blue-600': activeTab === 'users', 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300': activeTab !== 'users'}"
+                                class="py-2 px-4 border-b-2 font-medium text-sm transition-colors">
+                            <i class="fas fa-users mr-2"></i>Users
+                        </button>
+                    </nav>
+                </div>
 
-            <!-- Tab Content -->
-            <div class="p-4" x-show="activeTab !== 'comments'">
+                <!-- Tab Content - Only show for non-comment tabs -->
+                <div class="p-4" x-show="activeTab !== 'comments'">
                 <!-- Tab content is only shown for non-comment tabs -->
 
                 <!-- Reports Tab -->
@@ -536,6 +537,7 @@
                             <i class="fas fa-chevron-right"></i>
                         </button>
                     </div>
+                </div>
                 </div>
             </div>
         </div>
