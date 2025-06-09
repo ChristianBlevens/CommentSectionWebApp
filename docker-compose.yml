@@ -69,9 +69,10 @@ services:
     build: ./backend/api
     container_name: comment-backend-api
     restart: always
+    env_file:
+      - ./backend/api/.env
     environment:
-      NODE_ENV: ${API_NODE_ENV:-production}
-      PORT: ${API_PORT:-3000}
+      NODE_ENV: production
       DB_HOST: postgres-comments
       DB_PORT: 5432
       DB_NAME: ${DB_NAME:-comments_db}
@@ -79,16 +80,6 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-postgres123}
       REDIS_URL: redis://redis:6379
       MODERATION_API_URL: http://moderation-service:3001
-      DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID}
-      DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET}
-      DISCORD_REDIRECT_URI: ${DISCORD_REDIRECT_URI}
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
-      INITIAL_MODERATORS: ${INITIAL_MODERATORS}
-      SESSION_SECRET: ${SESSION_SECRET}
-      SESSION_DURATION: ${SESSION_DURATION:-86400}
-      RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS:-900000}
-      RATE_LIMIT_MAX_REQUESTS: ${RATE_LIMIT_MAX_REQUESTS:-100}
-      LOG_LEVEL: ${LOG_LEVEL:-info}
     # Remove port exposure in production for security
     # API should only be accessible through nginx proxy
     # ports:
@@ -112,22 +103,15 @@ services:
     build: ./backend/moderation
     container_name: comment-moderation-service
     restart: always
+    env_file:
+      - ./backend/moderation/.env
     environment:
-      NODE_ENV: ${MODERATION_NODE_ENV:-production}
-      PORT: ${MODERATION_PORT:-3001}
+      NODE_ENV: production
       DB_HOST: postgres-moderation
       DB_PORT: 5432
       DB_NAME: ${MODERATION_DB_NAME:-moderation_db}
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres123}
-      ADMIN_KEY: ${ADMIN_KEY}
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
-      SPAM_THRESHOLD: ${SPAM_THRESHOLD:-0.7}
-      SENTIMENT_THRESHOLD: ${SENTIMENT_THRESHOLD:--3}
-      CAPS_RATIO_THRESHOLD: ${CAPS_RATIO_THRESHOLD:-0.8}
-      MIN_TRUST_SCORE: ${MIN_TRUST_SCORE:-0.1}
-      MAX_TRUST_SCORE: ${MAX_TRUST_SCORE:-1.0}
-      LOG_LEVEL: ${LOG_LEVEL:-info}
     # Remove port exposure in production for security
     # Service should only be accessible through nginx proxy
     # ports:
