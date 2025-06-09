@@ -315,7 +315,7 @@ function unifiedApp() {
                     credentials: 'include',
                     body: JSON.stringify({
                         content: this.newCommentText.trim(),
-                        page_id: pageId
+                        pageId: pageId
                     })
                 });
                 
@@ -912,8 +912,8 @@ function unifiedApp() {
                     credentials: 'include',
                     body: JSON.stringify({
                         content: textarea.value.trim(),
-                        page_id: this.pageId,
-                        parent_id: commentId
+                        pageId: this.pageId,
+                        parentId: commentId
                     })
                 });
                 
