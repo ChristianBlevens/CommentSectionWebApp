@@ -190,9 +190,9 @@ const authenticateUser = async (req, res, next) => {
             return res.status(401).json({ error: 'Invalid or expired session' });
         }
         
-        // Get user from database with ban details
+        // Get user from database with ban details and super moderator status
         const userResult = await pgPool.query(
-            'SELECT id, name, is_moderator, is_banned, ban_expires_at, ban_reason, banned_at FROM users WHERE id = $1',
+            'SELECT id, name, is_moderator, is_super_moderator, is_banned, ban_expires_at, ban_reason, banned_at FROM users WHERE id = $1',
             [userId]
         );
         
@@ -297,6 +297,28 @@ const initDatabase = async () => {
                 END IF;
                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='banned_at') THEN
                     ALTER TABLE users ADD COLUMN banned_at TIMESTAMP;
+                END IF;
+                -- Add new columns for enhanced user tracking
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='warning_count') THEN
+                    ALTER TABLE users ADD COLUMN warning_count INTEGER DEFAULT 0;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='last_warning_at') THEN
+                    ALTER TABLE users ADD COLUMN last_warning_at TIMESTAMP;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='total_comments') THEN
+                    ALTER TABLE users ADD COLUMN total_comments INTEGER DEFAULT 0;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='total_reports_made') THEN
+                    ALTER TABLE users ADD COLUMN total_reports_made INTEGER DEFAULT 0;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='total_reports_received') THEN
+                    ALTER TABLE users ADD COLUMN total_reports_received INTEGER DEFAULT 0;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='is_super_moderator') THEN
+                    ALTER TABLE users ADD COLUMN is_super_moderator BOOLEAN DEFAULT FALSE;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='trust_score') THEN
+                    ALTER TABLE users ADD COLUMN trust_score FLOAT DEFAULT 0.5;
                 END IF;
             END $$;
         `);
@@ -427,6 +449,22 @@ const initDatabase = async () => {
             )
         `);
         
+        // Warnings table
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS warnings (
+                id SERIAL PRIMARY KEY,
+                user_id VARCHAR(255) NOT NULL,
+                moderator_id VARCHAR(255) NOT NULL,
+                reason VARCHAR(500) NOT NULL,
+                message TEXT,
+                acknowledged BOOLEAN DEFAULT FALSE,
+                acknowledged_at TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                FOREIGN KEY (moderator_id) REFERENCES users(id) ON DELETE SET NULL
+            )
+        `);
+        
         // Create indexes
         await client.query(`
             CREATE INDEX IF NOT EXISTS idx_comments_page_id ON comments(page_id);
@@ -438,14 +476,78 @@ const initDatabase = async () => {
             CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status);
             CREATE INDEX IF NOT EXISTS idx_users_is_moderator ON users(is_moderator);
             CREATE INDEX IF NOT EXISTS idx_users_is_banned ON users(is_banned);
+            CREATE INDEX IF NOT EXISTS idx_warnings_user_id ON warnings(user_id);
+            CREATE INDEX IF NOT EXISTS idx_warnings_acknowledged ON warnings(acknowledged);
         `);
         
         await client.query('COMMIT');
         console.log('Database schema initialized successfully');
+        
+        // Run data migrations
+        await runDataMigrations();
     } catch (error) {
         await client.query('ROLLBACK');
         console.error('Database initialization error:', error);
         throw error;
+    } finally {
+        client.release();
+    }
+};
+
+// Run data migrations to populate new columns
+const runDataMigrations = async () => {
+    const client = await pgPool.connect();
+    try {
+        await client.query('BEGIN');
+        
+        // Update total_comments for users
+        await client.query(`
+            UPDATE users u
+            SET total_comments = COALESCE((
+                SELECT COUNT(*) 
+                FROM comments c 
+                WHERE c.user_id = u.id
+            ), 0)
+            WHERE u.total_comments = 0
+        `);
+        
+        // Update total_reports_made for users
+        await client.query(`
+            UPDATE users u
+            SET total_reports_made = COALESCE((
+                SELECT COUNT(*) 
+                FROM reports r 
+                WHERE r.reporter_id = u.id
+            ), 0)
+            WHERE u.total_reports_made = 0
+        `);
+        
+        // Update total_reports_received for users
+        await client.query(`
+            UPDATE users u
+            SET total_reports_received = COALESCE((
+                SELECT COUNT(*) 
+                FROM reports r 
+                WHERE r.comment_user_id = u.id
+            ), 0)
+            WHERE u.total_reports_received = 0
+        `);
+        
+        // Set initial moderators as super moderators
+        const initialMods = process.env.INITIAL_MODERATORS?.split(',').map(id => id.trim()).filter(Boolean) || [];
+        if (initialMods.length > 0) {
+            await client.query(
+                `UPDATE users SET is_super_moderator = TRUE WHERE id = ANY($1)`,
+                [initialMods]
+            );
+            console.log(`Set ${initialMods.length} initial moderators as super moderators`);
+        }
+        
+        await client.query('COMMIT');
+        console.log('Data migrations completed successfully');
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Data migration error:', error);
     } finally {
         client.release();
     }
@@ -536,8 +638,8 @@ app.post('/api/discord/callback', authLimiter, async (req, res) => {
         
         // Upsert user
         await pgPool.query(
-            `INSERT INTO users (id, email, name, picture, is_moderator) 
-             VALUES ($1, $2, $3, $4, $5) 
+            `INSERT INTO users (id, email, name, picture, is_moderator, is_super_moderator) 
+             VALUES ($1, $2, $3, $4, $5, $6) 
              ON CONFLICT (id) DO UPDATE 
              SET name = EXCLUDED.name, 
                  picture = EXCLUDED.picture, 
@@ -545,19 +647,24 @@ app.post('/api/discord/callback', authLimiter, async (req, res) => {
                      WHEN $5 = true THEN true 
                      ELSE users.is_moderator 
                  END,
+                 is_super_moderator = CASE 
+                     WHEN $6 = true THEN true 
+                     ELSE users.is_super_moderator 
+                 END,
                  updated_at = CURRENT_TIMESTAMP`,
-            [user.id, user.email, user.username, user.avatar, isInitialModerator]
+            [user.id, user.email, user.username, user.avatar, isInitialModerator, isInitialModerator]
         );
         
         // Get user status including ban details
         const userResult = await pgPool.query(
-            'SELECT is_moderator, is_banned, ban_expires_at, ban_reason, banned_at FROM users WHERE id = $1',
+            'SELECT is_moderator, is_super_moderator, is_banned, ban_expires_at, ban_reason, banned_at FROM users WHERE id = $1',
             [user.id]
         );
         
         if (userResult.rows.length > 0) {
             const userData = userResult.rows[0];
             user.is_moderator = userData.is_moderator;
+            user.is_super_moderator = userData.is_super_moderator;
             user.is_banned = userData.is_banned;
             
             // Check if ban has expired
@@ -689,7 +796,7 @@ app.get('/api/users/:userId', authenticateUser, async (req, res) => {
     
     try {
         const result = await pgPool.query(
-            'SELECT id, email, name, picture, is_moderator, is_banned FROM users WHERE id = $1',
+            'SELECT id, email, name, picture, is_moderator, is_super_moderator, is_banned FROM users WHERE id = $1',
             [userId]
         );
         
@@ -704,6 +811,7 @@ app.get('/api/users/:userId', authenticateUser, async (req, res) => {
             email: user.email,
             avatar: user.picture,
             is_moderator: user.is_moderator,
+            is_super_moderator: user.is_super_moderator,
             is_banned: user.is_banned
         });
     } catch (error) {
@@ -805,6 +913,13 @@ app.post('/api/comments', authenticateUser, async (req, res) => {
         );
         
         const comment = result.rows[0];
+        
+        // Update user's comment count
+        await client.query(
+            'UPDATE users SET total_comments = total_comments + 1 WHERE id = $1',
+            [userId]
+        );
+        
         await client.query('COMMIT');
         
         // Clear cache
@@ -1123,13 +1238,31 @@ app.post('/api/comments/:commentId/report', authenticateUser, async (req, res) =
         // Create report with comment copy
         console.log(`Creating report for comment ${commentIdNum} on page "${comment.page_id}" (length: ${comment.page_id.length})`);
         
-        await client.query(
+        const reportResult = await client.query(
             `INSERT INTO reports (comment_id, reporter_id, page_id, reason, comment_content, comment_user_id, comment_user_name) 
              VALUES ($1, $2, $3, $4, $5, $6, $7) 
-             ON CONFLICT (comment_id, reporter_id) DO NOTHING`,
+             ON CONFLICT (comment_id, reporter_id) DO NOTHING
+             RETURNING id`,
             [commentIdNum, userId, comment.page_id, reason || 'No reason provided', 
              comment.content, comment.user_id, comment.user_name]
         );
+        
+        // Only update statistics if report was actually created (not duplicate)
+        if (reportResult.rows.length > 0) {
+            // Update reporter's report count
+            await client.query(
+                'UPDATE users SET total_reports_made = total_reports_made + 1 WHERE id = $1',
+                [userId]
+            );
+            
+            // Update reported user's report count
+            if (comment.user_id) {
+                await client.query(
+                    'UPDATE users SET total_reports_received = total_reports_received + 1 WHERE id = $1',
+                    [comment.user_id]
+                );
+            }
+        }
         
         await client.query('COMMIT');
         res.json({ success: true });
@@ -1507,6 +1640,306 @@ app.get('/api/reports/pages', authenticateUser, requireModerator, async (req, re
     }
 });
 
+
+// Get all users (moderators only)
+app.get('/api/users', authenticateUser, requireModerator, async (req, res) => {
+    try {
+        const users = await pgPool.query(`
+            SELECT 
+                u.id, u.email, u.name, u.picture, u.is_moderator, u.is_super_moderator,
+                u.is_banned, u.ban_expires_at, u.ban_reason, u.warning_count,
+                u.total_comments, u.total_reports_made, u.total_reports_received,
+                u.trust_score, u.created_at
+            FROM users u
+            ORDER BY u.created_at DESC
+        `);
+        
+        res.json(users.rows);
+    } catch (error) {
+        console.error('Get users error:', error);
+        res.status(500).json({ error: 'Failed to get users' });
+    }
+});
+
+// Get user details with activity (moderators only)
+app.get('/api/users/:userId/full', authenticateUser, requireModerator, async (req, res) => {
+    const { userId } = req.params;
+    
+    try {
+        // Get user details
+        const userResult = await pgPool.query(
+            `SELECT 
+                u.id, u.email, u.name, u.picture, u.is_moderator, u.is_super_moderator,
+                u.is_banned, u.ban_expires_at, u.ban_reason, u.banned_by, u.banned_at,
+                u.warning_count, u.last_warning_at, u.total_comments, 
+                u.total_reports_made, u.total_reports_received,
+                u.trust_score, u.created_at
+            FROM users u
+            WHERE u.id = $1`,
+            [userId]
+        );
+        
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        
+        const user = userResult.rows[0];
+        
+        // Get recent comments (limit 5)
+        const commentsResult = await pgPool.query(
+            `SELECT id, page_id, content, created_at
+             FROM comments
+             WHERE user_id = $1
+             ORDER BY created_at DESC
+             LIMIT 5`,
+            [userId]
+        );
+        
+        // Get warnings
+        const warningsResult = await pgPool.query(
+            `SELECT w.id, w.reason, w.message, w.created_at, w.acknowledged,
+                    m.name as moderator_name
+             FROM warnings w
+             JOIN users m ON w.moderator_id = m.id
+             WHERE w.user_id = $1
+             ORDER BY w.created_at DESC`,
+            [userId]
+        );
+        
+        // Get reports against user
+        const reportsReceivedResult = await pgPool.query(
+            `SELECT r.id, r.reason, r.created_at, r.status, r.resolved_at,
+                    rep.name as reporter_name
+             FROM reports r
+             JOIN users rep ON r.reporter_id = rep.id
+             WHERE r.comment_user_id = $1
+             ORDER BY r.created_at DESC
+             LIMIT 10`,
+            [userId]
+        );
+        
+        res.json({
+            ...user,
+            comments: commentsResult.rows,
+            warnings: warningsResult.rows,
+            reports_received: reportsReceivedResult.rows
+        });
+    } catch (error) {
+        console.error('Get user details error:', error);
+        res.status(500).json({ error: 'Failed to get user details' });
+    }
+});
+
+// Get user comments (moderators only)
+app.get('/api/users/:userId/comments', authenticateUser, requireModerator, async (req, res) => {
+    const { userId } = req.params;
+    const { page = 1, limit = 20 } = req.query;
+    const offset = (page - 1) * limit;
+    
+    try {
+        const result = await pgPool.query(
+            `SELECT id, page_id, parent_id, content, likes, dislikes, created_at
+             FROM comments
+             WHERE user_id = $1
+             ORDER BY created_at DESC
+             LIMIT $2 OFFSET $3`,
+            [userId, limit, offset]
+        );
+        
+        const countResult = await pgPool.query(
+            'SELECT COUNT(*) FROM comments WHERE user_id = $1',
+            [userId]
+        );
+        
+        res.json({
+            comments: result.rows,
+            total: parseInt(countResult.rows[0].count),
+            page: parseInt(page),
+            limit: parseInt(limit)
+        });
+    } catch (error) {
+        console.error('Get user comments error:', error);
+        res.status(500).json({ error: 'Failed to get user comments' });
+    }
+});
+
+// Issue warning to user (moderators only)
+app.post('/api/users/:userId/warn', authenticateUser, requireModerator, async (req, res) => {
+    const { userId } = req.params;
+    const { reason, message } = req.body;
+    const moderatorId = req.user.id;
+    
+    if (!reason) {
+        return res.status(400).json({ error: 'Reason is required' });
+    }
+    
+    const client = await pgPool.connect();
+    try {
+        await client.query('BEGIN');
+        
+        // Create warning
+        await client.query(
+            `INSERT INTO warnings (user_id, moderator_id, reason, message)
+             VALUES ($1, $2, $3, $4)`,
+            [userId, moderatorId, reason, message || null]
+        );
+        
+        // Update user warning count and timestamp
+        await client.query(
+            `UPDATE users 
+             SET warning_count = warning_count + 1,
+                 last_warning_at = CURRENT_TIMESTAMP
+             WHERE id = $1`,
+            [userId]
+        );
+        
+        await client.query('COMMIT');
+        res.json({ success: true });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Warn user error:', error);
+        res.status(500).json({ error: 'Failed to issue warning' });
+    } finally {
+        client.release();
+    }
+});
+
+// Get unread warnings for current user
+app.get('/api/users/warnings/unread', authenticateUser, async (req, res) => {
+    const userId = req.user.id;
+    
+    try {
+        const result = await pgPool.query(
+            `SELECT id, reason, message, created_at
+             FROM warnings
+             WHERE user_id = $1 AND acknowledged = FALSE
+             ORDER BY created_at DESC`,
+            [userId]
+        );
+        
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Get unread warnings error:', error);
+        res.status(500).json({ error: 'Failed to get warnings' });
+    }
+});
+
+// Acknowledge warnings
+app.post('/api/users/warnings/acknowledge', authenticateUser, async (req, res) => {
+    const userId = req.user.id;
+    
+    try {
+        await pgPool.query(
+            `UPDATE warnings 
+             SET acknowledged = TRUE,
+                 acknowledged_at = CURRENT_TIMESTAMP
+             WHERE user_id = $1 AND acknowledged = FALSE`,
+            [userId]
+        );
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Acknowledge warnings error:', error);
+        res.status(500).json({ error: 'Failed to acknowledge warnings' });
+    }
+});
+
+// Toggle moderator status (super moderators only)
+app.put('/api/users/:userId/moderator', authenticateUser, async (req, res) => {
+    const { userId } = req.params;
+    const { is_moderator } = req.body;
+    
+    // Check if user is super moderator
+    if (!req.user.is_super_moderator) {
+        const initialMods = process.env.INITIAL_MODERATORS?.split(',').map(id => id.trim()).filter(Boolean) || [];
+        if (!initialMods.includes(req.user.id)) {
+            return res.status(403).json({ error: 'Only super moderators can change moderator status' });
+        }
+    }
+    
+    try {
+        await pgPool.query(
+            'UPDATE users SET is_moderator = $1 WHERE id = $2',
+            [is_moderator, userId]
+        );
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Toggle moderator error:', error);
+        res.status(500).json({ error: 'Failed to update moderator status' });
+    }
+});
+
+// Unban user (moderators only)
+app.post('/api/users/:userId/unban', authenticateUser, requireModerator, async (req, res) => {
+    const { userId } = req.params;
+    
+    try {
+        await pgPool.query(
+            `UPDATE users 
+             SET is_banned = FALSE, 
+                 ban_expires_at = NULL, 
+                 ban_reason = NULL,
+                 banned_by = NULL,
+                 banned_at = NULL
+             WHERE id = $1`,
+            [userId]
+        );
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Unban user error:', error);
+        res.status(500).json({ error: 'Failed to unban user' });
+    }
+});
+
+// Get report count
+app.get('/api/reports/count', authenticateUser, requireModerator, async (req, res) => {
+    try {
+        const result = await pgPool.query(
+            'SELECT COUNT(*) FROM reports WHERE status = $1',
+            ['pending']
+        );
+        
+        res.json({ count: parseInt(result.rows[0].count) });
+    } catch (error) {
+        console.error('Get report count error:', error);
+        res.status(500).json({ error: 'Failed to get report count' });
+    }
+});
+
+// Get all reports with pagination (moderators only)
+app.get('/api/reports/all', authenticateUser, requireModerator, async (req, res) => {
+    try {
+        // Get all pending reports
+        const reportsResult = await pgPool.query(`
+            SELECT r.*, 
+                   r.comment_content as content,
+                   u1.name as reporter_name
+            FROM reports r
+            JOIN users u1 ON r.reporter_id = u1.id
+            WHERE r.status = 'pending'
+            ORDER BY r.created_at DESC
+        `);
+        
+        // Get unique pages with report counts
+        const pagesResult = await pgPool.query(`
+            SELECT DISTINCT page_id, COUNT(*) as report_count 
+            FROM reports 
+            WHERE status = 'pending'
+            GROUP BY page_id 
+            ORDER BY report_count DESC
+        `);
+        
+        res.json({
+            reports: reportsResult.rows,
+            pages: pagesResult.rows
+        });
+    } catch (error) {
+        console.error('Get all reports error:', error);
+        res.status(500).json({ error: 'Failed to get reports' });
+    }
+});
 
 // Error handlers
 app.use((err, req, res, next) => {
