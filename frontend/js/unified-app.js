@@ -1,3 +1,76 @@
+// Define API_URL globally
+const API_URL = window.location.origin;
+
+// Global helper functions
+function getRelativeTime(dateString) {
+    return Utils.getRelativeTime(dateString);
+}
+
+function renderMarkdown(text) {
+    if (!window.md) {
+        window.md = window.markdownit({
+            html: false,
+            breaks: true,
+            linkify: true
+        });
+    }
+    const processed = window.MarkdownProcessor?.preprocessMarkdown(text) || text;
+    return window.md.render(processed);
+}
+
+function insertMarkdown(textarea, before, after) {
+    return MarkdownProcessor.insertMarkdown(textarea, before, after);
+}
+
+function extractYouTubeId(url) {
+    return Utils.getYoutubeId(url);
+}
+
+async function banUserWithDuration(userId, userName, duration) {
+    const reason = prompt(`Why are you banning ${userName}?`);
+    if (!reason) return;
+    
+    const response = await BanHandler.banUser(API_URL + '/api', userId, userName, duration, reason);
+    if (response.success) {
+        // Show ban notification
+        if (window.unifiedAppInstance) {
+            window.unifiedAppInstance.banNotification = {
+                show: true,
+                message: `${userName} has been banned.\n${response.result.ban_duration_text}`,
+                expired: false
+            };
+            setTimeout(() => {
+                if (window.unifiedAppInstance.banNotification) {
+                    window.unifiedAppInstance.banNotification.show = false;
+                }
+            }, 5000);
+        }
+    }
+}
+
+function showCustomBanInput(userId, userName) {
+    BanHandler.showCustomBanInput(userId, userName, banUserWithDuration);
+}
+
+// Initialize markdown processor on page load
+function initializeMarkdown() {
+    if (!window.md) {
+        window.md = window.markdownit({
+            html: false,
+            breaks: true,
+            linkify: true
+        });
+    }
+}
+
+// Setup OAuth message listener
+Auth.setupOAuthListener((user, data) => {
+    if (window.unifiedAppInstance) {
+        window.unifiedAppInstance.user = user;
+        window.unifiedAppInstance.loadComments();
+    }
+});
+
 function unifiedApp() {
     return {
         // Core state
@@ -44,8 +117,8 @@ function unifiedApp() {
         
         // Ban state
         showBanDropdown: null,
-        banNotification: null,
-        warningNotification: null,
+        banNotification: { show: false, message: '', expired: false },
+        warningNotification: { show: false, message: '' },
         
         // Initialize the app
         async init() {
@@ -60,7 +133,7 @@ function unifiedApp() {
             });
             
             // Check authentication
-            this.user = await checkAuth();
+            this.user = await Auth.checkExistingSession();
             
             // Check for warnings if user is authenticated
             if (this.user) {
@@ -149,11 +222,11 @@ function unifiedApp() {
         
         // Authentication methods
         async signInWithDiscord() {
-            await signInWithDiscord();
+            Auth.signInWithDiscord();
         },
         
         async signOut() {
-            await signOut();
+            await Auth.signOut(API_URL);
             this.user = null;
             this.activeTab = 'comments';
             await this.loadComments();
