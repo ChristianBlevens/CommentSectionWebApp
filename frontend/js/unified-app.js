@@ -282,7 +282,7 @@ function unifiedApp() {
                     options.headers = getAuthHeaders();
                 }
                 
-                const response = await fetch(`${API_URL}/api/comments/${encodeURIComponent(pageId)}`, options);
+                const response = await fetch(`${API_URL}/api/comments?pageId=${encodeURIComponent(pageId)}`, options);
                 
                 if (response.ok) {
                     const flatComments = await response.json();
@@ -480,6 +480,8 @@ function unifiedApp() {
         },
         
         filterUsers() {
+            // Now that the backend supports filtering, we could load filtered data directly
+            // But for now, keep client-side filtering for already loaded data
             let filtered = [...this.users];
             
             // Apply search filter
@@ -491,7 +493,7 @@ function unifiedApp() {
                 );
             }
             
-            // Apply type filter
+            // Apply type filter (already filtered from backend if loadUsers was called with filter)
             switch (this.userFilter) {
                 case 'moderators':
                     filtered = filtered.filter(u => u.is_moderator);
@@ -531,7 +533,7 @@ function unifiedApp() {
         
         async loadUserDetails(userId) {
             try {
-                const response = await fetch(`${API_URL}/api/users/${userId}/full`, {
+                const response = await fetch(`${API_URL}/api/users?userId=${userId}&includeDetails=true`, {
                     headers: getAuthHeaders(),
                     credentials: 'include'
                 });

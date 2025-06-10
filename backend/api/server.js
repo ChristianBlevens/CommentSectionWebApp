@@ -916,17 +916,42 @@ app.get('/api/users/:userId', authenticateUser, async (req, res) => {
     }
 });
 
-// Get comments for page
-app.get('/api/comments/:pageId', optionalAuth, async (req, res) => {
-    const { pageId } = req.params;
+// Unified comments endpoint with query parameters
+app.get('/api/comments', optionalAuth, async (req, res) => {
+    const { pageId, userId, limit, offset = 0, orderBy = 'created_at', order = 'ASC' } = req.query;
     
-    if (!pageId || pageId.length > 255) {
-        return res.status(400).json({ error: 'Invalid page ID' });
+    // Validate required parameters
+    if (!pageId && !userId) {
+        return res.status(400).json({ error: 'Either pageId or userId parameter is required' });
     }
     
     try {
-        // Query with user votes if authenticated
-        const query = `
+        // Build WHERE clause dynamically
+        const whereConditions = [];
+        const queryParams = [];
+        
+        if (pageId) {
+            whereConditions.push(`c.page_id = $${queryParams.length + 1}`);
+            queryParams.push(pageId);
+        }
+        
+        if (userId) {
+            whereConditions.push(`c.user_id = $${queryParams.length + 1}`);
+            queryParams.push(userId);
+        }
+        
+        // Add authenticated user ID for vote lookup
+        queryParams.push(req.user?.id || null);
+        const userVoteParam = `$${queryParams.length}`;
+        
+        // Validate orderBy to prevent SQL injection
+        const validOrderBy = ['created_at', 'likes', 'dislikes'];
+        const validOrder = ['ASC', 'DESC'];
+        const safeOrderBy = validOrderBy.includes(orderBy) ? orderBy : 'created_at';
+        const safeOrder = validOrder.includes(order.toUpperCase()) ? order.toUpperCase() : 'ASC';
+        
+        // Build query
+        let query = `
             SELECT 
                 c.id, c.page_id, c.user_id, c.parent_id, c.content, 
                 c.likes, c.dislikes, c.created_at, c.updated_at,
@@ -934,12 +959,25 @@ app.get('/api/comments/:pageId', optionalAuth, async (req, res) => {
                 v.vote_type as user_vote
             FROM comments c
             JOIN users u ON c.user_id = u.id
-            LEFT JOIN votes v ON c.id = v.comment_id AND v.user_id = $2
-            WHERE c.page_id = $1
-            ORDER BY c.created_at ASC
+            LEFT JOIN votes v ON c.id = v.comment_id AND v.user_id = ${userVoteParam}
+            WHERE ${whereConditions.join(' AND ')}
+            ORDER BY c.${safeOrderBy} ${safeOrder}
         `;
         
-        const result = await pgPool.query(query, [pageId, req.user?.id || null]);
+        // Add limit and offset if provided
+        if (limit) {
+            const limitNum = parseInt(limit);
+            if (!isNaN(limitNum) && limitNum > 0 && limitNum <= 100) {
+                query += ` LIMIT ${limitNum}`;
+                
+                const offsetNum = parseInt(offset);
+                if (!isNaN(offsetNum) && offsetNum >= 0) {
+                    query += ` OFFSET ${offsetNum}`;
+                }
+            }
+        }
+        
+        const result = await pgPool.query(query, queryParams);
         
         // Transform to API format
         const comments = result.rows.map(row => ({
@@ -948,8 +986,8 @@ app.get('/api/comments/:pageId', optionalAuth, async (req, res) => {
             userId: row.user_id,
             parentId: row.parent_id,
             content: row.content,
-            likes: parseInt(row.likes),
-            dislikes: parseInt(row.dislikes),
+            likes: row.likes,
+            dislikes: row.dislikes,
             createdAt: row.created_at,
             updatedAt: row.updated_at,
             userName: row.user_name,
@@ -957,12 +995,20 @@ app.get('/api/comments/:pageId', optionalAuth, async (req, res) => {
             userVote: row.user_vote
         }));
         
+        // Prevent caching
+        res.set({
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+        });
+        
         res.json(comments);
     } catch (error) {
-        console.error('Get comments error:', error);
-        res.status(500).json({ error: 'Failed to retrieve comments' });
+        console.error('Error fetching comments:', error);
+        res.status(500).json({ error: 'Failed to fetch comments' });
     }
 });
+
 
 // Create comment
 app.post('/api/comments', authenticateUser, async (req, res) => {
@@ -1099,11 +1145,17 @@ app.post('/api/comments/:commentId/vote', authenticateUser, async (req, res) => 
                     [commentIdNum, userId]
                 );
                 
-                const column = voteType === 'like' ? 'likes' : 'dislikes';
-                await client.query(
-                    `UPDATE comments SET ${column} = ${column} - 1 WHERE id = $1`,
-                    [commentIdNum]
-                );
+                if (voteType === 'like') {
+                    await client.query(
+                        'UPDATE comments SET likes = likes - 1 WHERE id = $1',
+                        [commentIdNum]
+                    );
+                } else {
+                    await client.query(
+                        'UPDATE comments SET dislikes = dislikes - 1 WHERE id = $1',
+                        [commentIdNum]
+                    );
+                }
                 
                 finalVoteType = null;
             } else {
@@ -1132,11 +1184,17 @@ app.post('/api/comments/:commentId/vote', authenticateUser, async (req, res) => 
                 [commentIdNum, userId, voteType]
             );
             
-            const column = voteType === 'like' ? 'likes' : 'dislikes';
-            await client.query(
-                `UPDATE comments SET ${column} = ${column} + 1 WHERE id = $1`,
-                [commentIdNum]
-            );
+            if (voteType === 'like') {
+                await client.query(
+                    'UPDATE comments SET likes = likes + 1 WHERE id = $1',
+                    [commentIdNum]
+                );
+            } else {
+                await client.query(
+                    'UPDATE comments SET dislikes = dislikes + 1 WHERE id = $1',
+                    [commentIdNum]
+                );
+            }
         }
         
         // Get updated counts
@@ -1379,115 +1437,21 @@ app.post('/api/comments/:commentId/report', authenticateUser, async (req, res) =
     }
 });
 
-// Get reports with optional page filter (moderators only) - MOVED UP TO AVOID ROUTE CONFLICT
-app.get('/api/reports/filter', authenticateUser, requireModerator, async (req, res) => {
-    const { pageId } = req.query;
-    
-    console.log(`[FILTER ENDPOINT] Getting reports with filter - pageId: "${pageId}" (length: ${pageId ? pageId.length : 0})`);
-    
-    try {
-        let query = `
-            SELECT r.*, 
-                   r.comment_content as content,
-                   u1.name as reporter_name
-            FROM reports r
-            JOIN users u1 ON r.reporter_id = u1.id
-            WHERE r.status = 'pending'
-        `;
-        
-        const params = [];
-        if (pageId) {
-            // Use TRIM to handle any whitespace issues
-            query += ' AND TRIM(r.page_id) = TRIM($1)';
-            params.push(pageId);
-            console.log(`[FILTER ENDPOINT] Filtering reports for page: "${pageId}" (trimmed)`);
-        }
-        
-        query += ' ORDER BY r.created_at DESC';
-        
-        const reports = await pgPool.query(query, params);
-        console.log(`[FILTER ENDPOINT] Found ${reports.rows.length} reports${pageId ? ` for page "${pageId}"` : ' (all pages)'}`);
-        
-        // Enhanced debugging for page_id mismatch
-        if (reports.rows.length === 0 && pageId) {
-            const allReports = await pgPool.query(
-                `SELECT DISTINCT page_id, LENGTH(page_id) as len, 
-                        ENCODE(page_id::bytea, 'hex') as hex_value 
-                 FROM reports 
-                 WHERE status = 'pending' 
-                 LIMIT 10`
-            );
-            console.log('[FILTER ENDPOINT] Sample page_ids in reports table:');
-            allReports.rows.forEach(r => {
-                console.log(`  - "${r.page_id}" (length: ${r.len}, hex: ${r.hex_value})`);
-            });
-            
-            // Check exact match
-            const exactMatch = await pgPool.query(
-                `SELECT COUNT(*) as count FROM reports 
-                 WHERE page_id = $1 AND status = 'pending'`,
-                [pageId]
-            );
-            console.log(`[FILTER ENDPOINT] Exact match count for "${pageId}": ${exactMatch.rows[0].count}`);
-            
-            // Check with LIKE to see if there's partial match
-            const likeMatch = await pgPool.query(
-                `SELECT COUNT(*) as count FROM reports 
-                 WHERE page_id LIKE $1 AND status = 'pending'`,
-                [`%${pageId}%`]
-            );
-            console.log(`[FILTER ENDPOINT] LIKE match count for "%${pageId}%": ${likeMatch.rows[0].count}`);
-        }
-        
-        // Prevent caching
-        res.set({
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0'
-        });
-        
-        res.json(reports.rows);
-    } catch (error) {
-        console.error('[FILTER ENDPOINT] Get filtered reports error:', error);
-        res.status(500).json({ error: 'Failed to get reports' });
-    }
-});
-
-// Get reports for page (moderators only)
-app.get('/api/reports/:pageId', authenticateUser, requireModerator, async (req, res) => {
-    const { pageId } = req.params;
-    
-    try {
-        // Query specifically for this page's reports
-        const reports = await pgPool.query(
-            `SELECT r.*, 
-                    r.comment_content as content,
-                    u1.name as reporter_name
-             FROM reports r
-             JOIN users u1 ON r.reporter_id = u1.id
-             WHERE r.page_id = $1 AND r.status = 'pending'
-             ORDER BY r.created_at DESC`,
-            [pageId]
-        );
-        
-        res.json(reports.rows);
-    } catch (error) {
-        console.error('Get reports error:', error);
-        res.status(500).json({ error: 'Failed to get reports' });
-    }
-});
-
 // Get all reports (moderators only)
 // Unified reports endpoint - handles all cases with query parameters
 app.get('/api/reports', authenticateUser, requireModerator, async (req, res) => {
     const { pageId, userId, includePages, status = 'pending' } = req.query;
     
-    console.log('GET /api/reports called with params:', { pageId, userId, includePages, status });
+    // Validate status parameter
+    const validStatuses = ['pending', 'resolved', 'dismissed'];
+    const sanitizedStatus = validStatuses.includes(status) ? status : 'pending';
+    
+    console.log('GET /api/reports called with params:', { pageId, userId, includePages, status: sanitizedStatus });
     
     try {
         // Build the WHERE clause dynamically
         const whereConditions = ['r.status = $1'];
-        const queryParams = [status];
+        const queryParams = [sanitizedStatus];
         
         if (pageId && pageId !== 'all') {
             whereConditions.push(`r.page_id = $${queryParams.length + 1}`);
@@ -1764,148 +1728,165 @@ app.get('/api/pages', authenticateUser, requireModerator, async (req, res) => {
     }
 });
 
-// Get pages with pending reports (moderators only)
-app.get('/api/reports/pages', authenticateUser, requireModerator, async (req, res) => {
-    try {
-        const pages = await pgPool.query(`
-            SELECT DISTINCT page_id, COUNT(*) as report_count 
-            FROM reports 
-            WHERE status = 'pending'
-            GROUP BY page_id 
-            ORDER BY report_count DESC
-        `);
-        
-        console.log(`Returning ${pages.rows.length} pages with pending reports`);
-        
-        res.json(pages.rows);
-    } catch (error) {
-        console.error('Get report pages error:', error);
-        res.status(500).json({ error: 'Failed to get pages with reports' });
-    }
-});
 
-
-// Get all users (moderators only)
+// Unified users endpoint with query parameters (moderators only)
 app.get('/api/users', authenticateUser, requireModerator, async (req, res) => {
+    const { 
+        filter,           // 'all', 'moderators', 'banned', 'warned', 'reported'
+        userId,           // Get specific user
+        includeDetails,   // Include activity details
+        limit,           
+        offset = 0,
+        orderBy = 'created_at',
+        order = 'DESC'
+    } = req.query;
+    
     try {
-        const users = await pgPool.query(`
+        // Build WHERE clause dynamically
+        const whereConditions = [];
+        const queryParams = [];
+        
+        if (userId) {
+            whereConditions.push(`u.id = $${queryParams.length + 1}`);
+            queryParams.push(userId);
+        }
+        
+        // Apply filters
+        switch (filter) {
+            case 'moderators':
+                whereConditions.push('u.is_moderator = true');
+                break;
+            case 'banned':
+                whereConditions.push('u.is_banned = true');
+                break;
+            case 'warned':
+                whereConditions.push('u.warning_count > 0');
+                break;
+            case 'reported':
+                whereConditions.push('u.total_reports_received > 0');
+                break;
+            // 'all' or undefined - no additional filter
+        }
+        
+        // Validate orderBy to prevent SQL injection
+        const validOrderBy = ['created_at', 'name', 'total_comments', 'total_reports_received', 'warning_count', 'trust_score'];
+        const validOrder = ['ASC', 'DESC'];
+        const safeOrderBy = validOrderBy.includes(orderBy) ? orderBy : 'created_at';
+        const safeOrder = validOrder.includes(order.toUpperCase()) ? order.toUpperCase() : 'DESC';
+        
+        // Build base query
+        let query = `
             SELECT 
                 u.id, u.email, u.name, u.picture, u.is_moderator, u.is_super_moderator,
                 u.is_banned, u.ban_expires_at, u.ban_reason, u.warning_count,
                 u.total_comments, u.total_reports_made, u.total_reports_received,
                 u.trust_score, u.created_at
-            FROM users u
-            ORDER BY u.created_at DESC
-        `);
+        `;
         
-        res.json(users.rows);
+        // Add activity details if requested
+        if (includeDetails === 'true' && userId) {
+            query = `
+                SELECT 
+                    u.id, u.email, u.name, u.picture, u.is_moderator, u.is_super_moderator,
+                    u.is_banned, u.ban_expires_at, u.ban_reason, u.banned_by, u.banned_at,
+                    u.warning_count, u.last_warning_at, u.total_comments, 
+                    u.total_reports_made, u.total_reports_received,
+                    u.trust_score, u.created_at,
+                    
+                    -- Recent comments
+                    COALESCE(
+                        json_agg(
+                            DISTINCT jsonb_build_object(
+                                'id', c.id,
+                                'page_id', c.page_id,
+                                'content', c.content,
+                                'created_at', c.created_at
+                            )
+                        ) FILTER (WHERE c.id IS NOT NULL), '[]'
+                    ) as comments,
+                    
+                    -- Warnings
+                    COALESCE(
+                        json_agg(
+                            DISTINCT jsonb_build_object(
+                                'id', w.id,
+                                'reason', w.reason,
+                                'message', w.message,
+                                'created_at', w.created_at,
+                                'acknowledged', w.acknowledged,
+                                'moderator_name', m.name
+                            )
+                        ) FILTER (WHERE w.id IS NOT NULL), '[]'
+                    ) as warnings,
+                    
+                    -- Reports received
+                    COALESCE(
+                        json_agg(
+                            DISTINCT jsonb_build_object(
+                                'id', r.id,
+                                'reason', r.reason,
+                                'created_at', r.created_at,
+                                'status', r.status,
+                                'resolved_at', r.resolved_at,
+                                'reporter_name', rep.name
+                            )
+                        ) FILTER (WHERE r.id IS NOT NULL), '[]'
+                    ) as reports_received
+            `;
+        }
+        
+        query += `
+            FROM users u
+            ${includeDetails === 'true' && userId ? `
+                LEFT JOIN LATERAL (
+                    SELECT * FROM comments 
+                    WHERE user_id = u.id 
+                    ORDER BY created_at DESC 
+                    LIMIT 5
+                ) c ON true
+                LEFT JOIN warnings w ON w.user_id = u.id
+                LEFT JOIN users m ON w.moderator_id = m.id
+                LEFT JOIN LATERAL (
+                    SELECT * FROM reports 
+                    WHERE comment_user_id = u.id 
+                    ORDER BY created_at DESC 
+                    LIMIT 10
+                ) r ON true
+                LEFT JOIN users rep ON r.reporter_id = rep.id
+            ` : ''}
+            ${whereConditions.length > 0 ? 'WHERE ' + whereConditions.join(' AND ') : ''}
+            ${includeDetails === 'true' && userId ? 'GROUP BY u.id' : ''}
+            ORDER BY u.${safeOrderBy} ${safeOrder}
+        `;
+        
+        // Add limit and offset if provided
+        if (limit && !userId) { // Don't limit when getting specific user details
+            const limitNum = parseInt(limit);
+            if (!isNaN(limitNum) && limitNum > 0 && limitNum <= 100) {
+                query += ` LIMIT ${limitNum}`;
+                
+                const offsetNum = parseInt(offset);
+                if (!isNaN(offsetNum) && offsetNum >= 0) {
+                    query += ` OFFSET ${offsetNum}`;
+                }
+            }
+        }
+        
+        const result = await pgPool.query(query, queryParams);
+        
+        // If single user requested with details, return object instead of array
+        if (userId && includeDetails === 'true' && result.rows.length > 0) {
+            res.json(result.rows[0]);
+        } else {
+            res.json(result.rows);
+        }
     } catch (error) {
         console.error('Get users error:', error);
         res.status(500).json({ error: 'Failed to get users' });
     }
 });
 
-// Get user details with activity (moderators only)
-app.get('/api/users/:userId/full', authenticateUser, requireModerator, async (req, res) => {
-    const { userId } = req.params;
-    
-    try {
-        // Get user details
-        const userResult = await pgPool.query(
-            `SELECT 
-                u.id, u.email, u.name, u.picture, u.is_moderator, u.is_super_moderator,
-                u.is_banned, u.ban_expires_at, u.ban_reason, u.banned_by, u.banned_at,
-                u.warning_count, u.last_warning_at, u.total_comments, 
-                u.total_reports_made, u.total_reports_received,
-                u.trust_score, u.created_at
-            FROM users u
-            WHERE u.id = $1`,
-            [userId]
-        );
-        
-        if (userResult.rows.length === 0) {
-            return res.status(404).json({ error: 'User not found' });
-        }
-        
-        const user = userResult.rows[0];
-        
-        // Get recent comments (limit 5)
-        const commentsResult = await pgPool.query(
-            `SELECT id, page_id, content, created_at
-             FROM comments
-             WHERE user_id = $1
-             ORDER BY created_at DESC
-             LIMIT 5`,
-            [userId]
-        );
-        
-        // Get warnings
-        const warningsResult = await pgPool.query(
-            `SELECT w.id, w.reason, w.message, w.created_at, w.acknowledged,
-                    m.name as moderator_name
-             FROM warnings w
-             JOIN users m ON w.moderator_id = m.id
-             WHERE w.user_id = $1
-             ORDER BY w.created_at DESC`,
-            [userId]
-        );
-        
-        // Get reports against user
-        const reportsReceivedResult = await pgPool.query(
-            `SELECT r.id, r.reason, r.created_at, r.status, r.resolved_at,
-                    rep.name as reporter_name
-             FROM reports r
-             JOIN users rep ON r.reporter_id = rep.id
-             WHERE r.comment_user_id = $1
-             ORDER BY r.created_at DESC
-             LIMIT 10`,
-            [userId]
-        );
-        
-        res.json({
-            ...user,
-            comments: commentsResult.rows,
-            warnings: warningsResult.rows,
-            reports_received: reportsReceivedResult.rows
-        });
-    } catch (error) {
-        console.error('Get user details error:', error);
-        res.status(500).json({ error: 'Failed to get user details' });
-    }
-});
 
-// Get user comments (moderators only)
-app.get('/api/users/:userId/comments', authenticateUser, requireModerator, async (req, res) => {
-    const { userId } = req.params;
-    const { page = 1, limit = 20 } = req.query;
-    const offset = (page - 1) * limit;
-    
-    try {
-        const result = await pgPool.query(
-            `SELECT id, page_id, parent_id, content, likes, dislikes, created_at
-             FROM comments
-             WHERE user_id = $1
-             ORDER BY created_at DESC
-             LIMIT $2 OFFSET $3`,
-            [userId, limit, offset]
-        );
-        
-        const countResult = await pgPool.query(
-            'SELECT COUNT(*) FROM comments WHERE user_id = $1',
-            [userId]
-        );
-        
-        res.json({
-            comments: result.rows,
-            total: parseInt(countResult.rows[0].count),
-            page: parseInt(page),
-            limit: parseInt(limit)
-        });
-    } catch (error) {
-        console.error('Get user comments error:', error);
-        res.status(500).json({ error: 'Failed to get user comments' });
-    }
-});
 
 // Issue warning to user (moderators only)
 app.post('/api/users/:userId/warn', authenticateUser, requireModerator, async (req, res) => {
