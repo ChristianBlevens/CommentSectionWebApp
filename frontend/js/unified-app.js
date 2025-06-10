@@ -720,11 +720,13 @@ function unifiedApp() {
                                 </button>
                                 ${this.user ? `
                                     <div class="comment-dropdown-container">
-                                        <button onclick="window.unifiedAppInstance.toggleDropdown('${comment.id}', event)" 
+                                        <button onclick="window.unifiedAppInstance.toggleCommentDropdown('${comment.id}')" 
                                                 class="comment-options-btn" id="options-btn-${comment.id}">
                                             <i class="fas fa-ellipsis-v"></i>
                                         </button>
-                                        <div id="dropdown-${comment.id}" class="comment-dropdown">
+                                        <div id="dropdown-${comment.id}" 
+                                             class="comment-dropdown"
+                                             style="top: 100%; right: 0; margin-top: 5px;">
                                             <button onclick="window.unifiedAppInstance.reportComment('${comment.id}')" 
                                                     class="comment-dropdown-item">
                                                 <i class="fas fa-flag"></i>
@@ -978,10 +980,8 @@ function unifiedApp() {
             }
         },
         
-        toggleDropdown(commentId, event) {
-            event.stopPropagation();
+        toggleCommentDropdown(commentId) {
             const dropdown = document.getElementById(`dropdown-${commentId}`);
-            const button = document.getElementById(`options-btn-${commentId}`);
             const allDropdowns = document.querySelectorAll('.comment-dropdown');
             
             // Close all other dropdowns
@@ -991,15 +991,9 @@ function unifiedApp() {
                 }
             });
             
-            if (dropdown && button) {
+            // Toggle current dropdown
+            if (dropdown) {
                 dropdown.classList.toggle('show');
-                
-                // Position the dropdown relative to the button
-                if (dropdown.classList.contains('show')) {
-                    const rect = button.getBoundingClientRect();
-                    dropdown.style.top = (rect.bottom + 5) + 'px';
-                    dropdown.style.left = Math.min(rect.left, window.innerWidth - 200) + 'px';
-                }
             }
         },
         
