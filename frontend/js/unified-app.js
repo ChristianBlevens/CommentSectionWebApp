@@ -182,6 +182,11 @@ function unifiedApp() {
             // Load comments for the current page
             await this.loadComments();
             
+            // Load report count for moderators
+            if (this.user?.is_moderator) {
+                await this.loadReportCount();
+            }
+            
             // Initialize markdown processor
             if (window.initializeMarkdown) {
                 window.initializeMarkdown();
@@ -363,11 +368,16 @@ function unifiedApp() {
                 
                 if (response.ok) {
                     const data = await response.json();
+                    console.log('Loaded reports data:', data);
                     this.reports = data.reports || [];
                     this.pages = data.pages || [];
                     this.filterReports();
                     this.filterPages();
                     this.reportsLoaded = true;
+                } else {
+                    console.error('Failed to load reports:', response.status, response.statusText);
+                    const errorData = await response.json().catch(() => ({}));
+                    console.error('Error details:', errorData);
                 }
             } catch (error) {
                 console.error('Error loading reports:', error);
