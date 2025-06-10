@@ -361,7 +361,8 @@ function unifiedApp() {
             
             this.loadingReports = true;
             try {
-                const response = await fetch(`${API_URL}/api/reports/all`, {
+                // Use the new consolidated endpoint with includePages parameter
+                const response = await fetch(`${API_URL}/api/reports?includePages=true&status=pending`, {
                     headers: getAuthHeaders(),
                     credentials: 'include'
                 });
@@ -374,6 +375,9 @@ function unifiedApp() {
                     this.filterReports();
                     this.filterPages();
                     this.reportsLoaded = true;
+                    
+                    // Also update the report count
+                    this.totalPendingReports = this.reports.length;
                 } else {
                     console.error('Failed to load reports:', response.status, response.statusText);
                     const errorData = await response.json().catch(() => ({}));

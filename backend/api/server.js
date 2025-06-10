@@ -1478,21 +1478,66 @@ app.get('/api/reports/:pageId', authenticateUser, requireModerator, async (req, 
 });
 
 // Get all reports (moderators only)
+// Unified reports endpoint - handles all cases with query parameters
 app.get('/api/reports', authenticateUser, requireModerator, async (req, res) => {
-    console.log('Getting all reports (no filter)');
+    const { pageId, userId, includePages, status = 'pending' } = req.query;
+    
+    console.log('GET /api/reports called with params:', { pageId, userId, includePages, status });
     
     try {
-        const reports = await pgPool.query(
-            `SELECT r.*, 
-                    r.comment_content as content,
-                    u1.name as reporter_name
-             FROM reports r
-             JOIN users u1 ON r.reporter_id = u1.id
-             WHERE r.status = 'pending'
-             ORDER BY r.created_at DESC`
-        );
+        // Build the WHERE clause dynamically
+        const whereConditions = ['r.status = $1'];
+        const queryParams = [status];
         
-        console.log(`Returning ${reports.rows.length} total reports`);
+        if (pageId && pageId !== 'all') {
+            whereConditions.push(`r.page_id = $${queryParams.length + 1}`);
+            queryParams.push(pageId);
+        }
+        
+        if (userId) {
+            whereConditions.push(`r.comment_user_id = $${queryParams.length + 1}`);
+            queryParams.push(userId);
+        }
+        
+        const whereClause = whereConditions.join(' AND ');
+        
+        // Get reports
+        const reportsQuery = `
+            SELECT r.*, 
+                   r.comment_content as content,
+                   u1.name as reporter_name,
+                   u2.name as comment_user_name,
+                   u1.picture as reporter_picture,
+                   u2.picture as comment_user_picture
+            FROM reports r
+            JOIN users u1 ON r.reporter_id = u1.id
+            LEFT JOIN users u2 ON r.comment_user_id = u2.id
+            WHERE ${whereClause}
+            ORDER BY r.created_at DESC
+        `;
+        
+        const reportsResult = await pgPool.query(reportsQuery, queryParams);
+        
+        console.log(`Found ${reportsResult.rows.length} reports`);
+        
+        // Build response
+        const response = {
+            reports: reportsResult.rows
+        };
+        
+        // Include pages data if requested
+        if (includePages === 'true') {
+            const pagesResult = await pgPool.query(`
+                SELECT DISTINCT page_id, COUNT(*) as report_count 
+                FROM reports 
+                WHERE status = $1
+                GROUP BY page_id 
+                ORDER BY report_count DESC
+            `, [status]);
+            
+            response.pages = pagesResult.rows;
+            console.log(`Found ${pagesResult.rows.length} pages with reports`);
+        }
         
         // Prevent caching
         res.set({
@@ -1501,10 +1546,11 @@ app.get('/api/reports', authenticateUser, requireModerator, async (req, res) => 
             'Expires': '0'
         });
         
-        res.json(reports.rows);
+        res.json(response);
     } catch (error) {
-        console.error('Get all reports error:', error);
-        res.status(500).json({ error: 'Failed to get reports' });
+        console.error('Get reports error:', error);
+        console.error('Error stack:', error.stack);
+        res.status(500).json({ error: 'Failed to get reports', details: error.message });
     }
 });
 
@@ -2006,40 +2052,7 @@ app.get('/api/reports/count', authenticateUser, requireModerator, async (req, re
     }
 });
 
-// Get all reports with pagination (moderators only)
-app.get('/api/reports/all', authenticateUser, requireModerator, async (req, res) => {
-    try {
-        // Get all pending reports
-        const reportsResult = await pgPool.query(`
-            SELECT r.*, 
-                   r.comment_content as content,
-                   u1.name as reporter_name,
-                   u2.name as comment_user_name
-            FROM reports r
-            JOIN users u1 ON r.reporter_id = u1.id
-            LEFT JOIN users u2 ON r.comment_user_id = u2.id
-            WHERE r.status = 'pending'
-            ORDER BY r.created_at DESC
-        `);
-        
-        // Get unique pages with report counts
-        const pagesResult = await pgPool.query(`
-            SELECT DISTINCT page_id, COUNT(*) as report_count 
-            FROM reports 
-            WHERE status = 'pending'
-            GROUP BY page_id 
-            ORDER BY report_count DESC
-        `);
-        
-        res.json({
-            reports: reportsResult.rows,
-            pages: pagesResult.rows
-        });
-    } catch (error) {
-        console.error('Get all reports error:', error);
-        res.status(500).json({ error: 'Failed to get reports' });
-    }
-});
+// The /api/reports/all endpoint has been consolidated into /api/reports with query parameters
 
 // Error handlers
 app.use((err, req, res, next) => {
