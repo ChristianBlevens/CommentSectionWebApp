@@ -967,6 +967,7 @@ app.get('/api/comments/:pageId', optionalAuth, async (req, res) => {
 // Create comment
 app.post('/api/comments', authenticateUser, async (req, res) => {
     console.log('Create comment - req.body:', req.body);
+    console.log('Parent ID type:', typeof req.body.parentId, 'value:', req.body.parentId);
     const { pageId, content, parentId } = req.body;
     const userId = req.user.id;
     

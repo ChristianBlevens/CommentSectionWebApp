@@ -63,6 +63,15 @@ function initializeMarkdown() {
     }
 }
 
+// Global click handler to close dropdowns
+document.addEventListener('click', (event) => {
+    if (!event.target.closest('.comment-dropdown-container')) {
+        document.querySelectorAll('.comment-dropdown.show').forEach(dropdown => {
+            dropdown.classList.remove('show');
+        });
+    }
+});
+
 // Setup OAuth message listener
 Auth.setupOAuthListener((user, data) => {
     if (window.unifiedAppInstance) {
@@ -919,24 +928,34 @@ function unifiedApp() {
             const textarea = document.getElementById(`reply-textarea-${commentId}`);
             if (!textarea || !textarea.value.trim()) return;
             
+            const requestBody = {
+                content: textarea.value.trim(),
+                pageId: this.pageId,
+                parentId: parseInt(commentId, 10) // Ensure parentId is a number
+            };
+            
+            console.log('Submitting reply with body:', requestBody);
+            
             try {
                 const response = await fetch(`${API_URL}/api/comments`, {
                     method: 'POST',
                     headers: getAuthHeaders(),
                     credentials: 'include',
-                    body: JSON.stringify({
-                        content: textarea.value.trim(),
-                        pageId: this.pageId,
-                        parentId: commentId
-                    })
+                    body: JSON.stringify(requestBody)
                 });
                 
                 if (response.ok) {
                     this.cancelReply(commentId);
                     await this.loadComments();
+                } else {
+                    if (await handleAuthError(response)) return;
+                    const error = await response.json();
+                    console.error('Reply submission error:', error);
+                    alert(error.error || 'Failed to post reply');
                 }
             } catch (error) {
                 console.error('Error posting reply:', error);
+                alert('Failed to post reply');
             }
         },
         
@@ -962,16 +981,25 @@ function unifiedApp() {
         toggleDropdown(commentId, event) {
             event.stopPropagation();
             const dropdown = document.getElementById(`dropdown-${commentId}`);
+            const button = document.getElementById(`options-btn-${commentId}`);
             const allDropdowns = document.querySelectorAll('.comment-dropdown');
             
+            // Close all other dropdowns
             allDropdowns.forEach(d => {
                 if (d !== dropdown) {
                     d.classList.remove('show');
                 }
             });
             
-            if (dropdown) {
+            if (dropdown && button) {
                 dropdown.classList.toggle('show');
+                
+                // Position the dropdown relative to the button
+                if (dropdown.classList.contains('show')) {
+                    const rect = button.getBoundingClientRect();
+                    dropdown.style.top = (rect.bottom + 5) + 'px';
+                    dropdown.style.left = Math.min(rect.left, window.innerWidth - 200) + 'px';
+                }
             }
         },
         
@@ -1031,8 +1059,8 @@ function unifiedApp() {
             
             // Second pass: build tree
             comments.forEach(comment => {
-                if (comment.parent_id && commentMap[comment.parent_id]) {
-                    commentMap[comment.parent_id].children.push(comment);
+                if (comment.parentId && commentMap[comment.parentId]) {
+                    commentMap[comment.parentId].children.push(comment);
                 } else {
                     rootComments.push(comment);
                 }
