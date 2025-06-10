@@ -77,7 +77,7 @@
                                 class="py-2 px-4 border-b-2 font-medium text-sm transition-colors">
                             <i class="fas fa-comments mr-2"></i>Comments
                         </button>
-                        <button @click="activeTab = 'reports'; $nextTick(() => { if (!$data.reportsLoaded && $data.user && $data.user.is_moderator) { loadReports() } })" 
+                        <button @click="activeTab = 'reports'; $nextTick(() => { if (!reportsLoaded && user && user.is_moderator) { loadReports() } })" 
                                 :class="{'border-blue-500 text-blue-600': activeTab === 'reports', 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300': activeTab !== 'reports'}"
                                 class="py-2 px-4 border-b-2 font-medium text-sm transition-colors relative">
                             <i class="fas fa-flag mr-2"></i>Reports
@@ -86,7 +86,7 @@
                                 <span x-text="totalPendingReports"></span>
                             </span>
                         </button>
-                        <button @click="activeTab = 'users'; $nextTick(() => { if (!$data.usersLoaded && $data.user && $data.user.is_moderator) { loadUsers() } })" 
+                        <button @click="activeTab = 'users'; $nextTick(() => { if (!usersLoaded && user && user.is_moderator) { loadUsers() } })" 
                                 :class="{'border-blue-500 text-blue-600': activeTab === 'users', 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300': activeTab !== 'users'}"
                                 class="py-2 px-4 border-b-2 font-medium text-sm transition-colors">
                             <i class="fas fa-users mr-2"></i>Users
@@ -107,10 +107,6 @@
                             <span x-show="!selectedReportsPage">(from all pages)</span>
                         </p>
                         <div class="flex flex-wrap gap-2 ml-auto">
-                            <button @click="loadReports()" 
-                                    class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">
-                                <i class="fas fa-sync-alt"></i>
-                            </button>
                             <select x-model="selectedReportsPage" @change="filterReports()" 
                                     class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                                 <option :value="null">All Pages</option>
@@ -118,6 +114,10 @@
                                     <option :value="page.page_id" x-text="`${page.page_id} (${page.report_count} report${page.report_count != 1 ? 's' : ''})`"></option>
                                 </template>
                             </select>
+                            <button @click="loadReports()" 
+                                    class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
                         </div>
                     </div>
 

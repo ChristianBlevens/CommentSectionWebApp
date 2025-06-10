@@ -352,10 +352,9 @@ function unifiedApp() {
         // Report methods
         async loadReports() {
             if (this.activeTab !== 'reports') return;
-            if (!this.user?.is_moderator) return; // Don't load if not a moderator
+            if (!this.user?.is_moderator) return;
             
             this.loadingReports = true;
-            this.reportsLoaded = true;
             try {
                 const response = await fetch(`${API_URL}/api/reports/all`, {
                     headers: getAuthHeaders(),
@@ -368,6 +367,7 @@ function unifiedApp() {
                     this.pages = data.pages || [];
                     this.filterReports();
                     this.filterPages();
+                    this.reportsLoaded = true;
                 }
             } catch (error) {
                 console.error('Error loading reports:', error);
@@ -447,7 +447,6 @@ function unifiedApp() {
             if (!this.user?.is_moderator) return; // Don't load if not a moderator
             
             this.loadingUsers = true;
-            this.usersLoaded = true;
             try {
                 const response = await fetch(`${API_URL}/api/users`, {
                     headers: getAuthHeaders(),
@@ -457,6 +456,7 @@ function unifiedApp() {
                 if (response.ok) {
                     this.users = await response.json();
                     this.filterUsers();
+                    this.usersLoaded = true;
                 }
             } catch (error) {
                 console.error('Error loading users:', error);
