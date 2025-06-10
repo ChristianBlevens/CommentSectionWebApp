@@ -484,94 +484,51 @@ cd comment-app
    COMPOSE_PROJECT_NAME=comment-system
    ```
 
-3. **Edit Backend API .env File**
+3. **Copy and Edit the Environment File**
 
-   **Windows:** `notepad backend\api\.env`  
-   **Linux:** `nano backend/api/.env`
+   **Windows:** 
+   ```cmd
+   copy .env.example .env
+   notepad .env
+   ```
+   
+   **Linux:** 
+   ```bash
+   cp .env.example .env
+   nano .env
+   ```
 
-   Update with your values:
+   Update all the values in your `.env` file:
    ```env
-   # Node environment
-   NODE_ENV=production
+   # Database Configuration
+   DB_USER=postgres
+   DB_PASSWORD=your-secure-database-password-here
+   DB_NAME=comments_db
+   MODERATION_DB_NAME=moderation_db
 
-   # Server configuration
-   PORT=3000
-
-   # Database configuration - PostgreSQL
-   # These values are set via docker-compose.yml from root .env file
-   # DB_HOST=postgres-comments
-   # DB_PORT=5432
-   # DB_NAME=comments_db
-   # DB_USER=postgres
-   # DB_PASSWORD=(inherited from root .env)
-
-   # Redis configuration
-   # Set via docker-compose.yml
-   # REDIS_URL=redis://redis:6379
+   # API Service Configuration
+   API_PORT=3000
+   MODERATION_PORT=3001
 
    # Discord OAuth Configuration
    DISCORD_CLIENT_ID=your-discord-client-id-here
    DISCORD_CLIENT_SECRET=your-discord-client-secret-here
    DISCORD_REDIRECT_URI=https://mycomments.duckdns.org/oauth-callback.html
 
-   # Allowed CORS origins
-   ALLOWED_ORIGINS=https://mycomments.duckdns.org
-
-   # Initial moderators (Discord IDs, use discord_ as a prefix)
+   # Initial Moderators (Discord user IDs, comma-separated)
    INITIAL_MODERATORS=discord_123456789012345678
 
-   # Moderation service URL
-   # Set via docker-compose.yml
-   # MODERATION_API_URL=http://moderation-service:3001
-
-   # Session configuration
-   SESSION_SECRET=generate-a-random-64-character-string-here-for-session-security
-   SESSION_DURATION=86400
-
-   # Rate limiting
-   RATE_LIMIT_WINDOW_MS=900000
-   RATE_LIMIT_MAX_REQUESTS=100
-
-   # Logging level
-   LOG_LEVEL=info
-   ```
-
-4. **Edit Moderation Service .env File**
-
-   **Windows:** `notepad backend\moderation\.env`  
-   **Linux:** `nano backend/moderation/.env`
-
-   Update:
-   ```env
-   # Node environment
-   NODE_ENV=production
-
-   # Server configuration
-   PORT=3001
-
-   # Database configuration
-   # These values are set via docker-compose.yml from root .env file
-   # DB_HOST=postgres-moderation
-   # DB_PORT=5432
-   # DB_NAME=moderation_db
-   # DB_USER=postgres
-   # DB_PASSWORD=(inherited from root .env)
-
-   # Admin key for moderation
-   ADMIN_KEY=GenerateAStrongAdminKey123!@#
-
-   # Allowed CORS origins
+   # CORS Configuration
    ALLOWED_ORIGINS=https://mycomments.duckdns.org
 
-   # Moderation thresholds
-   SPAM_THRESHOLD=0.7
-   SENTIMENT_THRESHOLD=-3
-   CAPS_RATIO_THRESHOLD=0.8
-   MIN_TRUST_SCORE=0.1
-   MAX_TRUST_SCORE=1.0
+   # Session Configuration
+   SESSION_DURATION=86400
 
-   # Logging level
-   LOG_LEVEL=info
+   # Moderation Service
+   ADMIN_KEY=GenerateAStrongAdminKey123!@#
+
+   # SSL Configuration (for production)
+   SSL_DOMAIN=mycomments.duckdns.org
    ```
 
 ### C. Set File Permissions (Linux/VPS Only)

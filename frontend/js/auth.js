@@ -55,7 +55,7 @@ const Auth = {
         const sessionToken = localStorage.getItem('sessionToken');
         if (sessionToken) {
             try {
-                await fetch(`${apiUrl}/logout`, {
+                await fetch(`${apiUrl}/api/logout`, {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${sessionToken}`

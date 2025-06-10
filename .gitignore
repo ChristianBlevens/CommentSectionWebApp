@@ -10,8 +10,6 @@ docker/ssl/chain.pem
 
 # Environment files (contain secrets)
 .env
-backend/api/.env
-backend/moderation/.env
 
 # Common patterns to consider adding:
 # node_modules/

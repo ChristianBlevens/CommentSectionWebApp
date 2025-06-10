@@ -4,13 +4,13 @@ FROM node:18-alpine
 WORKDIR /usr/src/app
 
 # Copy package files
-COPY package*.json ./
+COPY backend/moderation/package*.json ./
 
 # Install production dependencies with natural language processing support
 RUN npm install --omit=dev
 
 # Copy app source
-COPY moderation-server.js .
+COPY backend/moderation/moderation-server.js .
 
 # Create a non-root user to run the app
 RUN addgroup -g 1001 -S nodejs

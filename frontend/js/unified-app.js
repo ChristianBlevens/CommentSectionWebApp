@@ -301,14 +301,18 @@ function unifiedApp() {
                 const params = new URLSearchParams(window.location.search);
                 const pageId = params.get('pageId') || 'default';
                 
+                const requestBody = {
+                    content: this.newCommentText.trim(),
+                    pageId: pageId
+                };
+                
+                console.log('Submitting comment with body:', requestBody);
+                
                 const response = await fetch(`${API_URL}/api/comments`, {
                     method: 'POST',
                     headers: getAuthHeaders(),
                     credentials: 'include',
-                    body: JSON.stringify({
-                        content: this.newCommentText.trim(),
-                        pageId: pageId
-                    })
+                    body: JSON.stringify(requestBody)
                 });
                 
                 if (response.ok) {
@@ -317,6 +321,7 @@ function unifiedApp() {
                     await this.loadComments();
                 } else {
                     const error = await response.json();
+                    console.error('Comment submission error:', error);
                     alert(error.error || 'Failed to post comment');
                 }
             } catch (error) {
@@ -401,7 +406,8 @@ function unifiedApp() {
                 const response = await fetch(`${API_URL}/api/reports/${reportId}/resolve`, {
                     method: 'PUT',
                     headers: getAuthHeaders(),
-                    credentials: 'include'
+                    credentials: 'include',
+                    body: JSON.stringify({ action: 'dismissed' })
                 });
                 
                 if (response.ok) {
@@ -824,7 +830,7 @@ function unifiedApp() {
                     method: 'POST',
                     headers: getAuthHeaders(),
                     credentials: 'include',
-                    body: JSON.stringify({ vote_type: voteType })
+                    body: JSON.stringify({ voteType: voteType })
                 });
                 
                 if (response.ok) {

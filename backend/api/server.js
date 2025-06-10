@@ -925,10 +925,12 @@ app.get('/api/comments/:pageId', optionalAuth, async (req, res) => {
 
 // Create comment
 app.post('/api/comments', authenticateUser, async (req, res) => {
+    console.log('Create comment - req.body:', req.body);
     const { pageId, content, parentId } = req.body;
     const userId = req.user.id;
     
     if (!pageId || !content) {
+        console.log('Missing fields - pageId:', pageId, 'content:', content);
         return res.status(400).json({ error: 'Missing required fields' });
     }
     
