@@ -282,7 +282,9 @@ function unifiedApp() {
                     options.headers = getAuthHeaders();
                 }
                 
-                const response = await fetch(`${API_URL}/api/comments?pageId=${encodeURIComponent(pageId)}`, options);
+                const url = `${API_URL}/api/comments?pageId=${encodeURIComponent(pageId)}`;
+                console.log('Loading comments from URL:', url);
+                const response = await fetch(url, options);
                 
                 if (response.ok) {
                     const flatComments = await response.json();
@@ -362,7 +364,9 @@ function unifiedApp() {
             this.loadingReports = true;
             try {
                 // Use the new consolidated endpoint with includePages parameter
-                const response = await fetch(`${API_URL}/api/reports?includePages=true&status=pending`, {
+                const url = `${API_URL}/api/reports?includePages=true&status=pending`;
+                console.log('Loading reports from URL:', url);
+                const response = await fetch(url, {
                     headers: getAuthHeaders(),
                     credentials: 'include'
                 });
@@ -533,7 +537,9 @@ function unifiedApp() {
         
         async loadUserDetails(userId) {
             try {
-                const response = await fetch(`${API_URL}/api/users?userId=${userId}&includeDetails=true`, {
+                const url = `${API_URL}/api/users?userId=${userId}&includeDetails=true`;
+                console.log('Loading user details from URL:', url);
+                const response = await fetch(url, {
                     headers: getAuthHeaders(),
                     credentials: 'include'
                 });
