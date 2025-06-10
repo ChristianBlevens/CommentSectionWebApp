@@ -11,18 +11,32 @@ const Auth = {
             token: sessionToken ? sessionToken.substring(0, 10) + '...' : null
         });
         
-        if (savedUser && sessionToken) {
-            try {
+        if (!savedUser || !sessionToken) {
+            localStorage.removeItem('user');
+            localStorage.removeItem('sessionToken');
+            return null;
+        }
+        
+        // Validate session with server
+        try {
+            const response = await fetch(`${window.location.origin}/api/users/${JSON.parse(savedUser).id}`, {
+                headers: {
+                    'Authorization': `Bearer ${sessionToken}`
+                }
+            });
+            
+            if (response.ok) {
                 const user = JSON.parse(savedUser);
-                console.log('Loaded user from localStorage:', user);
+                console.log('Session validated, user:', user);
                 return user;
-            } catch (e) {
-                console.error('Failed to parse saved user:', e);
+            } else {
+                console.log('Session invalid, clearing localStorage');
                 localStorage.removeItem('user');
                 localStorage.removeItem('sessionToken');
                 return null;
             }
-        } else {
+        } catch (e) {
+            console.error('Session validation failed:', e);
             localStorage.removeItem('user');
             localStorage.removeItem('sessionToken');
             return null;
@@ -51,7 +65,7 @@ const Auth = {
     },
 
     // Sign out
-    async signOut(apiUrl = '/api') {
+    async signOut(apiUrl = window.location.origin) {
         const sessionToken = localStorage.getItem('sessionToken');
         if (sessionToken) {
             try {

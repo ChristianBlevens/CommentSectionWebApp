@@ -112,6 +112,7 @@ function unifiedApp() {
         pageReports: [],
         totalPendingReports: 0,
         loadingReports: false,
+        reportsLoaded: false,
         selectedReportsPage: null,
         pageSearchQuery: '',
         pages: [],
@@ -123,6 +124,7 @@ function unifiedApp() {
         filteredUsers: [],
         paginatedUsers: [],
         loadingUsers: false,
+        usersLoaded: false,
         userSearchQuery: '',
         userFilter: 'all',
         currentUserPage: 1,
@@ -150,11 +152,8 @@ function unifiedApp() {
             // Check authentication
             this.user = await Auth.checkExistingSession();
             
-            // Check for warnings if user is authenticated
+            // Set super moderator status for initial moderators
             if (this.user) {
-                await this.checkWarnings();
-                
-                // Set super moderator status for initial moderators
                 const initialMods = (window.ENV?.INITIAL_MODERATORS || '').split(',').map(id => id.trim()).filter(Boolean);
                 if (initialMods.includes(this.user.id)) {
                     this.user.is_super_moderator = true;
@@ -163,11 +162,6 @@ function unifiedApp() {
             
             // Load comments for the current page
             await this.loadComments();
-            
-            // Load report count if user is moderator
-            if (this.user?.is_moderator) {
-                await this.loadReportCount();
-            }
             
             // Initialize markdown processor
             if (window.initializeMarkdown) {
@@ -239,6 +233,11 @@ function unifiedApp() {
             await Auth.signOut(API_URL);
             this.user = null;
             this.activeTab = 'comments';
+            this.reports = [];
+            this.users = [];
+            this.totalPendingReports = 0;
+            this.reportsLoaded = false;
+            this.usersLoaded = false;
             await this.loadComments();
         },
         
@@ -333,8 +332,10 @@ function unifiedApp() {
         // Report methods
         async loadReports() {
             if (this.activeTab !== 'reports') return;
+            if (!this.user?.is_moderator) return; // Don't load if not a moderator
             
             this.loadingReports = true;
+            this.reportsLoaded = true;
             try {
                 const response = await fetch(`${API_URL}/api/reports/all`, {
                     headers: getAuthHeaders(),
@@ -423,8 +424,10 @@ function unifiedApp() {
         // User management methods
         async loadUsers() {
             if (this.activeTab !== 'users') return;
+            if (!this.user?.is_moderator) return; // Don't load if not a moderator
             
             this.loadingUsers = true;
+            this.usersLoaded = true;
             try {
                 const response = await fetch(`${API_URL}/api/users`, {
                     headers: getAuthHeaders(),
@@ -632,10 +635,12 @@ function unifiedApp() {
             await window.banUserWithDuration(userId, userName, duration);
             this.showBanDropdown = null;
             
-            // Reload data based on current tab
+            // Reset loaded flags to force refresh
             if (this.activeTab === 'reports') {
+                this.reportsLoaded = false;
                 await this.loadReports();
             } else if (this.activeTab === 'users') {
+                this.usersLoaded = false;
                 await this.loadUsers();
             }
         },
