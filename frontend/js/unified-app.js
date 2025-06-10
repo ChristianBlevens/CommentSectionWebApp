@@ -79,11 +79,21 @@ function getAuthHeaders() {
     };
     if (sessionToken) {
         headers['Authorization'] = `Bearer ${sessionToken}`;
-        console.log('Using session token:', sessionToken.substring(0, 10) + '...');
-    } else {
-        console.log('No session token found in localStorage');
     }
     return headers;
+}
+
+// Helper function to handle 401 errors
+async function handleAuthError(response) {
+    if (response.status === 401) {
+        console.log('Session expired, clearing localStorage');
+        localStorage.removeItem('user');
+        localStorage.removeItem('sessionToken');
+        // Reload the page to reset the app state
+        window.location.reload();
+        return true;
+    }
+    return false;
 }
 
 function unifiedApp() {
@@ -319,6 +329,7 @@ function unifiedApp() {
                     this.commentPreview = '';
                     await this.loadComments();
                 } else {
+                    if (await handleAuthError(response)) return;
                     const error = await response.json();
                     console.error('Comment submission error:', error);
                     alert(error.error || 'Failed to post comment');

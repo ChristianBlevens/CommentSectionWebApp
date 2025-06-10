@@ -17,18 +17,20 @@ const Auth = {
             return null;
         }
         
-        // Validate session with server
+        // Validate session with server using the dedicated endpoint
         try {
-            const response = await fetch(`${window.location.origin}/api/users/${JSON.parse(savedUser).id}`, {
+            const response = await fetch(`${window.location.origin}/api/session/validate`, {
                 headers: {
                     'Authorization': `Bearer ${sessionToken}`
                 }
             });
             
             if (response.ok) {
-                const user = JSON.parse(savedUser);
-                console.log('Session validated, user:', user);
-                return user;
+                const validatedUser = await response.json();
+                console.log('Session validated, user:', validatedUser);
+                // Update localStorage with latest user data
+                localStorage.setItem('user', JSON.stringify(validatedUser));
+                return validatedUser;
             } else {
                 console.log('Session invalid, clearing localStorage');
                 localStorage.removeItem('user');
@@ -37,9 +39,16 @@ const Auth = {
             }
         } catch (e) {
             console.error('Session validation failed:', e);
-            localStorage.removeItem('user');
-            localStorage.removeItem('sessionToken');
-            return null;
+            // On network error, return cached user to allow offline viewing
+            try {
+                const user = JSON.parse(savedUser);
+                console.log('Using cached user due to network error:', user);
+                return user;
+            } catch (parseError) {
+                localStorage.removeItem('user');
+                localStorage.removeItem('sessionToken');
+                return null;
+            }
         }
     },
 

@@ -833,6 +833,47 @@ app.get('/api/check-ban-status', authenticateUser, async (req, res) => {
     }
 });
 
+// Validate session endpoint (no auth required for validation)
+app.get('/api/session/validate', async (req, res) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith('Bearer ')) {
+        return res.status(401).json({ error: 'No token provided' });
+    }
+    
+    const token = authHeader.substring(7);
+    try {
+        // Get user from session
+        const userId = await safeRedisOp(() => redisClient.get(`session:${token}`));
+        if (!userId) {
+            return res.status(401).json({ error: 'Invalid or expired session' });
+        }
+        
+        // Get user from database
+        const userResult = await pgPool.query(
+            'SELECT id, email, name, picture, is_moderator, is_super_moderator, is_banned FROM users WHERE id = $1',
+            [userId]
+        );
+        
+        if (userResult.rows.length === 0) {
+            return res.status(401).json({ error: 'User not found' });
+        }
+        
+        const user = userResult.rows[0];
+        res.json({
+            id: user.id,
+            username: user.name,
+            email: user.email,
+            avatar: user.picture,
+            is_moderator: user.is_moderator,
+            is_super_moderator: user.is_super_moderator,
+            is_banned: user.is_banned
+        });
+    } catch (error) {
+        console.error('Session validation error:', error);
+        res.status(500).json({ error: 'Session validation failed' });
+    }
+});
+
 // Logout
 app.post('/api/logout', authenticateUser, async (req, res) => {
     const token = req.headers.authorization.substring(7);
