@@ -726,7 +726,7 @@ function unifiedApp() {
                                         </button>
                                         <div id="dropdown-${comment.id}" 
                                              class="comment-dropdown"
-                                             style="top: 100%; right: 0; margin-top: 5px;">
+                                             style="top: 100%; left: 0; margin-top: 5px;">
                                             <button onclick="window.unifiedAppInstance.reportComment('${comment.id}')" 
                                                     class="comment-dropdown-item">
                                                 <i class="fas fa-flag"></i>

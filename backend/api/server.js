@@ -2013,9 +2013,11 @@ app.get('/api/reports/all', authenticateUser, requireModerator, async (req, res)
         const reportsResult = await pgPool.query(`
             SELECT r.*, 
                    r.comment_content as content,
-                   u1.name as reporter_name
+                   u1.name as reporter_name,
+                   u2.name as comment_user_name
             FROM reports r
             JOIN users u1 ON r.reporter_id = u1.id
+            LEFT JOIN users u2 ON r.comment_user_id = u2.id
             WHERE r.status = 'pending'
             ORDER BY r.created_at DESC
         `);
