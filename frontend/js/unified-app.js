@@ -195,6 +195,9 @@ function unifiedApp() {
                 if (initialMods.includes(this.user.id)) {
                     this.user.is_super_moderator = true;
                 }
+                
+                // Check for unread warnings
+                await this.checkWarnings();
             }
             
             // Check page lock status
@@ -217,6 +220,50 @@ function unifiedApp() {
             if (window.initializeMarkdown) {
                 window.initializeMarkdown();
             }
+            
+            // Setup responsive layout handler
+            this.setupResponsiveLayout();
+        },
+        
+        // Check for element overlap and adjust layout
+        setupResponsiveLayout() {
+            const checkOverlap = () => {
+                const container = document.querySelector('.sorting-search-container');
+                if (!container) return;
+                
+                const sortingWrapper = container.querySelector('.sorting-buttons-wrapper');
+                const searchWrapper = container.querySelector('.search-controls-wrapper');
+                
+                if (!sortingWrapper || !searchWrapper) return;
+                
+                // Get bounding rectangles
+                const sortingRect = sortingWrapper.getBoundingClientRect();
+                const searchRect = searchWrapper.getBoundingClientRect();
+                
+                // Check if elements overlap or are too close
+                const gap = 20; // Minimum gap in pixels
+                const overlapping = sortingRect.right + gap > searchRect.left;
+                
+                // Toggle stacked class based on overlap
+                if (overlapping && !container.classList.contains('stacked')) {
+                    container.classList.add('stacked');
+                } else if (!overlapping && container.classList.contains('stacked')) {
+                    // Only remove stacked if there's enough space
+                    const containerWidth = container.getBoundingClientRect().width;
+                    const totalNeededWidth = sortingWrapper.scrollWidth + searchWrapper.scrollWidth + gap * 2;
+                    
+                    if (containerWidth > totalNeededWidth) {
+                        container.classList.remove('stacked');
+                    }
+                }
+            };
+            
+            // Check on load and resize
+            checkOverlap();
+            window.addEventListener('resize', checkOverlap);
+            
+            // Also check after Alpine renders
+            setTimeout(checkOverlap, 100);
         },
         
         // Fetch unread warnings
@@ -1089,7 +1136,7 @@ function unifiedApp() {
         },
         
         async toggleCommentLock(commentId) {
-            const comment = this.comments.find(c => c.id === commentId);
+            const comment = this.findComment(commentId, this.comments);
             if (!comment) return;
             
             const lock = !comment.is_locked;

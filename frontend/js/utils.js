@@ -55,5 +55,11 @@ const Utils = {
         const regExp = /^.*(vimeo\.com\/)((channels\/[A-z]+\/)|(groups\/[A-z]+\/videos\/))?([0-9]+)/;
         const match = url.match(regExp);
         return match ? match[5] : null;
+    },
+
+    // Get page ID from URL parameters
+    getPageId() {
+        const params = new URLSearchParams(window.location.search);
+        return params.get('pageId') || 'default';
     }
 };
