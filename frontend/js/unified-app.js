@@ -124,6 +124,7 @@ function unifiedApp() {
         sortBy: 'popularity',
         focusedCommentId: null,
         focusedComments: [],
+        highlightedCommentId: null,
         commentVotes: {},
         
         // Moderator dashboard state
@@ -668,12 +669,8 @@ function unifiedApp() {
         },
         
         jumpToComment(commentId) {
-            const element = document.getElementById(`comment-${commentId}`);
-            if (element) {
-                element.scrollIntoView({ behavior: 'smooth' });
-                element.classList.add('highlight');
-                setTimeout(() => element.classList.remove('highlight'), 2000);
-            }
+            // Enter focus mode on the reported comment
+            this.enterFocusMode(commentId, true);
         },
         
         toggleBanDropdown(id, event) {
@@ -719,7 +716,7 @@ function unifiedApp() {
                      data-comment-id="${comment.id}">
                     ${depth > 0 ? '<div class="comment-line" onclick="window.unifiedAppInstance.toggleCollapse(event)"></div>' : ''}
                     
-                    <div class="comment-content ${this.focusedCommentId == comment.id ? 'reported-comment' : ''}" id="comment-${comment.id}">
+                    <div class="comment-content ${this.highlightedCommentId == comment.id ? 'reported-comment' : ''}" id="comment-${comment.id}">
                         
                         <div class="comment-header">
                             ${!isDeleted ? `<img src="${comment.userPicture}" class="comment-avatar">` : '<div class="comment-avatar bg-gray-300"></div>'}
@@ -1050,18 +1047,37 @@ function unifiedApp() {
             this.enterFocusMode(commentId);
         },
         
-        enterFocusMode(commentId) {
+        enterFocusMode(commentId, isFromReport = false) {
             const comment = this.findComment(commentId, this.comments);
             if (!comment) return;
             
-            this.focusedCommentId = commentId;
-            this.focusedComments = [comment];
+            // Store whether we're highlighting a reported comment
+            this.highlightedCommentId = isFromReport ? commentId : null;
+            
+            // If the comment has a parent, show the parent as the root
+            if (comment.parentId) {
+                const parent = this.findComment(comment.parentId, this.comments);
+                if (parent) {
+                    this.focusedCommentId = parent.id;
+                    this.focusedComments = [parent];
+                } else {
+                    // Parent not found, just show the comment
+                    this.focusedCommentId = commentId;
+                    this.focusedComments = [comment];
+                }
+            } else {
+                // No parent, show the comment as root
+                this.focusedCommentId = commentId;
+                this.focusedComments = [comment];
+            }
+            
             window.scrollTo({ top: 0, behavior: 'smooth' });
         },
         
         exitFocusMode() {
             this.focusedCommentId = null;
             this.focusedComments = [];
+            this.highlightedCommentId = null;
         },
         
         insertMarkdownForReply(commentId, before, after) {

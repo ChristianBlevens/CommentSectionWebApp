@@ -337,6 +337,10 @@ body {
     cursor: pointer;
     transition: all 0.2s;
     white-space: nowrap;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
 }
 
 .comment-action:hover {
@@ -357,6 +361,13 @@ body {
 /* =====================================================
    BUTTONS - FLUID SIZING
    ===================================================== */
+/* Global button text selection prevention */
+button {
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
 .btn {
     display: inline-flex;
     align-items: center;
@@ -372,6 +383,10 @@ body {
     transition: all 0.2s;
     text-decoration: none;
     white-space: nowrap;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
 }
 
 .btn-primary {
@@ -447,6 +462,10 @@ body {
     background-color: var(--color-bg-secondary);
     display: inline-flex;
     align-items: center;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
     gap: var(--space-xs);
 }
 
@@ -485,6 +504,10 @@ body {
     align-items: center;
     justify-content: center;
     min-width: 2.5rem;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
 }
 
 .markdown-btn:hover {
@@ -506,6 +529,10 @@ body {
     align-items: center;
     justify-content: center;
     min-width: 2rem;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
 }
 
 .comment-options-btn:hover {
@@ -551,6 +578,10 @@ body {
     width: 100%;
     text-align: left;
     transition: background-color 0.2s;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
 }
 
 .comment-dropdown-item:hover {
@@ -605,6 +636,10 @@ body {
     cursor: pointer;
     transition: background-color 0.2s;
     color: var(--color-text-primary);
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
 }
 
 .ban-dropdown-item:hover {
@@ -732,6 +767,10 @@ body {
     display: inline-flex;
     align-items: center;
     gap: var(--space-xs);
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
 }
 
 .reply-btn-primary {
@@ -917,6 +956,10 @@ body {
     align-items: center;
     gap: var(--space-xs);
     color: var(--color-text-inverse);
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
 }
 
 .report-action-btn:hover {
