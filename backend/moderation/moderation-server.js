@@ -4,11 +4,11 @@ const bodyParser = require('body-parser');
 const natural = require('natural');
 const { Pool } = require('pg');
 
-// Initialize Express app
+// Create Express app instance
 const app = express();
 const port = process.env.PORT || 3001;
 
-// Configuration
+// App configuration settings
 const config = {
     adminKey: process.env.ADMIN_KEY,
     cors: {
@@ -26,17 +26,17 @@ const config = {
     }
 };
 
-// Validate admin key
+// Check admin authentication key
 if (!config.adminKey || config.adminKey === 'your_secure_admin_key_here') {
     console.warn('WARNING: Admin key not configured! Admin endpoints disabled.');
 }
 
-// Middleware
+// Apply middleware
 app.use(cors(config.cors));
 app.use(bodyParser.json({ limit: '1mb' }));
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// Database connection
+// PostgreSQL connection pool
 const pgPool = new Pool({
     user: process.env.DB_USER || 'postgres',
     host: process.env.DB_HOST || 'localhost',
@@ -48,13 +48,13 @@ const pgPool = new Pool({
     connectionTimeoutMillis: 2000,
 });
 
-// Initialize database schema
+// Create database tables
 const initDatabase = async () => {
     const client = await pgPool.connect();
     try {
         await client.query('BEGIN');
         
-        // Moderation logs table
+        // Create moderation history table
         await client.query(`
             CREATE TABLE IF NOT EXISTS moderation_logs (
                 id SERIAL PRIMARY KEY,
@@ -68,7 +68,7 @@ const initDatabase = async () => {
             )
         `);
         
-        // Blocked words table
+        // Create banned words table
         await client.query(`
             CREATE TABLE IF NOT EXISTS blocked_words (
                 id SERIAL PRIMARY KEY,
@@ -78,7 +78,7 @@ const initDatabase = async () => {
             )
         `);
         
-        // Trusted users table
+        // Create user trust tracking table
         await client.query(`
             CREATE TABLE IF NOT EXISTS trusted_users (
                 id VARCHAR(255) PRIMARY KEY,
@@ -90,14 +90,14 @@ const initDatabase = async () => {
             )
         `);
         
-        // Create indexes
+        // Add performance indexes
         await client.query(`
             CREATE INDEX IF NOT EXISTS idx_moderation_logs_created_at ON moderation_logs(created_at);
             CREATE INDEX IF NOT EXISTS idx_moderation_logs_user_id ON moderation_logs(user_id);
             CREATE INDEX IF NOT EXISTS idx_blocked_words_word ON blocked_words(word);
         `);
         
-        // Insert default blocked words
+        // Add initial banned words
         const defaultBlockedWords = [
             { word: 'spam', severity: 'low' },
             { word: 'scam', severity: 'medium' },
@@ -131,27 +131,27 @@ const initDatabase = async () => {
     }
 };
 
-// Initialize database on startup
+// Setup database on start
 initDatabase().catch(err => {
     console.error('Failed to initialize database:', err);
     process.exit(1);
 });
 
-// NLP setup
+// Natural language processing tools
 const tokenizer = new natural.WordTokenizer();
 const stemmer = natural.PorterStemmer;
 const sentiment = new natural.SentimentAnalyzer('English', stemmer, 'afinn');
 
-// Content moderation class
+// Main moderation logic class
 class ContentModerator {
     constructor() {
         this.blockedWords = new Map();
         this.loadBlockedWords();
-        // Refresh blocked words every minute
+        // Auto-reload banned words periodically
         setInterval(() => this.loadBlockedWords(), 60000);
     }
     
-    // Load blocked words from database
+    // Fetch banned words list
     async loadBlockedWords() {
         try {
             const result = await pgPool.query('SELECT word, severity FROM blocked_words');
@@ -164,7 +164,7 @@ class ContentModerator {
         }
     }
     
-    // Main moderation function
+    // Analyze content for violations
     async moderate(content, userId = null) {
         const result = {
             approved: true,
@@ -173,38 +173,38 @@ class ContentModerator {
             flaggedWords: []
         };
         
-        // Check empty content
+        // Reject empty messages
         if (!content || content.trim().length === 0) {
             result.approved = false;
             result.reason = 'Empty content';
             return result;
         }
         
-        // Check content length
+        // Enforce length limit
         if (content.length > 5000) {
             result.approved = false;
             result.reason = 'Content too long (max 5000 characters)';
             return result;
         }
         
-        // Check for code injection
+        // Block HTML/JS code
         if (this.checkForCode(content)) {
             result.approved = false;
             result.reason = 'HTML, CSS, or JavaScript code is not allowed';
             return result;
         }
         
-        // Check for unauthorized links
+        // Block external URLs
         if (this.checkForLinks(content)) {
             result.approved = false;
             result.reason = 'External links are not allowed';
             return result;
         }
         
-        // Tokenize and analyze
+        // Split content into words
         const tokens = tokenizer.tokenize(content.toLowerCase());
         
-        // Check blocked words
+        // Search for banned words
         const foundBlockedWords = [];
         let severityScore = 0;
         
@@ -212,27 +212,27 @@ class ContentModerator {
             if (this.blockedWords.has(token)) {
                 const severity = this.blockedWords.get(token);
                 foundBlockedWords.push(token);
-                // Calculate severity score
+                // Add to severity total
                 severityScore += severity === 'low' ? 1 : severity === 'medium' ? 3 : 5;
             }
         }
         
-        // Check spam patterns
+        // Calculate spam probability
         const spamScore = this.checkSpamPatterns(content);
         
-        // Sentiment analysis
+        // Analyze emotional tone
         const sentimentScore = sentiment.getSentiment(tokens);
         
-        // Check caps ratio
+        // Check uppercase percentage
         const capsRatio = this.getCapsRatio(content);
         
-        // Check repetition
+        // Detect repeated characters
         const hasRepetition = this.checkRepetition(content);
         
-        // Get user trust score
+        // Lookup user reputation
         const trustScore = userId ? await this.getUserTrustScore(userId) : 0.5;
         
-        // Make moderation decision
+        // Apply moderation rules
         if (foundBlockedWords.length > 0 && severityScore >= 5) {
             result.approved = false;
             result.reason = 'Contains prohibited language';
@@ -256,25 +256,25 @@ class ContentModerator {
             result.confidence = 0.85;
         }
         
-        // Trust score adjustment
+        // Override for trusted users
         if (!result.approved && trustScore > 0.8 && result.confidence < 0.7) {
             result.approved = true;
             result.reason = null;
             result.flaggedWords = [];
         }
         
-        // Log moderation
+        // Save moderation result
         await this.logModeration(content, result, userId);
         
         return result;
     }
     
-    // Check spam patterns
+    // Detect spam characteristics
     checkSpamPatterns(content) {
         let spamScore = 0;
         const lowerContent = content.toLowerCase();
         
-        // Spam phrases
+        // Common spam keywords
         const spamPhrases = [
             'click here', 'buy now', 'limited offer', 'act now',
             'make money', 'work from home', 'congratulations you won',
@@ -285,20 +285,20 @@ class ContentModerator {
             if (lowerContent.includes(phrase)) spamScore += 0.15;
         });
         
-        // Excessive punctuation
+        // Count excessive marks
         const exclamations = (content.match(/!/g) || []).length;
         const questions = (content.match(/\?/g) || []).length;
         if (exclamations > 5 || exclamations / content.length > 0.1) spamScore += 0.3;
         if (questions > 5 || questions / content.length > 0.1) spamScore += 0.2;
         
-        // Phone/email patterns
+        // Detect contact info
         if (/\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b/.test(content)) spamScore += 0.4;
         if (/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/.test(content)) spamScore += 0.3;
         
         return Math.min(spamScore, 1.0);
     }
     
-    // Get caps ratio
+    // Calculate uppercase ratio
     getCapsRatio(content) {
         const letters = content.replace(/[^a-zA-Z]/g, '');
         if (letters.length === 0) return 0;
@@ -306,22 +306,22 @@ class ContentModerator {
         return upperCount / letters.length;
     }
     
-    // Check character repetition
+    // Find repeated characters
     checkRepetition(content) {
         return /(.)\1{4,}/.test(content);
     }
     
-    // Check for links (excluding markdown embeds)
+    // Detect URLs but allow embeds
     checkForLinks(content) {
         let filtered = content;
-        // Remove markdown image/video embeds
+        // Filter out allowed embeds
         filtered = filtered.replace(/!\[.*?\]\(.*?\)/g, '');
         filtered = filtered.replace(/!video\[.*?\]\(.*?\)/g, '');
-        // Check remaining URLs
+        // Verify no URLs remain
         return /(https?:\/\/[^\s]+)|(www\.[^\s]+)|([^\s]+\.(com|org|net|io|co|uk)[^\s]*)/gi.test(filtered);
     }
     
-    // Check for code injection
+    // Detect malicious code patterns
     checkForCode(content) {
         const patterns = [
             /<[^>]+>/gi,                 // HTML tags
@@ -336,7 +336,7 @@ class ContentModerator {
         return patterns.some(pattern => pattern.test(content));
     }
     
-    // Get user trust score
+    // Retrieve user reputation score
     async getUserTrustScore(userId) {
         try {
             const result = await pgPool.query(
@@ -348,7 +348,7 @@ class ContentModerator {
                 return parseFloat(result.rows[0].trust_score);
             }
             
-            // Initialize new user
+            // Create new user record
             await pgPool.query(
                 'INSERT INTO trusted_users (id) VALUES ($1) ON CONFLICT (id) DO NOTHING',
                 [userId]
@@ -361,13 +361,13 @@ class ContentModerator {
         }
     }
     
-    // Update user trust score
+    // Recalculate user reputation
     async updateUserTrustScore(userId, wasApproved) {
         const client = await pgPool.connect();
         try {
             await client.query('BEGIN');
             
-            // Get current stats
+            // Fetch user statistics
             const result = await client.query(
                 'SELECT trust_score, total_comments, flagged_comments FROM trusted_users WHERE id = $1 FOR UPDATE',
                 [userId]
@@ -383,18 +383,18 @@ class ContentModerator {
                 flaggedComments = parseInt(result.rows[0].flagged_comments);
             }
             
-            // Update stats
+            // Increment counters
             totalComments++;
             if (!wasApproved) flaggedComments++;
             
-            // Recalculate trust score
+            // Update reputation score
             if (totalComments >= 5) {
                 trustScore = 1 - (flaggedComments / totalComments);
                 trustScore = Math.max(config.moderation.minTrustScore, 
                            Math.min(config.moderation.maxTrustScore, trustScore));
             }
             
-            // Update database
+            // Save updated stats
             await client.query(
                 `INSERT INTO trusted_users (id, trust_score, total_comments, flagged_comments) 
                  VALUES ($1, $2, $3, $4) 
@@ -415,7 +415,7 @@ class ContentModerator {
         }
     }
     
-    // Log moderation result
+    // Record moderation decision
     async logModeration(content, result, userId = null) {
         try {
             await pgPool.query(
@@ -436,12 +436,12 @@ class ContentModerator {
     }
 }
 
-// Initialize moderator
+// Create moderator instance
 const moderator = new ContentModerator();
 
-// Routes
+// API endpoints
 
-// Main moderation endpoint
+// Check content endpoint
 app.post('/api/moderate', async (req, res) => {
     const { content, userId } = req.body;
     
@@ -452,7 +452,7 @@ app.post('/api/moderate', async (req, res) => {
     try {
         const result = await moderator.moderate(content, userId);
         
-        // Update trust score asynchronously
+        // Update user reputation in background
         if (userId) {
             moderator.updateUserTrustScore(userId, result.approved)
                 .catch(err => console.error('Failed to update trust score:', err));
@@ -469,7 +469,7 @@ app.post('/api/moderate', async (req, res) => {
     }
 });
 
-// Admin: Add/update blocked word
+// Add or update banned word
 app.post('/api/admin/blocked-words', async (req, res) => {
     const { word, severity = 'medium', adminKey } = req.body;
     
@@ -505,7 +505,7 @@ app.post('/api/admin/blocked-words', async (req, res) => {
     }
 });
 
-// Admin: Remove blocked word
+// Delete banned word
 app.delete('/api/admin/blocked-words/:word', async (req, res) => {
     const { word } = req.params;
     const { adminKey } = req.query;
@@ -536,7 +536,7 @@ app.delete('/api/admin/blocked-words/:word', async (req, res) => {
     }
 });
 
-// Admin: Get moderation statistics
+// View moderation analytics
 app.get('/api/admin/stats', async (req, res) => {
     const { adminKey, hours = 24 } = req.query;
     
@@ -545,7 +545,7 @@ app.get('/api/admin/stats', async (req, res) => {
     }
     
     try {
-        // Overall stats
+        // Calculate total statistics
         const stats = await pgPool.query(`
             SELECT 
                 COUNT(*) as total_moderated,
@@ -556,7 +556,7 @@ app.get('/api/admin/stats', async (req, res) => {
             WHERE created_at > NOW() - INTERVAL '${parseInt(hours)} hours'
         `);
         
-        // Rejection reasons
+        // Group by rejection type
         const reasons = await pgPool.query(`
             SELECT reason, COUNT(*) as count
             FROM moderation_logs
@@ -565,7 +565,7 @@ app.get('/api/admin/stats', async (req, res) => {
             ORDER BY count DESC
         `);
         
-        // Top flagged words
+        // Most common banned words
         const flaggedWords = await pgPool.query(`
             SELECT unnest(flagged_words) as word, COUNT(*) as count
             FROM moderation_logs
@@ -587,7 +587,7 @@ app.get('/api/admin/stats', async (req, res) => {
     }
 });
 
-// Health check
+// Service health endpoint
 app.get('/api/health', async (req, res) => {
     try {
         await pgPool.query('SELECT 1');
@@ -604,7 +604,7 @@ app.get('/api/health', async (req, res) => {
     }
 });
 
-// Error handlers
+// Global error handling
 app.use((err, req, res, next) => {
     console.error('Unhandled error:', err);
     res.status(500).json({ 
@@ -617,7 +617,7 @@ app.use((req, res) => {
     res.status(404).json({ error: 'Endpoint not found' });
 });
 
-// Graceful shutdown
+// Handle process termination
 process.on('SIGTERM', async () => {
     console.log('SIGTERM received, shutting down gracefully...');
     server.close(() => console.log('HTTP server closed'));
@@ -625,7 +625,7 @@ process.on('SIGTERM', async () => {
     process.exit(0);
 });
 
-// Start server
+// Launch moderation service
 const server = app.listen(port, () => {
     console.log(`Moderation service running on port ${port}`);
     console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);

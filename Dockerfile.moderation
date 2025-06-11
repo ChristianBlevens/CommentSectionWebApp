@@ -1,32 +1,32 @@
 FROM node:18-alpine
 
-# Create app directory
+# Set working directory
 WORKDIR /usr/src/app
 
-# Copy package files
+# Copy dependency list
 COPY backend/moderation/package*.json ./
 
-# Install production dependencies with natural language processing support
+# Install packages including NLP libraries
 RUN npm install --omit=dev
 
-# Copy app source
+# Copy moderation server
 COPY backend/moderation/moderation-server.js .
 
-# Create a non-root user to run the app
+# Create app user for security
 RUN addgroup -g 1001 -S nodejs
 RUN adduser -S nodejs -u 1001
 
-# Change ownership of the app directory
+# Set proper file permissions
 RUN chown -R nodejs:nodejs /usr/src/app
 
 USER nodejs
 
-# Expose port
+# Open moderation port
 EXPOSE 3001
 
-# Health check
+# Container health monitoring
 HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3001/api/health', (r) => r.statusCode === 200 ? process.exit(0) : process.exit(1))"
 
-# Start the server
+# Launch moderation service
 CMD ["node", "moderation-server.js"]

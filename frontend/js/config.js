@@ -1,4 +1,4 @@
-// Configuration module
+// App configuration settings
 const CONFIG = {
     backendUrl: window.location.origin,
     moderationUrl: window.location.origin,
@@ -6,7 +6,7 @@ const CONFIG = {
     discordRedirectUri: ''
 };
 
-// Load configuration from server
+// Fetch config from API
 async function loadConfig() {
     try {
         const response = await fetch('/api/config');
@@ -32,5 +32,5 @@ function setDefaultConfig() {
     CONFIG.discordRedirectUri = window.location.origin + '/oauth-callback.html';
 }
 
-// Load config immediately
+// Initialize on page load
 loadConfig();

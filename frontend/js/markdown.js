@@ -1,6 +1,6 @@
-// Markdown processing module
+// Markdown text formatter
 const MarkdownProcessor = {
-    // Initialize markdown-it instance
+    // Create markdown parser
     createInstance() {
         const md = window.markdownit({
             html: true,
@@ -8,7 +8,7 @@ const MarkdownProcessor = {
             linkify: false
         });
 
-        // Custom image renderer
+        // Make images clickable
         md.renderer.rules.image = (tokens, idx) => {
             const token = tokens[idx];
             const src = token.attrGet('src');
@@ -24,12 +24,12 @@ const MarkdownProcessor = {
         return md;
     },
 
-    // Preprocess markdown for custom features
+    // Add custom syntax support
     preprocessMarkdown(text) {
-        // Handle spoilers
+        // Convert ||text|| to spoilers
         text = text.replace(/\|\|([^|]+)\|\|/g, '<span class="spoiler">$1</span>');
         
-        // Handle video embeds
+        // Convert !video[] to embeds
         const videoRegex = /!video\[(.*?)\]\((.*?)\)/g;
         
         return text.replace(videoRegex, (match, alt, url) => {
@@ -54,7 +54,7 @@ const MarkdownProcessor = {
         });
     },
 
-    // Insert markdown formatting
+    // Add formatting to selected text
     insertMarkdown(textarea, before, after, updatePreviewFn) {
         const start = textarea.selectionStart;
         const end = textarea.selectionEnd;
@@ -64,7 +64,7 @@ const MarkdownProcessor = {
         const newText = text.substring(0, start) + before + selectedText + after + text.substring(end);
         textarea.value = newText;
         
-        // Update cursor position
+        // Place cursor after formatting
         setTimeout(() => {
             textarea.focus();
             const newCursorPos = start + before.length + selectedText.length;

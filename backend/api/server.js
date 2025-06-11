@@ -8,14 +8,14 @@ const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const crypto = require('crypto');
 
-// Initialize Express app
+// Create Express app instance
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Trust proxy - needed for rate limiting behind reverse proxy
+// Enable proxy trust for accurate IP addresses
 app.set('trust proxy', true);
 
-// Configuration
+// App configuration settings
 const config = {
     discord: {
         clientId: process.env.DISCORD_CLIENT_ID,
@@ -33,14 +33,14 @@ const config = {
     }
 };
 
-// Validate Discord configuration
+// Check Discord OAuth credentials are set
 if (!config.discord.clientId || !config.discord.clientSecret || 
     config.discord.clientId === 'YOUR_DISCORD_CLIENT_ID') {
     console.error('ERROR: Discord OAuth credentials not configured!');
     process.exit(1);
 }
 
-// Security middleware
+// Apply security headers and settings
 app.use(helmet({
     contentSecurityPolicy: false,
     hsts: {
@@ -54,7 +54,7 @@ app.use(cors(config.cors));
 app.use(bodyParser.json({ limit: '1mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '1mb' }));
 
-// Database connection
+// PostgreSQL connection pool setup
 const pgPool = new Pool({
     user: process.env.DB_USER || 'postgres',
     host: process.env.DB_HOST || 'localhost',
@@ -66,7 +66,7 @@ const pgPool = new Pool({
     connectionTimeoutMillis: 2000,
 });
 
-// Redis connection
+// Redis client for session storage
 const redisClient = redis.createClient({
     url: process.env.REDIS_URL || 'redis://localhost:6379',
     socket: {
@@ -77,12 +77,12 @@ const redisClient = redis.createClient({
     }
 });
 
-// Connect to Redis
+// Initialize Redis connection
 redisClient.connect().catch(err => {
     console.error('Redis connection failed:', err);
 });
 
-// Middleware to check moderator status for rate limiting
+// Check if user is moderator to bypass rate limits
 const checkModeratorForRateLimit = async (req, res, next) => {
     const authHeader = req.headers.authorization;
     if (authHeader?.startsWith('Bearer ')) {
@@ -105,10 +105,10 @@ const checkModeratorForRateLimit = async (req, res, next) => {
     next();
 };
 
-// Apply moderator check middleware before rate limiters
+// Apply moderator check globally
 app.use(checkModeratorForRateLimit);
 
-// Rate limiters
+// Create rate limiting middleware
 const createRateLimiter = (windowMs, max, message) => {
     return rateLimit({
         windowMs,
@@ -123,10 +123,10 @@ const createRateLimiter = (windowMs, max, message) => {
 const authLimiter = createRateLimiter(15 * 60 * 1000, 5, 'Too many authentication attempts');
 const generalLimiter = createRateLimiter(15 * 60 * 1000, 100, 'Too many requests');
 
-// Apply general rate limiter
+// Apply rate limiting to all routes
 app.use(generalLimiter);
 
-// Helper functions
+// Utility functions
 const generateSessionToken = () => crypto.randomBytes(32).toString('hex');
 
 const safeRedisOp = async (operation) => {
@@ -139,7 +139,7 @@ const safeRedisOp = async (operation) => {
     }
 };
 
-// Helper function to format ban duration
+// Convert milliseconds to human-readable time
 const formatBanDuration = (milliseconds) => {
     if (milliseconds <= 0) return 'Ban expired';
     
@@ -159,7 +159,7 @@ const formatBanDuration = (milliseconds) => {
     }
 };
 
-// Parse ban duration from string (e.g., "30m", "6h", "1d")
+// Convert duration string to milliseconds
 const parseBanDuration = (duration) => {
     if (!duration || duration === 'permanent') return null;
     
@@ -178,7 +178,7 @@ const parseBanDuration = (duration) => {
     return value * multipliers[unit];
 };
 
-// Optional authentication middleware
+// Auth middleware that doesn't require login
 const optionalAuth = async (req, res, next) => {
     const authHeader = req.headers.authorization;
     if (!authHeader?.startsWith('Bearer ')) {
@@ -188,14 +188,14 @@ const optionalAuth = async (req, res, next) => {
     
     const token = authHeader.substring(7);
     try {
-        // Get user from session
+        // Lookup user ID from session
         const userId = await safeRedisOp(() => redisClient.get(`session:${token}`));
         if (!userId) {
             req.user = null;
             return next();
         }
         
-        // Get user from database
+        // Fetch user details
         const userResult = await pgPool.query(
             'SELECT id, name, is_moderator, is_super_moderator FROM users WHERE id = $1',
             [userId]
@@ -214,7 +214,7 @@ const optionalAuth = async (req, res, next) => {
     next();
 };
 
-// Authentication middleware
+// Require user to be logged in
 const authenticateUser = async (req, res, next) => {
     const authHeader = req.headers.authorization;
     if (!authHeader?.startsWith('Bearer ')) {
@@ -223,13 +223,13 @@ const authenticateUser = async (req, res, next) => {
     
     const token = authHeader.substring(7);
     try {
-        // Get user from session
+        // Lookup user ID from session
         const userId = await safeRedisOp(() => redisClient.get(`session:${token}`));
         if (!userId) {
             return res.status(401).json({ error: 'Invalid or expired session' });
         }
         
-        // Get user from database with ban details and super moderator status
+        // Fetch user details with ban details and super moderator status
         const userResult = await pgPool.query(
             'SELECT id, name, is_moderator, is_super_moderator, is_banned, ban_expires_at, ban_reason, banned_at FROM users WHERE id = $1',
             [userId]
@@ -244,7 +244,7 @@ const authenticateUser = async (req, res, next) => {
         // Check if user is banned and handle expired bans
         if (user.is_banned) {
             if (user.ban_expires_at && new Date(user.ban_expires_at) <= new Date()) {
-                // Ban has expired, unban the user
+                // Auto-unban expired temporary bans
                 await pgPool.query(
                     `UPDATE users 
                      SET is_banned = FALSE, 
@@ -256,9 +256,9 @@ const authenticateUser = async (req, res, next) => {
                     [userId]
                 );
                 user.is_banned = false;
-                user.ban_expired = true; // Flag for notification
+                user.ban_expired = true; // Mark ban as expired for UI
             } else {
-                // Calculate remaining ban time
+                // Get ban time remaining
                 const banInfo = {
                     is_banned: true,
                     ban_expires_at: user.ban_expires_at,
@@ -289,7 +289,7 @@ const authenticateUser = async (req, res, next) => {
     }
 };
 
-// Moderator middleware
+// Require user to be a moderator
 const requireModerator = (req, res, next) => {
     if (!req.user?.is_moderator) {
         return res.status(403).json({ error: 'Moderator access required' });
@@ -297,13 +297,13 @@ const requireModerator = (req, res, next) => {
     next();
 };
 
-// Initialize database schema
+// Create database tables and indexes
 const initDatabase = async () => {
     const client = await pgPool.connect();
     try {
         await client.query('BEGIN');
         
-        // Users table
+        // Create users table
         await client.query(`
             CREATE TABLE IF NOT EXISTS users (
                 id VARCHAR(255) PRIMARY KEY,
@@ -321,7 +321,7 @@ const initDatabase = async () => {
             )
         `);
         
-        // Add new ban columns if they don't exist (for existing databases)
+        // Add ban tracking columns to users table
         await client.query(`
             DO $$ 
             BEGIN
@@ -362,7 +362,7 @@ const initDatabase = async () => {
             END $$;
         `);
         
-        // Comments table
+        // Create comments table
         await client.query(`
             CREATE TABLE IF NOT EXISTS comments (
                 id SERIAL PRIMARY KEY,
@@ -378,7 +378,7 @@ const initDatabase = async () => {
             )
         `);
         
-        // Votes table
+        // Create votes table
         await client.query(`
             CREATE TABLE IF NOT EXISTS votes (
                 id SERIAL PRIMARY KEY,
@@ -392,7 +392,7 @@ const initDatabase = async () => {
             )
         `);
         
-        // Reports table
+        // Create reports table
         await client.query(`
             CREATE TABLE IF NOT EXISTS reports (
                 id SERIAL PRIMARY KEY,
@@ -413,8 +413,8 @@ const initDatabase = async () => {
             )
         `);
         
-        // Migrate existing reports table if needed
-        // Check if comment_user_id column exists
+        // Update reports table schema
+        // Check for comment_user_id column
         const columnCheck = await client.query(`
             SELECT column_name 
             FROM information_schema.columns 
@@ -425,7 +425,7 @@ const initDatabase = async () => {
         if (columnCheck.rows.length === 0) {
             console.log('Migrating reports table schema...');
             
-            // Add missing columns
+            // Add comment tracking columns
             await client.query(`
                 ALTER TABLE reports 
                 ADD COLUMN IF NOT EXISTS comment_content TEXT,
@@ -433,7 +433,7 @@ const initDatabase = async () => {
                 ADD COLUMN IF NOT EXISTS comment_user_name VARCHAR(255)
             `);
             
-            // Update existing reports with comment content (where possible)
+            // Copy comment data to reports
             await client.query(`
                 UPDATE reports r
                 SET comment_content = COALESCE(c.content, '[Comment deleted]'),
@@ -445,7 +445,7 @@ const initDatabase = async () => {
                 AND r.comment_content IS NULL
             `);
             
-            // Set NOT NULL constraint after migration
+            // Make comment_content required
             await client.query(`
                 ALTER TABLE reports 
                 ALTER COLUMN comment_content SET NOT NULL
@@ -454,7 +454,7 @@ const initDatabase = async () => {
             console.log('Reports table migration completed');
         }
         
-        // Check if reports table has ON DELETE CASCADE for comment_id
+        // Check for CASCADE constraint
         const constraintCheck = await client.query(`
             SELECT tc.constraint_name 
             FROM information_schema.table_constraints tc
@@ -466,7 +466,7 @@ const initDatabase = async () => {
             AND tc.constraint_type = 'FOREIGN KEY'
         `);
         
-        // Remove CASCADE constraint if it exists
+        // Remove CASCADE to preserve reports
         if (constraintCheck.rows.length > 0) {
             console.log('Removing CASCADE constraint from reports table...');
             for (const row of constraintCheck.rows) {
@@ -478,7 +478,7 @@ const initDatabase = async () => {
             console.log('CASCADE constraint removed');
         }
         
-        // Report rate limits table
+        // Create report rate limiting table
         await client.query(`
             CREATE TABLE IF NOT EXISTS report_rate_limits (
                 user_id VARCHAR(255) PRIMARY KEY,
@@ -488,7 +488,7 @@ const initDatabase = async () => {
             )
         `);
         
-        // Warnings table
+        // Create warnings table
         await client.query(`
             CREATE TABLE IF NOT EXISTS warnings (
                 id SERIAL PRIMARY KEY,
@@ -504,7 +504,7 @@ const initDatabase = async () => {
             )
         `);
         
-        // Add missing columns to warnings table if they don't exist
+        // Add warning tracking columns
         await client.query(`
             DO $$ 
             BEGIN
@@ -523,7 +523,7 @@ const initDatabase = async () => {
             END $$;
         `);
         
-        // Create indexes
+        // Create performance indexes
         await client.query(`
             CREATE INDEX IF NOT EXISTS idx_comments_page_id ON comments(page_id);
             CREATE INDEX IF NOT EXISTS idx_comments_parent_id ON comments(parent_id);
@@ -541,7 +541,7 @@ const initDatabase = async () => {
         await client.query('COMMIT');
         console.log('Database schema initialized successfully');
         
-        // Run data migrations
+        // Migrate existing data
         await runDataMigrations();
     } catch (error) {
         await client.query('ROLLBACK');
@@ -552,13 +552,13 @@ const initDatabase = async () => {
     }
 };
 
-// Run data migrations to populate new columns
+// Update user statistics from existing data
 const runDataMigrations = async () => {
     const client = await pgPool.connect();
     try {
         await client.query('BEGIN');
         
-        // Update total_comments for users
+        // Count total comments per user
         await client.query(`
             UPDATE users u
             SET total_comments = COALESCE((
@@ -569,7 +569,7 @@ const runDataMigrations = async () => {
             WHERE u.total_comments = 0
         `);
         
-        // Update total_reports_made for users
+        // Count reports made by each user
         await client.query(`
             UPDATE users u
             SET total_reports_made = COALESCE((
@@ -580,7 +580,7 @@ const runDataMigrations = async () => {
             WHERE u.total_reports_made = 0
         `);
         
-        // Update total_reports_received for users
+        // Count reports received by each user
         await client.query(`
             UPDATE users u
             SET total_reports_received = COALESCE((
@@ -591,7 +591,7 @@ const runDataMigrations = async () => {
             WHERE u.total_reports_received = 0
         `);
         
-        // Set initial moderators as super moderators
+        // Grant super moderator status to initial mods
         const initialMods = process.env.INITIAL_MODERATORS?.split(',').map(id => id.trim()).filter(Boolean) || [];
         if (initialMods.length > 0) {
             await client.query(
@@ -611,15 +611,15 @@ const runDataMigrations = async () => {
     }
 };
 
-// Initialize database on startup
+// Setup database tables on start
 initDatabase().catch(err => {
     console.error('Failed to initialize database:', err);
     process.exit(1);
 });
 
-// Routes
+// API endpoints
 
-// Public configuration
+// Get Discord OAuth config
 app.get('/api/config', (req, res) => {
     res.json({
         discordClientId: config.discord.clientId,
@@ -627,7 +627,7 @@ app.get('/api/config', (req, res) => {
     });
 });
 
-// Health check
+// Check API and database health
 app.get('/api/health', async (req, res) => {
     try {
         await pgPool.query('SELECT 1');
@@ -647,7 +647,7 @@ app.get('/api/health', async (req, res) => {
     }
 });
 
-// Discord OAuth callback
+// Handle Discord OAuth redirect
 app.post('/api/discord/callback', authLimiter, async (req, res) => {
     const { code, state } = req.body;
     
@@ -656,7 +656,7 @@ app.post('/api/discord/callback', authLimiter, async (req, res) => {
     }
     
     try {
-        // Exchange code for token
+        // Get Discord access token
         const tokenResponse = await axios.post('https://discord.com/api/oauth2/token', 
             new URLSearchParams({
                 client_id: config.discord.clientId,
@@ -673,7 +673,7 @@ app.post('/api/discord/callback', authLimiter, async (req, res) => {
         
         const { access_token } = tokenResponse.data;
         
-        // Get user info
+        // Fetch Discord user profile
         const userResponse = await axios.get('https://discord.com/api/users/@me', {
             headers: { Authorization: `Bearer ${access_token}` },
             timeout: 10000
@@ -690,11 +690,11 @@ app.post('/api/discord/callback', authLimiter, async (req, res) => {
             email: discordUser.email || `${discordUser.id}@discord.user`
         };
         
-        // Check if initial moderator
+        // Check if user is initial moderator
         const initialModerators = process.env.INITIAL_MODERATORS?.split(',').map(id => id.trim()) || [];
         const isInitialModerator = initialModerators.includes(user.id);
         
-        // Upsert user
+        // Create or update user record
         await pgPool.query(
             `INSERT INTO users (id, email, name, picture, is_moderator, is_super_moderator) 
              VALUES ($1, $2, $3, $4, $5, $6) 
@@ -713,7 +713,7 @@ app.post('/api/discord/callback', authLimiter, async (req, res) => {
             [user.id, user.email, user.username, user.avatar, isInitialModerator, isInitialModerator]
         );
         
-        // Get user status including ban details
+        // Check user permissions and ban status
         const userResult = await pgPool.query(
             'SELECT is_moderator, is_super_moderator, is_banned, ban_expires_at, ban_reason, banned_at FROM users WHERE id = $1',
             [user.id]
@@ -725,9 +725,9 @@ app.post('/api/discord/callback', authLimiter, async (req, res) => {
             user.is_super_moderator = userData.is_super_moderator;
             user.is_banned = userData.is_banned;
             
-            // Check if ban has expired
+            // Handle expired temporary bans
             if (userData.is_banned && userData.ban_expires_at && new Date(userData.ban_expires_at) <= new Date()) {
-                // Ban has expired, unban the user
+                // Auto-unban expired temporary bans
                 await pgPool.query(
                     `UPDATE users 
                      SET is_banned = FALSE, 
@@ -741,7 +741,7 @@ app.post('/api/discord/callback', authLimiter, async (req, res) => {
                 user.is_banned = false;
                 user.ban_expired = true;
             } else if (userData.is_banned) {
-                // User is still banned
+                // User remains banned
                 user.ban_info = {
                     is_banned: true,
                     ban_expires_at: userData.ban_expires_at,
@@ -759,7 +759,7 @@ app.post('/api/discord/callback', authLimiter, async (req, res) => {
             }
         }
         
-        // Generate session
+        // Create session token
         const sessionToken = generateSessionToken();
         await safeRedisOp(() => 
             redisClient.setEx(`session:${sessionToken}`, config.session.duration, user.id)
@@ -776,7 +776,7 @@ app.post('/api/discord/callback', authLimiter, async (req, res) => {
     }
 });
 
-// Check ban status
+// Get current ban status
 app.get('/api/check-ban-status', authenticateUser, async (req, res) => {
     try {
         const userResult = await pgPool.query(
@@ -836,7 +836,7 @@ app.get('/api/check-ban-status', authenticateUser, async (req, res) => {
     }
 });
 
-// Validate session endpoint (no auth required for validation)
+// Verify session token validity
 app.get('/api/session/validate', async (req, res) => {
     const authHeader = req.headers.authorization;
     if (!authHeader?.startsWith('Bearer ')) {
@@ -845,13 +845,13 @@ app.get('/api/session/validate', async (req, res) => {
     
     const token = authHeader.substring(7);
     try {
-        // Get user from session
+        // Lookup user ID from session
         const userId = await safeRedisOp(() => redisClient.get(`session:${token}`));
         if (!userId) {
             return res.status(401).json({ error: 'Invalid or expired session' });
         }
         
-        // Get user from database
+        // Fetch user details
         const userResult = await pgPool.query(
             'SELECT id, email, name, picture, is_moderator, is_super_moderator, is_banned FROM users WHERE id = $1',
             [userId]
@@ -877,18 +877,18 @@ app.get('/api/session/validate', async (req, res) => {
     }
 });
 
-// Logout
+// Destroy user session
 app.post('/api/logout', authenticateUser, async (req, res) => {
     const token = req.headers.authorization.substring(7);
     await safeRedisOp(() => redisClient.del(`session:${token}`));
     res.json({ success: true });
 });
 
-// Get user data
+// Fetch user profile
 app.get('/api/users/:userId', authenticateUser, async (req, res) => {
     const { userId } = req.params;
     
-    // Users can only get their own data
+    // Restrict to own profile only
     if (userId !== req.user.id) {
         return res.status(403).json({ error: 'Unauthorized' });
     }
@@ -919,17 +919,17 @@ app.get('/api/users/:userId', authenticateUser, async (req, res) => {
     }
 });
 
-// Unified comments endpoint with query parameters
+// Get comments by page or user
 app.get('/api/comments', optionalAuth, async (req, res) => {
     const { pageId, userId, limit, offset = 0, orderBy = 'created_at', order = 'ASC' } = req.query;
     
-    // Validate required parameters
+    // Require pageId or userId
     if (!pageId && !userId) {
         return res.status(400).json({ error: 'Either pageId or userId parameter is required' });
     }
     
     try {
-        // Build WHERE clause dynamically
+        // Construct query conditions
         const whereConditions = [];
         const queryParams = [];
         
@@ -943,17 +943,17 @@ app.get('/api/comments', optionalAuth, async (req, res) => {
             queryParams.push(userId);
         }
         
-        // Add authenticated user ID for vote lookup
+        // Include user's votes if logged in
         queryParams.push(req.user?.id || null);
         const userVoteParam = `$${queryParams.length}`;
         
-        // Validate orderBy to prevent SQL injection
+        // Sanitize sort parameters
         const validOrderBy = ['created_at', 'likes', 'dislikes'];
         const validOrder = ['ASC', 'DESC'];
         const safeOrderBy = validOrderBy.includes(orderBy) ? orderBy : 'created_at';
         const safeOrder = validOrder.includes(order.toUpperCase()) ? order.toUpperCase() : 'ASC';
         
-        // Build query
+        // Construct SQL query
         let query = `
             SELECT 
                 c.id, c.page_id, c.user_id, c.parent_id, c.content, 
@@ -967,7 +967,7 @@ app.get('/api/comments', optionalAuth, async (req, res) => {
             ORDER BY c.${safeOrderBy} ${safeOrder}
         `;
         
-        // Add limit and offset if provided
+        // Apply pagination
         if (limit) {
             const limitNum = parseInt(limit);
             if (!isNaN(limitNum) && limitNum > 0 && limitNum <= 100) {
@@ -982,7 +982,7 @@ app.get('/api/comments', optionalAuth, async (req, res) => {
         
         const result = await pgPool.query(query, queryParams);
         
-        // Transform to API format
+        // Format response data
         const comments = result.rows.map(row => ({
             id: row.id,
             pageId: row.page_id,
@@ -998,7 +998,7 @@ app.get('/api/comments', optionalAuth, async (req, res) => {
             userVote: row.user_vote
         }));
         
-        // Prevent caching
+        // Disable browser caching
         res.set({
             'Cache-Control': 'no-cache, no-store, must-revalidate',
             'Pragma': 'no-cache',
@@ -1280,7 +1280,7 @@ app.delete('/api/comments/:commentId', authenticateUser, async (req, res) => {
             // Delete completely
             await client.query('DELETE FROM comments WHERE id = $1', [commentIdNum]);
             
-            // Clean up orphaned deleted comments
+            // Remove deleted parent comments
             let parentId = comment.parent_id;
             while (parentId) {
                 const parentCheck = await client.query(
@@ -1330,7 +1330,7 @@ app.delete('/api/comments/:commentId', authenticateUser, async (req, res) => {
     }
 });
 
-// Report comment
+// Flag comment for moderation
 app.post('/api/comments/:commentId/report', authenticateUser, async (req, res) => {
     const { commentId } = req.params;
     const { reason } = req.body;
@@ -1345,7 +1345,7 @@ app.post('/api/comments/:commentId/report', authenticateUser, async (req, res) =
     try {
         await client.query('BEGIN');
         
-        // Rate limit check (skip for moderators)
+        // Apply report rate limit
         if (!req.user.is_moderator) {
             const now = new Date();
             const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
@@ -1379,7 +1379,7 @@ app.post('/api/comments/:commentId/report', authenticateUser, async (req, res) =
             }
         }
         
-        // Get comment info with user details
+        // Fetch comment and author details
         const commentResult = await client.query(
             `SELECT c.page_id, c.content, c.user_id, u.name as user_name
              FROM comments c
@@ -1394,7 +1394,7 @@ app.post('/api/comments/:commentId/report', authenticateUser, async (req, res) =
         
         const comment = commentResult.rows[0];
         
-        // Create report with comment copy
+        // Save report with comment snapshot
         console.log(`Creating report for comment ${commentIdNum} on page "${comment.page_id}" (length: ${comment.page_id.length})`);
         
         const reportResult = await client.query(
@@ -1406,15 +1406,15 @@ app.post('/api/comments/:commentId/report', authenticateUser, async (req, res) =
              comment.content, comment.user_id, comment.user_name]
         );
         
-        // Only update statistics if report was actually created (not duplicate)
+        // Update report counters if new report
         if (reportResult.rows.length > 0) {
-            // Update reporter's report count
+            // Increment reporter's counter
             await client.query(
                 'UPDATE users SET total_reports_made = total_reports_made + 1 WHERE id = $1',
                 [userId]
             );
             
-            // Update reported user's report count
+            // Increment reported user's counter
             if (comment.user_id) {
                 await client.query(
                     'UPDATE users SET total_reports_received = total_reports_received + 1 WHERE id = $1',
@@ -1440,12 +1440,12 @@ app.post('/api/comments/:commentId/report', authenticateUser, async (req, res) =
     }
 });
 
-// Get all reports (moderators only)
-// Unified reports endpoint - handles all cases with query parameters
+// List moderation reports
+// Get reports with filters
 app.get('/api/reports', authenticateUser, requireModerator, async (req, res) => {
     const { pageId, userId, includePages, status = 'pending' } = req.query;
     
-    // Validate status parameter
+    // Sanitize report status
     const validStatuses = ['pending', 'resolved', 'dismissed'];
     const sanitizedStatus = validStatuses.includes(status) ? status : 'pending';
     
@@ -1468,7 +1468,7 @@ app.get('/api/reports', authenticateUser, requireModerator, async (req, res) => 
         
         const whereClause = whereConditions.join(' AND ');
         
-        // Get reports
+        // Query reports table
         const reportsQuery = `
             SELECT r.*, 
                    r.comment_content as content,
@@ -1487,12 +1487,12 @@ app.get('/api/reports', authenticateUser, requireModerator, async (req, res) => 
         
         console.log(`Found ${reportsResult.rows.length} reports`);
         
-        // Build response
+        // Prepare API response
         const response = {
             reports: reportsResult.rows
         };
         
-        // Include pages data if requested
+        // Add page statistics if needed
         if (includePages === 'true') {
             const pagesResult = await pgPool.query(`
                 SELECT DISTINCT page_id, COUNT(*) as report_count 
@@ -1506,7 +1506,7 @@ app.get('/api/reports', authenticateUser, requireModerator, async (req, res) => 
             console.log(`Found ${pagesResult.rows.length} pages with reports`);
         }
         
-        // Prevent caching
+        // Disable browser caching
         res.set({
             'Cache-Control': 'no-cache, no-store, must-revalidate',
             'Pragma': 'no-cache',
@@ -1521,7 +1521,7 @@ app.get('/api/reports', authenticateUser, requireModerator, async (req, res) => 
     }
 });
 
-// Resolve report (moderators only)
+// Mark report as handled
 app.put('/api/reports/:reportId/resolve', authenticateUser, requireModerator, async (req, res) => {
     const { reportId } = req.params;
     const { action } = req.body;
@@ -1546,13 +1546,13 @@ app.put('/api/reports/:reportId/resolve', authenticateUser, requireModerator, as
     }
 });
 
-// Ban user (moderators only)
+// Block user from commenting
 app.post('/api/users/:targetUserId/ban', authenticateUser, requireModerator, async (req, res) => {
     const { targetUserId } = req.params;
     const { duration, reason, deleteComments = true } = req.body;
     const userId = req.user.id;
     
-    // Parse ban duration
+    // Convert duration to timestamp
     const banDurationMs = parseBanDuration(duration);
     const banExpiresAt = banDurationMs ? new Date(Date.now() + banDurationMs) : null;
     
@@ -1560,7 +1560,7 @@ app.post('/api/users/:targetUserId/ban', authenticateUser, requireModerator, asy
     try {
         await client.query('BEGIN');
         
-        // Check if user exists
+        // Verify user exists
         const userCheck = await client.query(
             'SELECT id, name FROM users WHERE id = $1',
             [targetUserId]
@@ -1571,7 +1571,7 @@ app.post('/api/users/:targetUserId/ban', authenticateUser, requireModerator, asy
             return res.status(404).json({ error: 'User not found' });
         }
         
-        // Ban user with time-based ban details
+        // Apply ban to user account
         await client.query(
             `UPDATE users 
              SET is_banned = TRUE,
@@ -1583,7 +1583,7 @@ app.post('/api/users/:targetUserId/ban', authenticateUser, requireModerator, asy
             [targetUserId, banExpiresAt, reason || 'No reason provided', userId]
         );
         
-        // Optionally delete comments
+        // Remove user's comments if requested
         if (deleteComments) {
             await client.query(
                 'DELETE FROM comments WHERE user_id = $1',
@@ -1591,7 +1591,7 @@ app.post('/api/users/:targetUserId/ban', authenticateUser, requireModerator, asy
             );
         }
         
-        // Resolve any pending reports for this user
+        // Auto-resolve reports for banned user
         await client.query(
             `UPDATE reports 
              SET status = 'resolved', 
@@ -1603,10 +1603,10 @@ app.post('/api/users/:targetUserId/ban', authenticateUser, requireModerator, asy
         
         await client.query('COMMIT');
         
-        // Clear all caches
+        // Flush Redis cache
         await safeRedisOp(() => redisClient.flushDb());
         
-        // Prepare response
+        // Format ban details
         const banInfo = {
             success: true,
             banned_user: userCheck.rows[0].name,
@@ -1626,7 +1626,7 @@ app.post('/api/users/:targetUserId/ban', authenticateUser, requireModerator, asy
     }
 });
 
-// Get moderators (moderators only)
+// List all moderators
 app.get('/api/moderators', authenticateUser, requireModerator, async (req, res) => {
     try {
         const moderators = await pgPool.query(
@@ -1639,7 +1639,7 @@ app.get('/api/moderators', authenticateUser, requireModerator, async (req, res) 
     }
 });
 
-// Set moderator status (moderators only)
+// Grant or revoke moderator role
 app.put('/api/users/:targetUserId/moderator', authenticateUser, requireModerator, async (req, res) => {
     const { targetUserId } = req.params;
     const { isModerator } = req.body;
@@ -1660,7 +1660,7 @@ app.put('/api/users/:targetUserId/moderator', authenticateUser, requireModerator
     }
 });
 
-// Delete all comments for page (moderators only)
+// Clear all page comments
 app.delete('/api/comments/page/:pageId/all', authenticateUser, requireModerator, async (req, res) => {
     const { pageId } = req.params;
     
@@ -1672,7 +1672,7 @@ app.delete('/api/comments/page/:pageId/all', authenticateUser, requireModerator,
     try {
         await client.query('BEGIN');
         
-        // Count comments
+        // Get comment count
         const countResult = await client.query(
             'SELECT COUNT(*) as count FROM comments WHERE page_id = $1',
             [pageId]
@@ -1685,7 +1685,7 @@ app.delete('/api/comments/page/:pageId/all', authenticateUser, requireModerator,
             return res.json({ success: true, deletedCount: 0, message: 'No comments to delete' });
         }
         
-        // Delete comments only (preserve reports)
+        // Delete comments but keep reports
         await client.query('DELETE FROM comments WHERE page_id = $1', [pageId]);
         
         await client.query('COMMIT');
@@ -1707,7 +1707,7 @@ app.delete('/api/comments/page/:pageId/all', authenticateUser, requireModerator,
     }
 });
 
-// Get all pages with comments (moderators only)
+// List pages with comment counts
 app.get('/api/pages', authenticateUser, requireModerator, async (req, res) => {
     try {
         const pages = await pgPool.query(`
@@ -1732,7 +1732,7 @@ app.get('/api/pages', authenticateUser, requireModerator, async (req, res) => {
 });
 
 
-// Unified users endpoint with query parameters (moderators only)
+// Get users with filters
 app.get('/api/users', authenticateUser, requireModerator, async (req, res) => {
     const { 
         filter,           // 'all', 'moderators', 'banned', 'warned', 'reported'
@@ -1745,7 +1745,7 @@ app.get('/api/users', authenticateUser, requireModerator, async (req, res) => {
     } = req.query;
     
     try {
-        // Build WHERE clause dynamically
+        // Construct query conditions
         const whereConditions = [];
         const queryParams = [];
         
@@ -1754,7 +1754,7 @@ app.get('/api/users', authenticateUser, requireModerator, async (req, res) => {
             queryParams.push(userId);
         }
         
-        // Apply filters
+        // Apply user filters
         switch (filter) {
             case 'moderators':
                 whereConditions.push('u.is_moderator = true');
@@ -1771,7 +1771,7 @@ app.get('/api/users', authenticateUser, requireModerator, async (req, res) => {
             // 'all' or undefined - no additional filter
         }
         
-        // Validate orderBy to prevent SQL injection
+        // Sanitize sort parameters
         const validOrderBy = ['created_at', 'name', 'total_comments', 'total_reports_received', 'warning_count', 'trust_score'];
         const validOrder = ['ASC', 'DESC'];
         const safeOrderBy = validOrderBy.includes(orderBy) ? orderBy : 'created_at';
@@ -1786,7 +1786,7 @@ app.get('/api/users', authenticateUser, requireModerator, async (req, res) => {
                 u.trust_score, u.created_at
         `;
         
-        // Add activity details if requested
+        // Include user activity data
         if (includeDetails === 'true' && userId) {
             query = `
                 SELECT 
@@ -1796,7 +1796,7 @@ app.get('/api/users', authenticateUser, requireModerator, async (req, res) => {
                     u.total_reports_made, u.total_reports_received,
                     u.trust_score, u.created_at,
                     
-                    -- Recent comments
+                    -- Last 5 comments
                     COALESCE(
                         json_agg(
                             DISTINCT jsonb_build_object(
@@ -1808,7 +1808,7 @@ app.get('/api/users', authenticateUser, requireModerator, async (req, res) => {
                         ) FILTER (WHERE c.id IS NOT NULL), '[]'
                     ) as comments,
                     
-                    -- Warnings
+                    -- User warnings
                     COALESCE(
                         json_agg(
                             DISTINCT jsonb_build_object(
@@ -1822,7 +1822,7 @@ app.get('/api/users', authenticateUser, requireModerator, async (req, res) => {
                         ) FILTER (WHERE w.id IS NOT NULL), '[]'
                     ) as warnings,
                     
-                    -- Reports received
+                    -- Reports against user
                     COALESCE(
                         json_agg(
                             DISTINCT jsonb_build_object(
@@ -1862,7 +1862,7 @@ app.get('/api/users', authenticateUser, requireModerator, async (req, res) => {
             ORDER BY u.${safeOrderBy} ${safeOrder}
         `;
         
-        // Add limit and offset if provided
+        // Apply pagination
         if (limit && !userId) { // Don't limit when getting specific user details
             const limitNum = parseInt(limit);
             if (!isNaN(limitNum) && limitNum > 0 && limitNum <= 100) {
@@ -1877,7 +1877,7 @@ app.get('/api/users', authenticateUser, requireModerator, async (req, res) => {
         
         const result = await pgPool.query(query, queryParams);
         
-        // If single user requested with details, return object instead of array
+        // Return single object for user details
         if (userId && includeDetails === 'true' && result.rows.length > 0) {
             res.json(result.rows[0]);
         } else {
@@ -1891,7 +1891,7 @@ app.get('/api/users', authenticateUser, requireModerator, async (req, res) => {
 
 
 
-// Issue warning to user (moderators only)
+// Send warning to user
 app.post('/api/users/:userId/warn', authenticateUser, requireModerator, async (req, res) => {
     const { userId } = req.params;
     const { reason, message } = req.body;
@@ -1912,7 +1912,7 @@ app.post('/api/users/:userId/warn', authenticateUser, requireModerator, async (r
             [userId, moderatorId, reason, message || null]
         );
         
-        // Update user warning count and timestamp
+        // Update warning statistics
         await client.query(
             `UPDATE users 
              SET warning_count = warning_count + 1,
@@ -1932,7 +1932,7 @@ app.post('/api/users/:userId/warn', authenticateUser, requireModerator, async (r
     }
 });
 
-// Get unread warnings for current user
+// Check for new warnings
 app.get('/api/users/warnings/unread', authenticateUser, async (req, res) => {
     const userId = req.user.id;
     
@@ -1952,7 +1952,7 @@ app.get('/api/users/warnings/unread', authenticateUser, async (req, res) => {
     }
 });
 
-// Acknowledge warnings
+// Mark warnings as read
 app.post('/api/users/warnings/acknowledge', authenticateUser, async (req, res) => {
     const userId = req.user.id;
     
@@ -1972,12 +1972,12 @@ app.post('/api/users/warnings/acknowledge', authenticateUser, async (req, res) =
     }
 });
 
-// Toggle moderator status (super moderators only)
+// Change moderator status
 app.put('/api/users/:userId/moderator', authenticateUser, async (req, res) => {
     const { userId } = req.params;
     const { is_moderator } = req.body;
     
-    // Check if user is super moderator
+    // Verify super moderator permission
     if (!req.user.is_super_moderator) {
         const initialMods = process.env.INITIAL_MODERATORS?.split(',').map(id => id.trim()).filter(Boolean) || [];
         if (!initialMods.includes(req.user.id)) {
@@ -1998,7 +1998,7 @@ app.put('/api/users/:userId/moderator', authenticateUser, async (req, res) => {
     }
 });
 
-// Unban user (moderators only)
+// Remove user ban
 app.post('/api/users/:userId/unban', authenticateUser, requireModerator, async (req, res) => {
     const { userId } = req.params;
     
@@ -2021,7 +2021,7 @@ app.post('/api/users/:userId/unban', authenticateUser, requireModerator, async (
     }
 });
 
-// Get report count
+// Count pending reports
 app.get('/api/reports/count', authenticateUser, requireModerator, async (req, res) => {
     try {
         const result = await pgPool.query(
@@ -2036,9 +2036,9 @@ app.get('/api/reports/count', authenticateUser, requireModerator, async (req, re
     }
 });
 
-// The /api/reports/all endpoint has been consolidated into /api/reports with query parameters
+// Legacy endpoint removed - use /api/reports
 
-// Error handlers
+// Global error handling
 app.use((err, req, res, next) => {
     console.error('Unhandled error:', err);
     res.status(500).json({ 
@@ -2051,7 +2051,7 @@ app.use((req, res) => {
     res.status(404).json({ error: 'Endpoint not found' });
 });
 
-// Graceful shutdown
+// Handle process termination
 process.on('SIGTERM', async () => {
     console.log('SIGTERM received, shutting down gracefully...');
     server.close(() => console.log('HTTP server closed'));
@@ -2060,7 +2060,7 @@ process.on('SIGTERM', async () => {
     process.exit(0);
 });
 
-// Start server
+// Launch API server
 const server = app.listen(port, () => {
     console.log(`Comment API server running on port ${port}`);
     console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);

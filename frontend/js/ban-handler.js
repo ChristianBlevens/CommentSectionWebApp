@@ -1,12 +1,12 @@
-// Ban handling module
+// User ban management
 const BanHandler = {
-    // Toggle ban dropdown
+    // Show/hide ban options menu
     toggleBanDropdown(currentDropdown, reportId, event) {
         event.stopPropagation();
         return currentDropdown === reportId ? null : reportId;
     },
 
-    // Ban user with duration prompt
+    // Prompt for ban reason
     async banUserWithDuration(userId, userName, duration, banUserFn) {
         const reason = prompt(`Why are you banning ${userName}?`);
         if (!reason) return;
@@ -14,7 +14,7 @@ const BanHandler = {
         await banUserFn(userId, userName, duration, reason);
     },
 
-    // Show custom ban input
+    // Get custom ban duration
     async showCustomBanInput(userId, userName, banUserWithDurationFn) {
         const duration = prompt('Enter ban duration (e.g., 30m, 6h, 1d):');
         if (!duration) return;
@@ -27,7 +27,7 @@ const BanHandler = {
         await banUserWithDurationFn(userId, userName, duration);
     },
 
-    // Ban user API call
+    // Execute ban request
     async banUser(apiUrl, userId, userName, duration, reason, deleteComments = false) {
         const sessionToken = localStorage.getItem('sessionToken');
         if (!sessionToken) {

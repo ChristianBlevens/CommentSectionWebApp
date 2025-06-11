@@ -1,7 +1,7 @@
-// Define API_URL globally
+// Set API base URL
 const API_URL = window.location.origin;
 
-// Global helper functions
+// Shared utility functions
 function getRelativeTime(dateString) {
     return Utils.getRelativeTime(dateString);
 }
@@ -32,7 +32,7 @@ async function banUserWithDuration(userId, userName, duration) {
     
     const response = await BanHandler.banUser(API_URL, userId, userName, duration, reason);
     if (response.success) {
-        // Show ban notification
+        // Display ban success message
         if (window.unifiedAppInstance) {
             window.unifiedAppInstance.banNotification = {
                 show: true,
@@ -52,7 +52,7 @@ function showCustomBanInput(userId, userName) {
     BanHandler.showCustomBanInput(userId, userName, banUserWithDuration);
 }
 
-// Initialize markdown processor on page load
+// Setup markdown parser
 function initializeMarkdown() {
     if (!window.md) {
         window.md = window.markdownit({
@@ -63,7 +63,7 @@ function initializeMarkdown() {
     }
 }
 
-// Global click handler to close dropdowns
+// Close dropdowns on outside click
 document.addEventListener('click', (event) => {
     if (!event.target.closest('.comment-dropdown-container')) {
         document.querySelectorAll('.comment-dropdown.show').forEach(dropdown => {
@@ -72,7 +72,7 @@ document.addEventListener('click', (event) => {
     }
 });
 
-// Setup OAuth message listener
+// Handle Discord login callbacks
 Auth.setupOAuthListener((user, data) => {
     if (window.unifiedAppInstance) {
         window.unifiedAppInstance.user = user;
@@ -80,7 +80,7 @@ Auth.setupOAuthListener((user, data) => {
     }
 });
 
-// Helper function to get auth headers
+// Build request headers with auth
 function getAuthHeaders() {
     const sessionToken = localStorage.getItem('sessionToken');
     const headers = {
@@ -92,13 +92,13 @@ function getAuthHeaders() {
     return headers;
 }
 
-// Helper function to handle 401 errors
+// Clear session on auth failure
 async function handleAuthError(response) {
     if (response.status === 401) {
         console.log('Session expired, clearing localStorage');
         localStorage.removeItem('user');
         localStorage.removeItem('sessionToken');
-        // Reload the page to reset the app state
+        // Refresh page to clear state
         window.location.reload();
         return true;
     }
@@ -107,7 +107,7 @@ async function handleAuthError(response) {
 
 function unifiedApp() {
     return {
-        // Core state
+        // Main app data
         user: null,
         comments: [],
         sortedComments: [],
@@ -122,10 +122,10 @@ function unifiedApp() {
         focusedComments: [],
         commentVotes: {},
         
-        // Moderation panel state
+        // Moderator dashboard state
         activeTab: 'comments',
         
-        // Reports state
+        // Report management data
         reports: [],
         filteredReports: [],
         pageReports: [],
@@ -138,7 +138,7 @@ function unifiedApp() {
         filteredPages: [],
         showPageDropdown: false,
         
-        // Users state
+        // User management data
         users: [],
         filteredUsers: [],
         paginatedUsers: [],
@@ -151,27 +151,27 @@ function unifiedApp() {
         usersPerPage: 20,
         expandedUsers: [],
         
-        // Ban state
+        // Ban UI state
         showBanDropdown: null,
         banNotification: { show: false, message: '', expired: false },
         warningNotification: { show: false, message: '' },
         
-        // Initialize the app
+        // Setup app on load
         async init() {
-            // Set global instance for event handlers
+            // Store app reference globally
             window.unifiedAppInstance = this;
             
-            // Initialize markdown
+            // Create markdown parser
             window.md = window.markdownit({
                 html: false,
                 breaks: true,
                 linkify: true
             });
             
-            // Check authentication
+            // Restore user session
             this.user = await Auth.checkExistingSession();
             
-            // Set super moderator status for initial moderators
+            // Grant super mod permissions
             if (this.user) {
                 const initialMods = (window.ENV?.INITIAL_MODERATORS || '').split(',').map(id => id.trim()).filter(Boolean);
                 if (initialMods.includes(this.user.id)) {
@@ -179,21 +179,21 @@ function unifiedApp() {
                 }
             }
             
-            // Load comments for the current page
+            // Fetch page comments
             await this.loadComments();
             
-            // Load report count for moderators
+            // Get pending report count
             if (this.user?.is_moderator) {
                 await this.loadReportCount();
             }
             
-            // Initialize markdown processor
+            // Setup markdown renderer
             if (window.initializeMarkdown) {
                 window.initializeMarkdown();
             }
         },
         
-        // Check for warnings
+        // Fetch unread warnings
         async checkWarnings() {
             try {
                 const response = await fetch(`${API_URL}/api/users/warnings/unread`, {
@@ -465,10 +465,10 @@ function unifiedApp() {
             }
         },
         
-        // User management methods
+        // User admin functions
         async loadUsers() {
             if (this.activeTab !== 'users') return;
-            if (!this.user?.is_moderator) return; // Don't load if not a moderator
+            if (!this.user?.is_moderator) return; // Moderators only
             
             this.loadingUsers = true;
             try {
@@ -490,11 +490,11 @@ function unifiedApp() {
         },
         
         filterUsers() {
-            // Now that the backend supports filtering, we could load filtered data directly
-            // But for now, keep client-side filtering for already loaded data
+            // Filter users client-side
+            // TODO: Move to server-side filtering
             let filtered = [...this.users];
             
-            // Apply search filter
+            // Search by name or email
             if (this.userSearchQuery) {
                 const query = this.userSearchQuery.toLowerCase();
                 filtered = filtered.filter(user => 
@@ -867,13 +867,13 @@ function unifiedApp() {
             }
         },
         
-        // Get pageId from URL
+        // Extract page ID from query params
         get pageId() {
             const params = new URLSearchParams(window.location.search);
             return params.get('pageId') || 'default';
         },
         
-        // Additional comment methods
+        // Comment interaction methods
         async voteComment(commentId, voteType) {
             if (!this.user) {
                 alert('Please sign in to vote');

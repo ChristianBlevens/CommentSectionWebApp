@@ -1,5 +1,5 @@
 services:
-  # PostgreSQL databases
+  # Database containers
   postgres-comments:
     image: postgres:15-alpine
     container_name: comment-postgres
@@ -10,8 +10,8 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres123}
     volumes:
       - postgres-comments-data:/var/lib/postgresql/data
-    # Remove port exposure in production for security
-    # Uncomment only if you need direct database access
+    # Port disabled for security
+    # Enable only for debugging
     # ports:
     #   - "5432:5432"
     healthcheck:
@@ -32,8 +32,8 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres123}
     volumes:
       - postgres-moderation-data:/var/lib/postgresql/data
-    # Remove port exposure in production for security
-    # Uncomment only if you need direct database access
+    # Port disabled for security
+    # Enable only for debugging
     # ports:
     #   - "5433:5432"
     healthcheck:
@@ -44,7 +44,7 @@ services:
     networks:
       - comment-network
 
-  # Redis cache
+  # Session and cache store
   redis:
     image: redis:7-alpine
     container_name: comment-redis
@@ -52,8 +52,8 @@ services:
     command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru --save 60 1000 --appendonly yes
     volumes:
       - redis-data:/data
-    # Remove port exposure in production for security
-    # Uncomment only if you need direct Redis access
+    # Port disabled for security
+    # Enable only for debugging
     # ports:
     #   - "6379:6379"
     healthcheck:
@@ -64,7 +64,7 @@ services:
     networks:
       - comment-network
 
-  # Backend API service
+  # Main API server
   backend-api:
     build:
       context: .
@@ -87,8 +87,8 @@ services:
       INITIAL_MODERATORS: ${INITIAL_MODERATORS:-}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:8080}
       SESSION_DURATION: ${SESSION_DURATION:-86400}
-    # Remove port exposure in production for security
-    # API should only be accessible through nginx proxy
+    # Port disabled for security
+    # Access via nginx only
     # ports:
     #   - "${API_PORT:-3000}:${API_PORT:-3000}"
     depends_on:
@@ -105,7 +105,7 @@ services:
     networks:
       - comment-network
 
-  # Moderation service
+  # AI content moderation
   moderation-service:
     build:
       context: .
@@ -122,8 +122,8 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-postgres123}
       ADMIN_KEY: ${ADMIN_KEY}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:8080}
-    # Remove port exposure in production for security
-    # Service should only be accessible through nginx proxy
+    # Port disabled for security
+    # Access via nginx only
     # ports:
     #   - "${MODERATION_PORT:-3001}:${MODERATION_PORT:-3001}"
     depends_on:
@@ -138,7 +138,7 @@ services:
     networks:
       - comment-network
 
-  # Frontend web server
+  # Nginx reverse proxy
   frontend:
     image: nginx:alpine
     container_name: comment-frontend

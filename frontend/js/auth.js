@@ -1,6 +1,6 @@
-// Authentication module
+// User authentication handler
 const Auth = {
-    // Check existing session
+    // Validate stored session
     async checkExistingSession() {
         const savedUser = localStorage.getItem('user');
         const sessionToken = localStorage.getItem('sessionToken');
@@ -17,7 +17,7 @@ const Auth = {
             return null;
         }
         
-        // Validate session with server using the dedicated endpoint
+        // Verify token with API
         try {
             const response = await fetch(`${window.location.origin}/api/session/validate`, {
                 headers: {
@@ -28,7 +28,7 @@ const Auth = {
             if (response.ok) {
                 const validatedUser = await response.json();
                 console.log('Session validated, user:', validatedUser);
-                // Update localStorage with latest user data
+                // Save fresh user data
                 localStorage.setItem('user', JSON.stringify(validatedUser));
                 return validatedUser;
             } else {
@@ -39,7 +39,7 @@ const Auth = {
             }
         } catch (e) {
             console.error('Session validation failed:', e);
-            // On network error, return cached user to allow offline viewing
+            // Use cached data offline
             try {
                 const user = JSON.parse(savedUser);
                 console.log('Using cached user due to network error:', user);
@@ -52,7 +52,7 @@ const Auth = {
         }
     },
 
-    // Sign in with Discord
+    // Launch Discord OAuth flow
     signInWithDiscord() {
         const state = Math.random().toString(36).substring(7);
         localStorage.setItem('discord_state', state);
@@ -73,7 +73,7 @@ const Auth = {
         );
     },
 
-    // Sign out
+    // Logout user
     async signOut(apiUrl = window.location.origin) {
         const sessionToken = localStorage.getItem('sessionToken');
         if (sessionToken) {
@@ -93,7 +93,7 @@ const Auth = {
         localStorage.removeItem('sessionToken');
     },
 
-    // Setup OAuth message listener
+    // Handle OAuth callback messages
     setupOAuthListener(callback) {
         window.addEventListener('message', (event) => {
             if (event.data?.type === 'discord-login-success') {
