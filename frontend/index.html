@@ -32,7 +32,7 @@
                         <p class="text-sm font-medium whitespace-pre-line" x-text="banNotification.message"></p>
                     </div>
                     <button @click="banNotification.show = false" 
-                            class="ml-4 flex-shrink-0 inline-flex text-white hover:text-gray-200 focus:outline-none">
+                            class="btn-base ml-4 flex-shrink-0 text-white hover:text-gray-200">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
@@ -58,7 +58,7 @@
                         <p class="text-sm mt-1 whitespace-pre-line" x-text="warningNotification.message"></p>
                     </div>
                     <button @click="acknowledgeWarning()" 
-                            class="ml-4 flex-shrink-0 inline-flex text-white hover:text-gray-200 focus:outline-none bg-yellow-700 hover:bg-yellow-800 px-3 py-1 rounded">
+                            class="btn-base btn btn-warning ml-4 flex-shrink-0 text-sm">
                         Acknowledge
                     </button>
                 </div>
@@ -72,13 +72,13 @@
                 <div class="border-b border-gray-200">
                     <nav class="flex -mb-px">
                         <button @click="activeTab = 'comments'" 
-                                :class="{'border-blue-500 text-blue-600': activeTab === 'comments', 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300': activeTab !== 'comments'}"
-                                class="py-2 px-4 border-b-2 font-medium text-sm transition-colors">
+                                :class="{'active': activeTab === 'comments'}"
+                                class="btn-base moderation-tab">
                             <i class="fas fa-comments mr-2"></i>Comments
                         </button>
                         <button @click="activeTab = 'reports'; $nextTick(() => { if (user && user.is_moderator) { loadReports() } })" 
-                                :class="{'border-blue-500 text-blue-600': activeTab === 'reports', 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300': activeTab !== 'reports'}"
-                                class="py-2 px-4 border-b-2 font-medium text-sm transition-colors relative">
+                                :class="{'active': activeTab === 'reports'}"
+                                class="btn-base moderation-tab relative">
                             <i class="fas fa-flag mr-2"></i>Reports
                             <span x-show="totalPendingReports > 0" 
                                   class="absolute -top-1 -right-1 bg-red-500 text-white px-2 py-1 rounded-full text-xs">
@@ -86,8 +86,8 @@
                             </span>
                         </button>
                         <button @click="activeTab = 'users'; $nextTick(() => { if (user && user.is_moderator) { loadUsers() } })" 
-                                :class="{'border-blue-500 text-blue-600': activeTab === 'users', 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300': activeTab !== 'users'}"
-                                class="py-2 px-4 border-b-2 font-medium text-sm transition-colors">
+                                :class="{'active': activeTab === 'users'}"
+                                class="btn-base moderation-tab">
                             <i class="fas fa-users mr-2"></i>Users
                         </button>
                     </nav>
@@ -107,7 +107,7 @@
                         </p>
                         <div class="flex flex-wrap gap-2 ml-auto">
                             <select x-model="selectedReportsPage" @change="filterReports()" 
-                                    class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    class="textarea-base">
                                 <option value="all">All Pages</option>
                                 <option :value="pageId" x-text="`Current Page (${pageId})`" x-show="pageId && pageId !== 'default'"></option>
                                 <template x-for="page in pages" :key="page.page_id">
@@ -115,7 +115,7 @@
                                 </template>
                             </select>
                             <button @click="loadReports()" 
-                                    class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">
+                                    class="btn-base btn btn-primary">
                                 <i class="fas fa-sync-alt"></i>
                             </button>
                         </div>
@@ -261,10 +261,10 @@
                                    x-model="userSearchQuery" 
                                    @input="filterUsers()"
                                    placeholder="Search users by name or ID..." 
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                   class="textarea-base">
                         </div>
                         <select x-model="userFilter" @change="filterUsers()" 
-                                class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                class="textarea-base">
                             <option value="all">All Users</option>
                             <option value="moderators">Moderators Only</option>
                             <option value="banned">Banned Users</option>
@@ -272,7 +272,7 @@
                             <option value="reported">Users with Reports</option>
                         </select>
                         <button @click="loadUsers()" 
-                                class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">
+                                class="btn-base btn btn-primary">
                             <i class="fas fa-sync-alt"></i>
                         </button>
                     </div>
@@ -318,7 +318,7 @@
                                         </div>
                                     </div>
                                     <button @click="toggleUserExpanded(userItem.id)" 
-                                            class="text-gray-500 hover:text-gray-700">
+                                            class="btn-base markdown-btn">
                                         <i :class="expandedUsers.includes(userItem.id) ? 'fa-chevron-up' : 'fa-chevron-down'" 
                                            class="fas"></i>
                                     </button>
@@ -348,13 +348,13 @@
                                 <div class="mt-4 flex flex-wrap gap-2">
                                     <button @click="warnUser(userItem.id, userItem.name)" 
                                             :disabled="userItem.is_banned"
-                                            class="bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1 rounded text-sm disabled:bg-gray-300">
+                                            class="btn-base btn btn-warning text-sm">
                                         <i class="fas fa-exclamation-triangle mr-1"></i>Warn
                                     </button>
                                     <div class="relative">
                                         <button @click="toggleBanDropdown(userItem.id, $event)" 
                                                 :disabled="userItem.is_banned"
-                                                class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm disabled:bg-gray-300">
+                                                class="btn-base btn btn-danger text-sm">
                                             <i class="fas fa-ban mr-1"></i>Ban
                                         </button>
                                         <div x-show="showBanDropdown === userItem.id" 
@@ -388,17 +388,17 @@
                                     </div>
                                     <button x-show="userItem.is_banned" 
                                             @click="unbanUser(userItem.id, userItem.name)" 
-                                            class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm">
+                                            class="btn-base btn btn-success text-sm">
                                         <i class="fas fa-unlock mr-1"></i>Unban
                                     </button>
                                     <button x-show="user.is_super_moderator && !userItem.is_moderator" 
                                             @click="toggleModerator(userItem.id, userItem.name, true)" 
-                                            class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm">
+                                            class="btn-base btn btn-primary text-sm">
                                         <i class="fas fa-shield-alt mr-1"></i>Make Moderator
                                     </button>
                                     <button x-show="user.is_super_moderator && userItem.is_moderator && !userItem.is_super_moderator" 
                                             @click="toggleModerator(userItem.id, userItem.name, false)" 
-                                            class="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded text-sm">
+                                            class="btn-base btn btn-secondary text-sm">
                                         <i class="fas fa-user mr-1"></i>Remove Moderator
                                     </button>
                                 </div>
@@ -452,12 +452,12 @@
                                                         <div class="mt-1 flex gap-2">
                                                             <a :href="`index.html?pageId=${comment.page_id}#comment-${comment.id}`" 
                                                                target="_blank"
-                                                               class="text-blue-600 hover:text-blue-800">
-                                                                <i class="fas fa-external-link-alt mr-1"></i>View
+                                                               class="btn-base markdown-btn text-xs">
+                                                                <i class="fas fa-external-link-alt"></i>
                                                             </a>
                                                             <button @click="deleteUserComment(comment.id)" 
-                                                                    class="text-red-600 hover:text-red-800">
-                                                                <i class="fas fa-trash mr-1"></i>Delete
+                                                                    class="btn-base markdown-btn text-xs">
+                                                                <i class="fas fa-trash"></i>
                                                             </button>
                                                         </div>
                                                     </div>
@@ -497,7 +497,7 @@
                     <div x-show="totalUserPages > 1" class="mt-6 flex justify-center gap-2">
                         <button @click="currentUserPage = Math.max(1, currentUserPage - 1)" 
                                 :disabled="currentUserPage === 1"
-                                class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50">
+                                class="btn-base markdown-btn">
                             <i class="fas fa-chevron-left"></i>
                         </button>
                         <span class="px-3 py-1">
@@ -505,7 +505,7 @@
                         </span>
                         <button @click="currentUserPage = Math.min(totalUserPages, currentUserPage + 1)" 
                                 :disabled="currentUserPage === totalUserPages"
-                                class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50">
+                                class="btn-base markdown-btn">
                             <i class="fas fa-chevron-right"></i>
                         </button>
                     </div>

@@ -750,7 +750,7 @@ function unifiedApp() {
                                 ${this.user ? `
                                     <div class="comment-dropdown-container">
                                         <button onclick="window.unifiedAppInstance.toggleCommentDropdown('${comment.id}')" 
-                                                class="comment-options-btn" id="options-btn-${comment.id}">
+                                                class="btn-base comment-options-btn" id="options-btn-${comment.id}">
                                             <i class="fas fa-ellipsis-v"></i>
                                         </button>
                                         <div id="dropdown-${comment.id}" 
@@ -823,7 +823,7 @@ function unifiedApp() {
                             (depth >= MAX_DEPTH && comment.children?.length > 0 ? `
                                 <div class="ml-4 mt-2">
                                     <button onclick="window.unifiedAppInstance.viewReplies('${comment.id}')" 
-                                            class="text-blue-600 hover:text-blue-800 text-sm font-medium px-3 py-2 rounded hover:bg-blue-50 transition-colors">
+                                            class="btn-base btn btn-primary text-sm">
                                         <i class="fas fa-comments mr-1"></i>
                                         View ${comment.children.length} ${comment.children.length === 1 ? 'reply' : 'replies'}
                                     </button>

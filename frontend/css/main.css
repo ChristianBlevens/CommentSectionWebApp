@@ -413,12 +413,49 @@ body {
 /* =====================================================
    BUTTONS - FLUID SIZING
    ===================================================== */
-/* Global button text selection prevention */
-button {
+/* Global text selection prevention for all interactive elements */
+button,
+a,
+.clickable,
+[role="button"],
+[onclick],
+.comment-action,
+.dropdown-item,
+.moderation-tab,
+.comment-line,
+.ban-dropdown-item,
+.comment-dropdown-item,
+.report-action-btn,
+.markdown-btn,
+.sort-btn {
     user-select: none;
     -webkit-user-select: none;
     -moz-user-select: none;
     -ms-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Prevent text selection when double-clicking */
+button:active,
+a:active,
+.clickable:active {
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+/* Additional prevention for all elements with click handlers */
+* {
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Prevent selection on double-click for all interactive elements */
+button::selection,
+a::selection,
+.clickable::selection,
+[onclick]::selection {
+    background: transparent;
 }
 
 /* =====================================================
@@ -995,27 +1032,23 @@ button {
     -webkit-overflow-scrolling: touch;
 }
 
+/* Moderation tab - extends btn-base */
 .moderation-tab {
     padding: var(--space-md);
-    font-size: var(--text-sm);
     font-weight: 500;
-    color: var(--color-text-secondary);
     background: none;
     border: none;
     border-bottom: 2px solid transparent;
-    cursor: pointer;
-    transition: all 0.2s;
-    white-space: nowrap;
+    border-radius: 0;
+    min-height: auto;
     position: relative;
-    user-select: none;
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
 }
 
 .moderation-tab:hover {
     color: var(--color-text-primary);
     background-color: var(--color-bg-secondary);
+    transform: none;
+    box-shadow: none;
 }
 
 .moderation-tab.active {
