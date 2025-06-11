@@ -4,65 +4,36 @@
    ===================================================== */
 
 /* =====================================================
-   COLOR CONFIGURATION SYSTEM
+   COLOR CONFIGURATION SYSTEM - SIMPLIFIED
    ===================================================== */
 :root {
     /* Primary Colors */
     --color-primary: #0079d3;
     --color-primary-hover: #1484d6;
-    --color-primary-light: #4da3ff;
-    --color-primary-dark: #005a9e;
     
     /* Secondary Colors */
     --color-secondary: #878a8c;
     --color-secondary-hover: #636466;
-    --color-secondary-light: #a8aaac;
-    --color-secondary-dark: #565758;
-    
-    /* Tertiary Colors */
-    --color-tertiary: #4b5563;
-    --color-tertiary-hover: #374151;
-    --color-tertiary-light: #6b7280;
-    --color-tertiary-dark: #1f2937;
-    
-    /* Accent Colors */
-    --color-accent: #60a5fa;
-    --color-accent-hover: #3b82f6;
-    --color-accent-light: #93bbfc;
-    --color-accent-dark: #2563eb;
     
     /* Semantic Colors */
     --color-success: #10b981;
     --color-success-hover: #059669;
-    --color-success-light: #34d399;
-    --color-success-dark: #047857;
     
     --color-warning: #d97706;
     --color-warning-hover: #b45309;
-    --color-warning-light: #f59e0b;
-    --color-warning-dark: #92400e;
     
     --color-danger: #ef4444;
     --color-danger-hover: #dc2626;
-    --color-danger-light: #f87171;
-    --color-danger-dark: #b91c1c;
     
     --color-info: #3b82f6;
     --color-info-hover: #2563eb;
-    --color-info-light: #60a5fa;
-    --color-info-dark: #1d4ed8;
     
-    /* Report Colors */
-    --color-report: #ef4444;
-    --color-report-hover: #dc2626;
+    /* Special Purpose Colors */
     --color-report-bg: #fee2e2;
     --color-report-border: #fecaca;
     
-    /* Ban Colors */
     --color-ban: #7f1d1d;
     --color-ban-hover: #991b1b;
-    --color-ban-light: #dc2626;
-    --color-ban-dark: #450a0a;
     
     /* Background Colors */
     --color-bg-primary: #ffffff;
@@ -79,13 +50,10 @@
     /* Border Colors */
     --color-border-primary: #e5e7eb;
     --color-border-secondary: #d1d5db;
-    --color-border-tertiary: #dae0e6;
     
     /* Interactive Colors */
     --color-like: #60a5fa;
-    --color-like-hover: #3b82f6;
     --color-dislike: #f87171;
-    --color-dislike-hover: #ef4444;
     
     /* Shadow Colors */
     --color-shadow-sm: rgba(0, 0, 0, 0.05);
@@ -167,6 +135,8 @@ body {
     max-width: var(--container-xl);
     margin: 0 auto;
     padding: var(--space-md);
+    padding-top: var(--space-lg);
+    padding-bottom: var(--space-lg);
     background-color: var(--color-bg-primary);
     border-radius: var(--radius-lg);
     box-shadow: 0 1px 3px var(--color-shadow-sm);
@@ -442,6 +412,181 @@ body {
     background-color: var(--color-discord-hover);
 }
 
+/* Sorting buttons */
+.sort-btn {
+    padding: clamp(0.5rem, 0.45rem + 0.25vw, 0.75rem) clamp(1rem, 0.9rem + 0.5vw, 1.25rem);
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+    transition: all 0.2s;
+    border: 1px solid var(--color-border-primary);
+    background-color: var(--color-bg-secondary);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+}
+
+.sort-btn:hover {
+    background-color: var(--color-bg-tertiary);
+    border-color: var(--color-border-secondary);
+}
+
+/* Markdown toolbar buttons */
+.markdown-buttons {
+    display: flex;
+    gap: var(--space-xs);
+    flex-wrap: wrap;
+}
+
+.markdown-btn {
+    padding: clamp(0.5rem, 0.45rem + 0.25vw, 0.625rem);
+    background: var(--color-bg-primary);
+    border: 1px solid var(--color-border-primary);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    font-size: var(--text-sm);
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.5rem;
+}
+
+.markdown-btn:hover {
+    background: var(--color-bg-secondary);
+    border-color: var(--color-border-secondary);
+}
+
+/* Comment options button (three dots) */
+.comment-options-btn {
+    padding: clamp(0.375rem, 0.325rem + 0.25vw, 0.5rem);
+    background: transparent;
+    border: none;
+    color: var(--color-text-secondary);
+    font-size: var(--text-base);
+    cursor: pointer;
+    border-radius: var(--radius-md);
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2rem;
+}
+
+.comment-options-btn:hover {
+    background-color: var(--color-bg-tertiary);
+    color: var(--color-text-primary);
+}
+
+/* Comment dropdown container */
+.comment-dropdown-container {
+    position: relative;
+    display: inline-block;
+}
+
+.comment-dropdown {
+    position: absolute;
+    right: 0;
+    top: 100%;
+    margin-top: var(--space-xs);
+    min-width: clamp(10rem, 15vw, 12rem);
+    background-color: var(--color-bg-primary);
+    border: 1px solid var(--color-border-primary);
+    border-radius: var(--radius-md);
+    box-shadow: 0 4px 12px var(--color-shadow-lg);
+    z-index: 1000;
+    display: none;
+}
+
+.comment-dropdown.show {
+    display: block;
+}
+
+.comment-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-sm) var(--space-md);
+    background: none;
+    border: none;
+    color: var(--color-text-primary);
+    font-size: var(--text-sm);
+    cursor: pointer;
+    width: 100%;
+    text-align: left;
+    transition: background-color 0.2s;
+}
+
+.comment-dropdown-item:hover {
+    background-color: var(--color-bg-secondary);
+}
+
+.comment-dropdown-item:first-child {
+    border-radius: calc(var(--radius-md) - 1px) calc(var(--radius-md) - 1px) 0 0;
+}
+
+.comment-dropdown-item:last-child {
+    border-radius: 0 0 calc(var(--radius-md) - 1px) calc(var(--radius-md) - 1px);
+}
+
+.comment-dropdown-item.danger {
+    color: var(--color-danger);
+}
+
+.comment-dropdown-item.danger:hover {
+    background-color: var(--color-report-bg);
+}
+
+/* Ban duration dropdown */
+.ban-dropdown-container {
+    position: relative;
+    display: inline-block;
+}
+
+.ban-dropdown {
+    position: absolute;
+    left: 0;
+    margin-top: var(--space-xs);
+    min-width: clamp(10rem, 15vw, 12rem);
+    background: var(--color-bg-primary);
+    border: 1px solid var(--color-border-primary);
+    border-radius: var(--radius-md);
+    box-shadow: 0 4px 12px var(--color-shadow-lg);
+    z-index: 20;
+}
+
+.ban-dropdown-inner {
+    padding: var(--space-xs) 0;
+}
+
+.ban-dropdown-item {
+    width: 100%;
+    text-align: left;
+    padding: var(--space-sm) var(--space-md);
+    font-size: var(--text-sm);
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    color: var(--color-text-primary);
+}
+
+.ban-dropdown-item:hover {
+    background-color: var(--color-bg-secondary);
+}
+
+.ban-dropdown-divider {
+    border-top: 1px solid var(--color-border-primary);
+    margin: var(--space-xs) 0;
+}
+
+.ban-dropdown-item.text-red-600 {
+    color: var(--color-danger);
+}
+
+.ban-dropdown-item.text-blue-600 {
+    color: var(--color-info);
+}
+
 /* =====================================================
    DROPDOWN MENUS - RESPONSIVE
    ===================================================== */
@@ -640,6 +785,65 @@ body {
     gap: var(--space-sm);
 }
 
+.report-action-btn {
+    padding: clamp(0.5rem, 0.45rem + 0.25vw, 0.75rem) clamp(1rem, 0.9rem + 0.5vw, 1.25rem);
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    color: var(--color-text-inverse);
+}
+
+.report-action-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px var(--color-shadow-md);
+}
+
+.report-action-btn.view {
+    background-color: var(--color-info);
+}
+
+.report-action-btn.view:hover {
+    background-color: var(--color-info-hover);
+}
+
+.report-action-btn.delete {
+    background-color: var(--color-danger);
+}
+
+.report-action-btn.delete:hover {
+    background-color: var(--color-danger-hover);
+}
+
+.report-action-btn.ban {
+    background-color: var(--color-ban);
+}
+
+.report-action-btn.ban:hover {
+    background-color: var(--color-ban-hover);
+}
+
+.report-action-btn.warn {
+    background-color: var(--color-warning);
+}
+
+.report-action-btn.warn:hover {
+    background-color: var(--color-warning-hover);
+}
+
+.report-action-btn.dismiss {
+    background-color: var(--color-secondary);
+}
+
+.report-action-btn.dismiss:hover {
+    background-color: var(--color-secondary-hover);
+}
+
 /* =====================================================
    MODERATION PANEL - RESPONSIVE
    ===================================================== */
@@ -805,26 +1009,6 @@ body {
         --color-text-primary: #000000;
         --color-bg-primary: #ffffff;
         --color-border-primary: #000000;
-    }
-}
-
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
-    :root {
-        --color-bg-primary: #1a1a1b;
-        --color-bg-secondary: #272729;
-        --color-bg-tertiary: #343536;
-        --color-bg-page: #030303;
-        
-        --color-text-primary: #d7dadc;
-        --color-text-secondary: #818384;
-        --color-text-tertiary: #565758;
-        
-        --color-border-primary: #343536;
-        --color-border-secondary: #474748;
-        --color-border-tertiary: #272729;
-        
-        --color-thread-line: #343536;
     }
 }
 
