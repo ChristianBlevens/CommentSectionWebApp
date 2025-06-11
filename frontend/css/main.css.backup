@@ -168,11 +168,23 @@ body {
     gap: var(--space-sm);
 }
 
-/* Comment textarea - extends textarea-base */
 .comment-textarea {
+    width: 100%;
     min-height: clamp(5rem, 4rem + 5vw, 8rem);
     padding: var(--space-md);
+    border: 1px solid var(--color-border-secondary);
+    border-radius: var(--radius-md);
     font-size: var(--text-base);
+    color: var(--color-text-primary);
+    background-color: var(--color-bg-primary);
+    resize: vertical;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.comment-textarea:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(0, 121, 211, 0.1);
 }
 
 .comment-textarea::placeholder {
@@ -214,10 +226,6 @@ body {
     background-color: var(--color-thread-line);
     transition: background-color 0.2s;
     cursor: pointer;
-    user-select: none;
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
 }
 
 /* Adjust thread line position for different depths */
@@ -420,13 +428,7 @@ button {
     -moz-user-select: none;
     -ms-user-select: none;
 }
-
-/* =====================================================
-   BASE CLASSES FOR CONSOLIDATION
-   ===================================================== */
-
-/* Base button class - shared by all buttons */
-.btn-base {
+.btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -445,95 +447,6 @@ button {
     -webkit-user-select: none;
     -moz-user-select: none;
     -ms-user-select: none;
-    background-color: transparent;
-    color: var(--color-text-secondary);
-}
-
-.btn-base:hover:not(:disabled) {
-    transform: translateY(-1px);
-    box-shadow: 0 2px 8px var(--color-shadow-md);
-}
-
-.btn-base:disabled {
-    cursor: not-allowed;
-    opacity: 0.6;
-}
-
-/* Base dropdown class */
-.dropdown-base {
-    position: absolute;
-    min-width: clamp(10rem, 15vw, 12rem);
-    background-color: var(--color-bg-primary);
-    border: 1px solid var(--color-border-primary);
-    border-radius: var(--radius-md);
-    box-shadow: 0 4px 12px var(--color-shadow-lg);
-    z-index: 10000;
-    display: none;
-}
-
-.dropdown-base.show {
-    display: block;
-}
-
-/* Base dropdown item class */
-.dropdown-item-base {
-    display: flex;
-    align-items: center;
-    gap: var(--space-sm);
-    padding: var(--space-sm) var(--space-md);
-    background: none;
-    border: none;
-    color: var(--color-text-primary);
-    font-size: var(--text-sm);
-    cursor: pointer;
-    width: 100%;
-    text-align: left;
-    transition: background-color 0.2s;
-    user-select: none;
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-}
-
-.dropdown-item-base:hover {
-    background-color: var(--color-bg-secondary);
-}
-
-.dropdown-item-base:first-child {
-    border-radius: calc(var(--radius-md) - 1px) calc(var(--radius-md) - 1px) 0 0;
-}
-
-.dropdown-item-base:last-child {
-    border-radius: 0 0 calc(var(--radius-md) - 1px) calc(var(--radius-md) - 1px);
-}
-
-/* Base textarea class */
-.textarea-base {
-    width: 100%;
-    padding: var(--space-sm);
-    border: 1px solid var(--color-border-primary);
-    border-radius: var(--radius-md);
-    font-size: var(--text-sm);
-    resize: vertical;
-    transition: border-color 0.2s;
-    background-color: var(--color-bg-primary);
-    color: var(--color-text-primary);
-}
-
-.textarea-base:focus {
-    outline: none;
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 3px rgba(0, 121, 211, 0.1);
-}
-
-.textarea-base:disabled {
-    background-color: var(--color-bg-secondary);
-    color: var(--color-text-secondary);
-    cursor: not-allowed;
-}
-/* Main button class - extends btn-base */
-.btn {
-    /* Inherits all from btn-base when both classes are used */
 }
 
 .btn-primary {
@@ -599,10 +512,21 @@ button {
     background-color: var(--color-discord-hover);
 }
 
-/* Sorting buttons - extends btn-base */
+/* Sorting buttons */
 .sort-btn {
+    padding: clamp(0.5rem, 0.45rem + 0.25vw, 0.75rem) clamp(1rem, 0.9rem + 0.5vw, 1.25rem);
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+    transition: all 0.2s;
     border: 1px solid var(--color-border-primary);
     background-color: var(--color-bg-secondary);
+    display: inline-flex;
+    align-items: center;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    gap: var(--space-xs);
 }
 
 .sort-btn:hover {
@@ -610,13 +534,13 @@ button {
     border-color: var(--color-border-secondary);
 }
 
-.sort-btn.active {
+.sort-btn.bg-blue-500 {
     background-color: var(--color-primary);
     color: var(--color-text-inverse);
     border-color: var(--color-primary);
 }
 
-.sort-btn.active:hover {
+.sort-btn.bg-blue-500:hover {
     background-color: var(--color-primary-hover);
     border-color: var(--color-primary-hover);
 }
@@ -628,12 +552,22 @@ button {
     flex-wrap: wrap;
 }
 
-/* Markdown toolbar buttons - extends btn-base */
 .markdown-btn {
     padding: clamp(0.5rem, 0.45rem + 0.25vw, 0.625rem);
     background: var(--color-bg-primary);
     border: 1px solid var(--color-border-primary);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    font-size: var(--text-sm);
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     min-width: 2.5rem;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
 }
 
 .markdown-btn:hover {
@@ -641,15 +575,28 @@ button {
     border-color: var(--color-border-secondary);
 }
 
-/* Comment options button (three dots) - extends btn-base */
+/* Comment options button (three dots) */
 .comment-options-btn {
-    padding: 0.375rem;
-    min-width: 0;
-    flex-shrink: 1;
+    padding: 0.375rem; /* Normal padding to match action buttons */
+    background: transparent;
+    border: none;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    border-radius: var(--radius-md);
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0; /* Allow shrinking to any size */
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    flex-shrink: 1; /* Allow shrinking */
 }
 
 .comment-options-btn i {
-    font-size: 1rem;
+    font-size: 1rem; /* Normal icon size */
     color: inherit;
 }
 
@@ -665,16 +612,49 @@ button {
     z-index: 9999;
 }
 
-/* Comment dropdown - extends dropdown-base */
 .comment-dropdown {
+    position: absolute;
     right: 0;
     top: 100%;
     margin-top: var(--space-xs);
+    min-width: clamp(10rem, 15vw, 12rem);
+    background-color: var(--color-bg-primary);
+    border: 1px solid var(--color-border-primary);
+    border-radius: var(--radius-md);
+    box-shadow: 0 4px 12px var(--color-shadow-lg);
+    z-index: 10000; /* Higher z-index to ensure it's above everything */
+    display: none;
 }
 
-/* Comment dropdown items - extends dropdown-item-base */
+.comment-dropdown.show {
+    display: block;
+}
+
 .comment-dropdown-item {
-    /* Inherits all from dropdown-item-base */
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-sm) var(--space-md);
+    background: none;
+    border: none;
+    color: var(--color-text-primary);
+    font-size: var(--text-sm);
+    cursor: pointer;
+    width: 100%;
+    text-align: left;
+    transition: background-color 0.2s;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+.comment-dropdown-item:hover {
+    background-color: var(--color-bg-secondary);
+}
+
+.comment-dropdown-item:first-child {
+    border-radius: calc(var(--radius-md) - 1px) calc(var(--radius-md) - 1px) 0 0;
 }
 
 .comment-dropdown-item:last-child {
@@ -695,10 +675,15 @@ button {
     display: inline-block;
 }
 
-/* Ban dropdown - extends dropdown-base */
 .ban-dropdown {
+    position: absolute;
     left: 0;
     margin-top: var(--space-xs);
+    min-width: clamp(10rem, 15vw, 12rem);
+    background: var(--color-bg-primary);
+    border: 1px solid var(--color-border-primary);
+    border-radius: var(--radius-md);
+    box-shadow: 0 4px 12px var(--color-shadow-lg);
     z-index: 20;
 }
 
@@ -706,9 +691,24 @@ button {
     padding: var(--space-xs) 0;
 }
 
-/* Ban dropdown items - extends dropdown-item-base */
 .ban-dropdown-item {
-    /* Inherits all from dropdown-item-base */
+    width: 100%;
+    text-align: left;
+    padding: var(--space-sm) var(--space-md);
+    font-size: var(--text-sm);
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    color: var(--color-text-primary);
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+.ban-dropdown-item:hover {
+    background-color: var(--color-bg-secondary);
 }
 
 .ban-dropdown-divider {
@@ -732,17 +732,45 @@ button {
     display: inline-block;
 }
 
-/* Dropdown menu - extends dropdown-base */
 .dropdown-menu {
+    position: absolute;
     top: 100%;
     left: 0;
     margin-top: var(--space-xs);
+    min-width: clamp(10rem, 15vw, 15rem);
+    background-color: var(--color-bg-primary);
+    border: 1px solid var(--color-border-primary);
+    border-radius: var(--radius-md);
+    box-shadow: 0 4px 12px var(--color-shadow-lg);
     z-index: 1000;
+    display: none;
 }
 
-/* Dropdown items - extends dropdown-item-base */
+.dropdown-menu.show {
+    display: block;
+}
+
 .dropdown-item {
-    /* Inherits all from dropdown-item-base */
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-sm) var(--space-md);
+    color: var(--color-text-primary);
+    font-size: var(--text-sm);
+    cursor: pointer;
+    transition: background-color 0.2s;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+}
+
+.dropdown-item:hover {
+    background-color: var(--color-bg-secondary);
+}
+
+.dropdown-item:first-child {
+    border-radius: calc(var(--radius-md) - 1px) calc(var(--radius-md) - 1px) 0 0;
 }
 
 .dropdown-item:last-child {
@@ -758,12 +786,24 @@ button {
     width: 100%;
 }
 
-/* Reply textarea - extends textarea-base */
 .reply-textarea {
+    width: 100%;
     min-height: clamp(4rem, 3rem + 3vw, 6rem);
     padding: var(--space-md);
+    border: 1px solid var(--color-border-secondary);
+    border-radius: var(--radius-md);
     font-size: var(--text-base);
+    color: var(--color-text-primary);
+    background-color: var(--color-bg-primary);
+    resize: vertical;
+    transition: border-color 0.2s, box-shadow 0.2s;
     font-family: inherit;
+}
+
+.reply-textarea:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(0, 121, 211, 0.1);
 }
 
 .reply-toolbar {
@@ -780,12 +820,49 @@ button {
     gap: var(--space-sm);
 }
 
-/* Reply form buttons - extends btn-base */
+/* Reply form buttons */
 .reply-btn {
-    /* Inherits all from btn-base */
+    padding: clamp(0.5rem, 0.45rem + 0.25vw, 0.75rem) clamp(1rem, 0.9rem + 0.5vw, 1.5rem);
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
 }
 
-/* These are now just btn-primary and btn-secondary */
+.reply-btn-primary {
+    background-color: var(--color-primary);
+    color: var(--color-text-inverse);
+}
+
+.reply-btn-primary:hover:not(:disabled) {
+    background-color: var(--color-primary-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px var(--color-shadow-md);
+}
+
+.reply-btn-primary:disabled {
+    background-color: var(--color-secondary);
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.reply-btn-secondary {
+    background-color: var(--color-secondary);
+    color: var(--color-text-inverse);
+}
+
+.reply-btn-secondary:hover {
+    background-color: var(--color-secondary-hover);
+}
 
 /* =====================================================
    MARKDOWN CONTENT - RESPONSIVE
@@ -932,12 +1009,29 @@ button {
     gap: var(--space-sm);
 }
 
-/* Report action buttons - extends btn-base */
 .report-action-btn {
+    padding: clamp(0.5rem, 0.45rem + 0.25vw, 0.75rem) clamp(1rem, 0.9rem + 0.5vw, 1.25rem);
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
     color: var(--color-text-inverse);
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
 }
 
-/* Report action button variants */
+.report-action-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px var(--color-shadow-md);
+}
+
 .report-action-btn.view {
     background-color: var(--color-info);
 }
@@ -1007,10 +1101,6 @@ button {
     transition: all 0.2s;
     white-space: nowrap;
     position: relative;
-    user-select: none;
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
 }
 
 .moderation-tab:hover {

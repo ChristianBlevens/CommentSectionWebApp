@@ -175,67 +175,67 @@
                                 <div class="report-actions">
                                     <button @click="jumpToComment(report.comment_id)" 
                                             x-show="report.page_id === pageId"
-                                            class="report-action-btn view">
+                                            class="btn-base report-action-btn view">
                                         <i class="fas fa-eye"></i>View Comment
                                     </button>
                                     <a :href="`index.html?pageId=${report.page_id}#comment-${report.comment_id}`" 
                                        x-show="report.page_id !== pageId"
                                        target="_blank"
-                                       class="report-action-btn view">
+                                       class="btn-base report-action-btn view">
                                         <i class="fas fa-external-link-alt"></i>View in Context
                                     </a>
                                     <button @click="deleteReportedComment(report)" 
-                                            class="report-action-btn delete">
+                                            class="btn-base report-action-btn delete">
                                         <i class="fas fa-trash"></i>Delete Comment
                                     </button>
                                     <button @click="warnUser(report.comment_user_id, report.comment_user_name)" 
-                                            class="report-action-btn warn bg-yellow-600 hover:bg-yellow-700">
+                                            class="btn-base report-action-btn warn">
                                         <i class="fas fa-exclamation-triangle"></i>Warn User
                                     </button>
                                     <div class="ban-dropdown-container">
                                         <button @click="toggleBanDropdown(report.id, $event)" 
-                                                class="report-action-btn ban">
+                                                class="btn-base report-action-btn ban">
                                             <i class="fas fa-ban"></i>Ban User
                                         </button>
                                         <div x-show="showBanDropdown === report.id" 
                                              @click.away="showBanDropdown = null"
-                                             class="ban-dropdown">
+                                             class="dropdown-base ban-dropdown">
                                             <div class="ban-dropdown-inner">
                                                 <button @click="banUserWithDuration(report.comment_user_id, report.comment_user_name, '30m')" 
-                                                        class="ban-dropdown-item">
+                                                        class="dropdown-item-base ban-dropdown-item">
                                                     30 minutes
                                                 </button>
                                                 <button @click="banUserWithDuration(report.comment_user_id, report.comment_user_name, '6h')" 
-                                                        class="ban-dropdown-item">
+                                                        class="dropdown-item-base ban-dropdown-item">
                                                     6 hours
                                                 </button>
                                                 <button @click="banUserWithDuration(report.comment_user_id, report.comment_user_name, '1d')" 
-                                                        class="ban-dropdown-item">
+                                                        class="dropdown-item-base ban-dropdown-item">
                                                     1 day
                                                 </button>
                                                 <button @click="banUserWithDuration(report.comment_user_id, report.comment_user_name, '3d')" 
-                                                        class="ban-dropdown-item">
+                                                        class="dropdown-item-base ban-dropdown-item">
                                                     3 days
                                                 </button>
                                                 <button @click="banUserWithDuration(report.comment_user_id, report.comment_user_name, '7d')" 
-                                                        class="ban-dropdown-item">
+                                                        class="dropdown-item-base ban-dropdown-item">
                                                     1 week
                                                 </button>
                                                 <button @click="banUserWithDuration(report.comment_user_id, report.comment_user_name, '30d')" 
-                                                        class="ban-dropdown-item">
+                                                        class="dropdown-item-base ban-dropdown-item">
                                                     1 month
                                                 </button>
                                                 <button @click="banUserWithDuration(report.comment_user_id, report.comment_user_name, '90d')" 
-                                                        class="ban-dropdown-item">
+                                                        class="dropdown-item-base ban-dropdown-item">
                                                     3 months
                                                 </button>
                                                 <button @click="banUserWithDuration(report.comment_user_id, report.comment_user_name, 'permanent')" 
-                                                        class="ban-dropdown-item text-red-600">
+                                                        class="dropdown-item-base ban-dropdown-item text-red-600">
                                                     Permanent
                                                 </button>
                                                 <div class="ban-dropdown-divider">
                                                     <button @click="showCustomBanInput(report.comment_user_id, report.comment_user_name)" 
-                                                            class="ban-dropdown-item text-blue-600">
+                                                            class="dropdown-item-base ban-dropdown-item text-blue-600">
                                                         <i class="fas fa-clock mr-1"></i>Custom duration
                                                     </button>
                                                 </div>
@@ -243,7 +243,7 @@
                                         </div>
                                     </div>
                                     <button @click="dismissReport(report.id)" 
-                                            class="report-action-btn dismiss">
+                                            class="btn-base report-action-btn dismiss">
                                         <i class="fas fa-times"></i>Dismiss Report
                                     </button>
                                 </div>
@@ -359,27 +359,27 @@
                                         </button>
                                         <div x-show="showBanDropdown === userItem.id" 
                                              @click.away="showBanDropdown = null"
-                                             class="ban-dropdown">
+                                             class="dropdown-base ban-dropdown">
                                             <div class="ban-dropdown-inner">
                                                 <button @click="banUserWithDuration(userItem.id, userItem.name, '30m')" 
-                                                        class="ban-dropdown-item">30 minutes</button>
+                                                        class="dropdown-item-base ban-dropdown-item">30 minutes</button>
                                                 <button @click="banUserWithDuration(userItem.id, userItem.name, '6h')" 
-                                                        class="ban-dropdown-item">6 hours</button>
+                                                        class="dropdown-item-base ban-dropdown-item">6 hours</button>
                                                 <button @click="banUserWithDuration(userItem.id, userItem.name, '1d')" 
-                                                        class="ban-dropdown-item">1 day</button>
+                                                        class="dropdown-item-base ban-dropdown-item">1 day</button>
                                                 <button @click="banUserWithDuration(userItem.id, userItem.name, '3d')" 
-                                                        class="ban-dropdown-item">3 days</button>
+                                                        class="dropdown-item-base ban-dropdown-item">3 days</button>
                                                 <button @click="banUserWithDuration(userItem.id, userItem.name, '7d')" 
-                                                        class="ban-dropdown-item">1 week</button>
+                                                        class="dropdown-item-base ban-dropdown-item">1 week</button>
                                                 <button @click="banUserWithDuration(userItem.id, userItem.name, '30d')" 
-                                                        class="ban-dropdown-item">1 month</button>
+                                                        class="dropdown-item-base ban-dropdown-item">1 month</button>
                                                 <button @click="banUserWithDuration(userItem.id, userItem.name, '90d')" 
-                                                        class="ban-dropdown-item">3 months</button>
+                                                        class="dropdown-item-base ban-dropdown-item">3 months</button>
                                                 <button @click="banUserWithDuration(userItem.id, userItem.name, 'permanent')" 
-                                                        class="ban-dropdown-item text-red-600">Permanent</button>
+                                                        class="dropdown-item-base ban-dropdown-item text-red-600">Permanent</button>
                                                 <div class="ban-dropdown-divider">
                                                     <button @click="showCustomBanInput(userItem.id, userItem.name)" 
-                                                            class="ban-dropdown-item text-blue-600">
+                                                            class="dropdown-item-base ban-dropdown-item text-blue-600">
                                                         <i class="fas fa-clock mr-1"></i>Custom duration
                                                     </button>
                                                 </div>
@@ -524,7 +524,7 @@
             <div class="mb-4">
                 <div x-show="!user">
                     <button @click="signInWithDiscord()" 
-                            class="btn btn-discord w-full sm:w-auto">
+                            class="btn-base btn btn-discord w-full sm:w-auto">
                         <svg class="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M20.317 4.492c-1.53-.69-3.17-1.2-4.885-1.49a.075.075 0 0 0-.079.036c-.21.369-.444.85-.608 1.23a18.566 18.566 0 0 0-5.487 0 12.36 12.36 0 0 0-.617-1.23A.077.077 0 0 0 8.562 3c-1.714.29-3.354.8-4.885 1.491a.07.07 0 0 0-.032.027C.533 9.093-.32 13.555.099 17.961a.08.08 0 0 0 .031.055 20.03 20.03 0 0 0 5.993 2.98.078.078 0 0 0 .084-.026 13.83 13.83 0 0 0 1.226-1.963.074.074 0 0 0-.041-.104 13.175 13.175 0 0 1-1.872-.878.075.075 0 0 1-.008-.125 10.775 10.775 0 0 0 .372-.291.072.072 0 0 1 .077-.01c3.927 1.764 8.18 1.764 12.061 0a.071.071 0 0 1 .078.009c.12.098.246.198.373.292a.075.075 0 0 1-.006.125c-.598.344-1.22.635-1.873.877a.075.075 0 0 0-.041.105c.36.687.772 1.341 1.225 1.962a.077.077 0 0 0 .084.028 19.963 19.963 0 0 0 6.002-2.981.076.076 0 0 0 .032-.054c.5-5.094-.838-9.52-3.549-13.442a.06.06 0 0 0-.031-.028zM8.02 15.278c-1.182 0-2.157-1.069-2.157-2.38 0-1.312.956-2.38 2.157-2.38 1.21 0 2.176 1.077 2.157 2.38 0 1.312-.956 2.38-2.157 2.38zm7.975 0c-1.183 0-2.157-1.069-2.157-2.38 0-1.312.955-2.38 2.157-2.38 1.21 0 2.176 1.077 2.157 2.38 0 1.312-.946 2.38-2.157 2.38z"/>
                         </svg>
@@ -550,7 +550,7 @@
                                   @input="updatePreview()"
                                   :placeholder="user?.is_banned ? 'You are banned from commenting' : 'Write your comment... (Markdown supported)'"
                                   :disabled="user?.is_banned"
-                                  class="comment-textarea"
+                                  class="textarea-base comment-textarea"
                                   rows="3"></textarea>
                         
                         <!-- Preview -->
@@ -563,25 +563,25 @@
                         <div class="flex justify-between items-center">
                             <!-- Markdown buttons -->
                             <div class="markdown-buttons">
-                                <button @click="insertMarkdown('**', '**')" title="Bold" class="markdown-btn">
+                                <button @click="insertMarkdown('**', '**')" title="Bold" class="btn-base markdown-btn">
                                     <i class="fas fa-bold"></i>
                                 </button>
-                                <button @click="insertMarkdown('*', '*')" title="Italic" class="markdown-btn">
+                                <button @click="insertMarkdown('*', '*')" title="Italic" class="btn-base markdown-btn">
                                     <i class="fas fa-italic"></i>
                                 </button>
-                                <button @click="insertMarkdown('~~', '~~')" title="Strikethrough" class="markdown-btn">
+                                <button @click="insertMarkdown('~~', '~~')" title="Strikethrough" class="btn-base markdown-btn">
                                     <i class="fas fa-strikethrough"></i>
                                 </button>
-                                <button @click="insertMarkdown('## ', '')" title="Header" class="markdown-btn">
+                                <button @click="insertMarkdown('## ', '')" title="Header" class="btn-base markdown-btn">
                                     <i class="fas fa-heading"></i>
                                 </button>
-                                <button @click="insertMarkdown('||', '||')" title="Spoiler" class="markdown-btn">
+                                <button @click="insertMarkdown('||', '||')" title="Spoiler" class="btn-base markdown-btn">
                                     <i class="fas fa-eye-slash"></i>
                                 </button>
-                                <button @click="insertImage()" title="Image" class="markdown-btn">
+                                <button @click="insertImage()" title="Image" class="btn-base markdown-btn">
                                     <i class="fas fa-image"></i>
                                 </button>
-                                <button @click="insertVideo()" title="Video" class="markdown-btn">
+                                <button @click="insertVideo()" title="Video" class="btn-base markdown-btn">
                                     <i class="fas fa-video"></i>
                                 </button>
                             </div>
@@ -589,7 +589,7 @@
                             <!-- Post button -->
                             <button @click="submitComment()" 
                                     :disabled="!newCommentText.trim() || user?.is_banned"
-                                    class="btn btn-primary">
+                                    class="btn-base btn btn-primary">
                                 Post Comment
                             </button>
                         </div>
@@ -600,23 +600,23 @@
             <!-- Sorting -->
             <div class="flex gap-2 overflow-x-auto pb-2">
                 <button @click="sortBy = 'likes'; sortComments()" 
-                        :class="{'bg-blue-500 text-white': sortBy === 'likes', 'bg-gray-200': sortBy !== 'likes'}"
-                        class="sort-btn flex-shrink-0">
+                        :class="{'active': sortBy === 'likes'}"
+                        class="btn-base sort-btn flex-shrink-0">
                     <i class="fas fa-thumbs-up mr-1"></i>Top
                 </button>
                 <button @click="sortBy = 'popularity'; sortComments()" 
-                        :class="{'bg-blue-500 text-white': sortBy === 'popularity', 'bg-gray-200': sortBy !== 'popularity'}"
-                        class="sort-btn flex-shrink-0">
+                        :class="{'active': sortBy === 'popularity'}"
+                        class="btn-base sort-btn flex-shrink-0">
                     <i class="fas fa-fire mr-1"></i>Popular
                 </button>
                 <button @click="sortBy = 'newest'; sortComments()" 
-                        :class="{'bg-blue-500 text-white': sortBy === 'newest', 'bg-gray-200': sortBy !== 'newest'}"
-                        class="sort-btn flex-shrink-0">
+                        :class="{'active': sortBy === 'newest'}"
+                        class="btn-base sort-btn flex-shrink-0">
                     <i class="fas fa-clock mr-1"></i>Newest
                 </button>
                 <button @click="sortBy = 'oldest'; sortComments()" 
-                        :class="{'bg-blue-500 text-white': sortBy === 'oldest', 'bg-gray-200': sortBy !== 'oldest'}"
-                        class="sort-btn flex-shrink-0">
+                        :class="{'active': sortBy === 'oldest'}"
+                        class="btn-base sort-btn flex-shrink-0">
                     <i class="fas fa-history mr-1"></i>Oldest
                 </button>
             </div>
@@ -626,7 +626,7 @@
         <div x-show="focusedCommentId" class="bg-white rounded-lg shadow-md p-4 mb-4">
             <div class="flex justify-between items-center">
                 <h2 class="text-lg font-semibold">Viewing replies</h2>
-                <button @click="exitFocusMode()" class="btn btn-secondary text-sm">
+                <button @click="exitFocusMode()" class="btn-base btn btn-secondary text-sm">
                     <i class="fas fa-arrow-left mr-1"></i>
                     Back to discussion
                 </button>

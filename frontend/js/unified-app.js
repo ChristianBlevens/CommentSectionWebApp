@@ -754,16 +754,16 @@ function unifiedApp() {
                                             <i class="fas fa-ellipsis-v"></i>
                                         </button>
                                         <div id="dropdown-${comment.id}" 
-                                             class="comment-dropdown"
+                                             class="dropdown-base comment-dropdown"
                                              style="top: 100%; left: 0; margin-top: 5px;">
                                             <button onclick="window.unifiedAppInstance.reportComment('${comment.id}')" 
-                                                    class="comment-dropdown-item">
+                                                    class="dropdown-item-base comment-dropdown-item">
                                                 <i class="fas fa-flag"></i>
                                                 Report
                                             </button>
                                             ${(comment.userId === this.user.id || this.user.is_moderator) ? `
                                                 <button onclick="window.unifiedAppInstance.deleteComment('${comment.id}')" 
-                                                        class="comment-dropdown-item">
+                                                        class="dropdown-item-base comment-dropdown-item">
                                                     <i class="fas fa-trash"></i>
                                                     Delete
                                                 </button>
@@ -778,38 +778,38 @@ function unifiedApp() {
                         <div id="reply-form-${comment.id}" style="display: none;" class="reply-form">
                             <textarea id="reply-textarea-${comment.id}" 
                                       placeholder="Write a reply..."
-                                      class="reply-textarea"></textarea>
+                                      class="textarea-base reply-textarea"></textarea>
                             <div class="reply-toolbar">
                                 <div class="markdown-buttons">
-                                    <button onclick="window.unifiedAppInstance.insertMarkdownForReply('${comment.id}', '**', '**')" class="markdown-btn">
+                                    <button onclick="window.unifiedAppInstance.insertMarkdownForReply('${comment.id}', '**', '**')" class="btn-base markdown-btn">
                                         <i class="fas fa-bold"></i>
                                     </button>
-                                    <button onclick="window.unifiedAppInstance.insertMarkdownForReply('${comment.id}', '*', '*')" class="markdown-btn">
+                                    <button onclick="window.unifiedAppInstance.insertMarkdownForReply('${comment.id}', '*', '*')" class="btn-base markdown-btn">
                                         <i class="fas fa-italic"></i>
                                     </button>
-                                    <button onclick="window.unifiedAppInstance.insertMarkdownForReply('${comment.id}', '~~', '~~')" class="markdown-btn">
+                                    <button onclick="window.unifiedAppInstance.insertMarkdownForReply('${comment.id}', '~~', '~~')" class="btn-base markdown-btn">
                                         <i class="fas fa-strikethrough"></i>
                                     </button>
-                                    <button onclick="window.unifiedAppInstance.insertMarkdownForReply('${comment.id}', '## ', '')" class="markdown-btn">
+                                    <button onclick="window.unifiedAppInstance.insertMarkdownForReply('${comment.id}', '## ', '')" class="btn-base markdown-btn">
                                         <i class="fas fa-heading"></i>
                                     </button>
-                                    <button onclick="window.unifiedAppInstance.insertMarkdownForReply('${comment.id}', '||', '||')" class="markdown-btn">
+                                    <button onclick="window.unifiedAppInstance.insertMarkdownForReply('${comment.id}', '||', '||')" class="btn-base markdown-btn">
                                         <i class="fas fa-eye-slash"></i>
                                     </button>
-                                    <button onclick="window.unifiedAppInstance.insertImageForReply('${comment.id}')" class="markdown-btn">
+                                    <button onclick="window.unifiedAppInstance.insertImageForReply('${comment.id}')" class="btn-base markdown-btn">
                                         <i class="fas fa-image"></i>
                                     </button>
-                                    <button onclick="window.unifiedAppInstance.insertVideoForReply('${comment.id}')" class="markdown-btn">
+                                    <button onclick="window.unifiedAppInstance.insertVideoForReply('${comment.id}')" class="btn-base markdown-btn">
                                         <i class="fas fa-video"></i>
                                     </button>
                                 </div>
                                 <div class="reply-actions">
                                     <button onclick="window.unifiedAppInstance.cancelReply('${comment.id}')" 
-                                            class="reply-btn reply-btn-secondary">
+                                            class="btn-base btn btn-secondary">
                                         Cancel
                                     </button>
                                     <button onclick="window.unifiedAppInstance.submitReply('${comment.id}')" 
-                                            class="reply-btn reply-btn-primary">
+                                            class="btn-base btn btn-primary">
                                         Reply
                                     </button>
                                 </div>
