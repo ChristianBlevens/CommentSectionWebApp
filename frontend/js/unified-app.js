@@ -703,7 +703,7 @@ function unifiedApp() {
         renderComment(comment, depth = 0) {
             if (!comment) return '';
             
-            const MAX_DEPTH = 4;
+            const MAX_DEPTH = 3;
             const isDeleted = !comment.content || comment.content === '[deleted]' || comment.deleted;
             const displayContent = isDeleted ? '[Comment deleted]' : comment.content;
             const displayAuthor = isDeleted ? '[deleted]' : comment.userName;
