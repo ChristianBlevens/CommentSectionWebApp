@@ -30,13 +30,15 @@ async function banUserWithDuration(userId, userName, duration) {
     const reason = prompt(`Why are you banning ${userName}?`);
     if (!reason) return;
     
-    const response = await BanHandler.banUser(API_URL, userId, userName, duration, reason);
+    const shadowBan = confirm('Make this a shadow ban? (User won\'t be notified)');
+    
+    const response = await BanHandler.banUser(API_URL, userId, userName, duration, reason, false, shadowBan);
     if (response.success) {
         // Display ban success message
         if (window.unifiedAppInstance) {
             window.unifiedAppInstance.banNotification = {
                 show: true,
-                message: `${userName} has been banned.\n${response.result.ban_duration_text}`,
+                message: `${userName} has been ${shadowBan ? 'shadow ' : ''}banned.\n${response.result.ban_duration_text}`,
                 expired: false
             };
             setTimeout(() => {
@@ -159,6 +161,17 @@ function unifiedApp() {
         // Ban UI state
         showBanDropdown: null,
         banNotification: { show: false, message: '', expired: false },
+        
+        // Page lock state
+        pageLocked: false,
+        pageLockReason: '',
+        
+        // Comment drafts
+        commentDraft: '',
+        draftSaveTimeout: null,
+        
+        // Search state
+        searchQuery: '',
         warningNotification: { show: false, message: '' },
         
         // Setup app on load
@@ -184,12 +197,20 @@ function unifiedApp() {
                 }
             }
             
+            // Check page lock status
+            await this.checkPageLockStatus();
+            
             // Fetch page comments
             await this.loadComments();
             
             // Get pending report count
             if (this.user?.is_moderator) {
                 await this.loadReportCount();
+            }
+            
+            // Load comment draft
+            if (this.user) {
+                await this.loadDraft();
             }
             
             // Setup markdown renderer
@@ -270,6 +291,52 @@ function unifiedApp() {
             await this.loadComments();
         },
         
+        // Check page lock status
+        async checkPageLockStatus() {
+            try {
+                const pageId = Utils.getPageId();
+                const response = await fetch(`${API_URL}/api/pages/${encodeURIComponent(pageId)}/lock-status`);
+                if (response.ok) {
+                    const data = await response.json();
+                    this.pageLocked = data.locked;
+                    this.pageLockReason = data.lockReason || '';
+                }
+            } catch (error) {
+                console.error('Error checking page lock status:', error);
+            }
+        },
+        
+        // Toggle page lock
+        async togglePageLock() {
+            const pageId = Utils.getPageId();
+            const lock = !this.pageLocked;
+            const reason = lock ? prompt('Enter reason for locking this page:') : null;
+            
+            if (lock && !reason) return;
+            
+            try {
+                const response = await fetch(`${API_URL}/api/pages/${encodeURIComponent(pageId)}/lock`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${Auth.getToken()}`
+                    },
+                    body: JSON.stringify({ lock, reason })
+                });
+                
+                if (response.ok) {
+                    this.pageLocked = lock;
+                    this.pageLockReason = reason || '';
+                    await this.loadComments();
+                } else {
+                    throw new Error('Failed to update page lock');
+                }
+            } catch (error) {
+                console.error('Error toggling page lock:', error);
+                alert('Failed to update page lock status');
+            }
+        },
+        
         // Comment methods
         async loadComments() {
             this.loading = true;
@@ -287,7 +354,10 @@ function unifiedApp() {
                     options.headers = getAuthHeaders();
                 }
                 
-                const url = `${API_URL}/api/comments?pageId=${encodeURIComponent(pageId)}`;
+                let url = `${API_URL}/api/comments?pageId=${encodeURIComponent(pageId)}`;
+                if (this.searchQuery) {
+                    url += `&search=${encodeURIComponent(this.searchQuery)}`;
+                }
                 console.log('Loading comments from URL:', url);
                 const response = await fetch(url, options);
                 
@@ -324,6 +394,92 @@ function unifiedApp() {
             this.sortedComments = sorted;
         },
         
+        // Draft management
+        async loadDraft() {
+            try {
+                const pageId = Utils.getPageId();
+                const parentId = this.replyingTo;
+                const response = await fetch(`${API_URL}/api/drafts?pageId=${encodeURIComponent(pageId)}${parentId ? `&parentId=${parentId}` : ''}`, {
+                    headers: {
+                        'Authorization': `Bearer ${Auth.getToken()}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.draft) {
+                        this.newCommentText = data.draft.content;
+                        this.commentDraft = data.draft.content;
+                        this.updatePreview();
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading draft:', error);
+            }
+        },
+        
+        async saveDraft() {
+            if (!this.user || !this.newCommentText.trim()) return;
+            
+            try {
+                const pageId = Utils.getPageId();
+                await fetch(`${API_URL}/api/drafts`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${Auth.getToken()}`
+                    },
+                    body: JSON.stringify({
+                        pageId,
+                        content: this.newCommentText,
+                        parentId: this.replyingTo
+                    })
+                });
+                this.commentDraft = this.newCommentText;
+            } catch (error) {
+                console.error('Error saving draft:', error);
+            }
+        },
+        
+        async deleteDraft() {
+            try {
+                const pageId = Utils.getPageId();
+                const parentId = this.replyingTo;
+                await fetch(`${API_URL}/api/drafts?pageId=${encodeURIComponent(pageId)}${parentId ? `&parentId=${parentId}` : ''}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${Auth.getToken()}`
+                    }
+                });
+                this.commentDraft = '';
+            } catch (error) {
+                console.error('Error deleting draft:', error);
+            }
+        },
+        
+        onCommentTextChange() {
+            this.updatePreview();
+            
+            // Clear existing timeout
+            if (this.draftSaveTimeout) {
+                clearTimeout(this.draftSaveTimeout);
+            }
+            
+            // Save draft after 1 second of inactivity
+            this.draftSaveTimeout = setTimeout(() => {
+                this.saveDraft();
+            }, 1000);
+        },
+        
+        async searchComments() {
+            await this.loadComments();
+        },
+        
+        clearSearch() {
+            this.searchQuery = '';
+            this.loadComments();
+        },
+        
         async submitComment() {
             if (!this.newCommentText.trim() || !this.user || this.user.is_banned) return;
             
@@ -348,6 +504,7 @@ function unifiedApp() {
                 if (response.ok) {
                     this.newCommentText = '';
                     this.commentPreview = '';
+                    await this.deleteDraft(); // Delete draft after successful submission
                     await this.loadComments();
                 } else {
                     if (await handleAuthError(response)) return;
@@ -723,6 +880,7 @@ function unifiedApp() {
                             <div class="comment-meta">
                                 <span class="comment-author">${displayAuthor}</span>
                                 <span class="comment-time">${this.getRelativeTime(comment.createdAt)}</span>
+                                ${comment.is_locked ? '<span class="text-yellow-600 ml-2"><i class="fas fa-lock text-xs"></i> Locked</span>' : ''}
                             </div>
                         </div>
                         
@@ -742,11 +900,13 @@ function unifiedApp() {
                                     <i class="fas fa-thumbs-down"></i>
                                     <span>${comment.dislikes}</span>
                                 </button>
-                                <button onclick="window.unifiedAppInstance.showReplyForm('${comment.id}')" 
-                                        class="comment-action">
-                                    <i class="fas fa-comment"></i>
-                                    Reply
-                                </button>
+                                ${!comment.is_locked && !this.pageLocked ? `
+                                    <button onclick="window.unifiedAppInstance.showReplyForm('${comment.id}')" 
+                                            class="comment-action">
+                                        <i class="fas fa-comment"></i>
+                                        Reply
+                                    </button>
+                                ` : ''}
                                 ${this.user ? `
                                     <div class="comment-dropdown-container">
                                         <button onclick="window.unifiedAppInstance.toggleCommentDropdown('${comment.id}')" 
@@ -766,6 +926,13 @@ function unifiedApp() {
                                                         class="comment-dropdown-item">
                                                     <i class="fas fa-trash"></i>
                                                     Delete
+                                                </button>
+                                            ` : ''}
+                                            ${this.user.is_moderator && !isDeleted ? `
+                                                <button onclick="window.unifiedAppInstance.toggleCommentLock('${comment.id}')" 
+                                                        class="comment-dropdown-item">
+                                                    <i class="fas ${comment.is_locked ? 'fa-lock-open' : 'fa-lock'}"></i>
+                                                    ${comment.is_locked ? 'Unlock Thread' : 'Lock Thread'}
                                                 </button>
                                             ` : ''}
                                         </div>
@@ -918,6 +1085,31 @@ function unifiedApp() {
                 }
             } catch (error) {
                 console.error('Error deleting comment:', error);
+            }
+        },
+        
+        async toggleCommentLock(commentId) {
+            const comment = this.comments.find(c => c.id === commentId);
+            if (!comment) return;
+            
+            const lock = !comment.is_locked;
+            
+            try {
+                const response = await fetch(`${API_URL}/api/comments/${commentId}/lock`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    credentials: 'include',
+                    body: JSON.stringify({ lock })
+                });
+                
+                if (response.ok) {
+                    await this.loadComments();
+                } else {
+                    alert('Failed to update comment lock status');
+                }
+            } catch (error) {
+                console.error('Error toggling comment lock:', error);
+                alert('Failed to update comment lock status');
             }
         },
         

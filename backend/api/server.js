@@ -178,6 +178,26 @@ const parseBanDuration = (duration) => {
     return value * multipliers[unit];
 };
 
+// Log moderation actions
+const logModerationAction = async (moderatorId, action, details = {}) => {
+    try {
+        await pgPool.query(
+            `INSERT INTO moderation_logs (moderator_id, action, target_user_id, target_comment_id, target_page_id, details)
+             VALUES ($1, $2, $3, $4, $5, $6)`,
+            [
+                moderatorId,
+                action,
+                details.targetUserId || null,
+                details.targetCommentId || null,
+                details.targetPageId || null,
+                JSON.stringify(details.extra || {})
+            ]
+        );
+    } catch (error) {
+        console.error('Failed to log moderation action:', error);
+    }
+};
+
 // Auth middleware that doesn't require login
 const optionalAuth = async (req, res, next) => {
     const authHeader = req.headers.authorization;
@@ -197,7 +217,7 @@ const optionalAuth = async (req, res, next) => {
         
         // Fetch user details
         const userResult = await pgPool.query(
-            'SELECT id, name, is_moderator, is_super_moderator FROM users WHERE id = $1',
+            'SELECT id, name, is_moderator, is_super_moderator, is_banned, is_shadow_banned FROM users WHERE id = $1',
             [userId]
         );
         
@@ -231,7 +251,7 @@ const authenticateUser = async (req, res, next) => {
         
         // Fetch user details with ban details and super moderator status
         const userResult = await pgPool.query(
-            'SELECT id, name, is_moderator, is_super_moderator, is_banned, ban_expires_at, ban_reason, banned_at FROM users WHERE id = $1',
+            'SELECT id, name, is_moderator, is_super_moderator, is_banned, is_shadow_banned, ban_expires_at, ban_reason, banned_at FROM users WHERE id = $1',
             [userId]
         );
         
@@ -242,12 +262,13 @@ const authenticateUser = async (req, res, next) => {
         const user = userResult.rows[0];
         
         // Check if user is banned and handle expired bans
-        if (user.is_banned) {
+        if (user.is_banned || user.is_shadow_banned) {
             if (user.ban_expires_at && new Date(user.ban_expires_at) <= new Date()) {
                 // Auto-unban expired temporary bans
                 await pgPool.query(
                     `UPDATE users 
-                     SET is_banned = FALSE, 
+                     SET is_banned = FALSE,
+                         is_shadow_banned = FALSE, 
                          ban_expires_at = NULL, 
                          ban_reason = NULL, 
                          banned_by = NULL, 
@@ -256,9 +277,10 @@ const authenticateUser = async (req, res, next) => {
                     [userId]
                 );
                 user.is_banned = false;
+                user.is_shadow_banned = false;
                 user.ban_expired = true; // Mark ban as expired for UI
-            } else {
-                // Get ban time remaining
+            } else if (user.is_banned && !user.is_shadow_banned) {
+                // Regular ban - inform the user
                 const banInfo = {
                     is_banned: true,
                     ban_expires_at: user.ban_expires_at,
@@ -279,6 +301,7 @@ const authenticateUser = async (req, res, next) => {
                     ban_info: banInfo
                 });
             }
+            // For shadow bans, continue normally - user won't know they're banned
         }
         
         req.user = user;
@@ -359,6 +382,10 @@ const initDatabase = async () => {
                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='trust_score') THEN
                     ALTER TABLE users ADD COLUMN trust_score FLOAT DEFAULT 0.5;
                 END IF;
+                -- Add shadow ban column
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='is_shadow_banned') THEN
+                    ALTER TABLE users ADD COLUMN is_shadow_banned BOOLEAN DEFAULT FALSE;
+                END IF;
             END $$;
         `);
         
@@ -372,9 +399,13 @@ const initDatabase = async () => {
                 content TEXT NOT NULL CHECK (char_length(content) <= 5000),
                 likes INTEGER DEFAULT 0 CHECK (likes >= 0),
                 dislikes INTEGER DEFAULT 0 CHECK (dislikes >= 0),
+                is_locked BOOLEAN DEFAULT FALSE,
+                locked_by VARCHAR(255),
+                locked_at TIMESTAMP,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                FOREIGN KEY (locked_by) REFERENCES users(id) ON DELETE SET NULL
             )
         `);
         
@@ -523,19 +554,84 @@ const initDatabase = async () => {
             END $$;
         `);
         
+        // Create moderation logs table
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS moderation_logs (
+                id SERIAL PRIMARY KEY,
+                moderator_id VARCHAR(255) NOT NULL,
+                action VARCHAR(50) NOT NULL,
+                target_user_id VARCHAR(255),
+                target_comment_id INTEGER,
+                target_page_id VARCHAR(255),
+                details JSONB,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (moderator_id) REFERENCES users(id) ON DELETE CASCADE,
+                FOREIGN KEY (target_user_id) REFERENCES users(id) ON DELETE SET NULL
+            )
+        `);
+        
+        // Create page locks table
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS page_locks (
+                page_id VARCHAR(255) PRIMARY KEY,
+                locked_by VARCHAR(255) NOT NULL,
+                locked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                lock_reason TEXT,
+                FOREIGN KEY (locked_by) REFERENCES users(id) ON DELETE CASCADE
+            )
+        `);
+        
+        // Create comment drafts table
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS comment_drafts (
+                id SERIAL PRIMARY KEY,
+                user_id VARCHAR(255) NOT NULL,
+                page_id VARCHAR(255) NOT NULL,
+                parent_id INTEGER,
+                content TEXT NOT NULL,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                UNIQUE(user_id, page_id, parent_id)
+            )
+        `);
+        
+        // Add new columns to existing tables if they don't exist
+        await client.query(`
+            DO $$ 
+            BEGIN
+                -- Add is_locked column to comments if it doesn't exist
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='comments' AND column_name='is_locked') THEN
+                    ALTER TABLE comments ADD COLUMN is_locked BOOLEAN DEFAULT FALSE;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='comments' AND column_name='locked_by') THEN
+                    ALTER TABLE comments ADD COLUMN locked_by VARCHAR(255) REFERENCES users(id) ON DELETE SET NULL;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='comments' AND column_name='locked_at') THEN
+                    ALTER TABLE comments ADD COLUMN locked_at TIMESTAMP;
+                END IF;
+            END $$;
+        `);
+        
         // Create performance indexes
         await client.query(`
             CREATE INDEX IF NOT EXISTS idx_comments_page_id ON comments(page_id);
             CREATE INDEX IF NOT EXISTS idx_comments_parent_id ON comments(parent_id);
             CREATE INDEX IF NOT EXISTS idx_comments_user_id ON comments(user_id);
+            CREATE INDEX IF NOT EXISTS idx_comments_is_locked ON comments(is_locked);
             CREATE INDEX IF NOT EXISTS idx_votes_comment_id ON votes(comment_id);
             CREATE INDEX IF NOT EXISTS idx_votes_user_id ON votes(user_id);
             CREATE INDEX IF NOT EXISTS idx_reports_page_id_status ON reports(page_id, status);
             CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status);
             CREATE INDEX IF NOT EXISTS idx_users_is_moderator ON users(is_moderator);
             CREATE INDEX IF NOT EXISTS idx_users_is_banned ON users(is_banned);
+            CREATE INDEX IF NOT EXISTS idx_users_is_shadow_banned ON users(is_shadow_banned);
             CREATE INDEX IF NOT EXISTS idx_warnings_user_id ON warnings(user_id);
             CREATE INDEX IF NOT EXISTS idx_warnings_acknowledged ON warnings(acknowledged);
+            CREATE INDEX IF NOT EXISTS idx_moderation_logs_moderator_id ON moderation_logs(moderator_id);
+            CREATE INDEX IF NOT EXISTS idx_moderation_logs_target_user_id ON moderation_logs(target_user_id);
+            CREATE INDEX IF NOT EXISTS idx_moderation_logs_created_at ON moderation_logs(created_at);
+            CREATE INDEX IF NOT EXISTS idx_page_locks_page_id ON page_locks(page_id);
+            CREATE INDEX IF NOT EXISTS idx_comment_drafts_user_page ON comment_drafts(user_id, page_id);
         `);
         
         await client.query('COMMIT');
@@ -715,7 +811,7 @@ app.post('/api/discord/callback', authLimiter, async (req, res) => {
         
         // Check user permissions and ban status
         const userResult = await pgPool.query(
-            'SELECT is_moderator, is_super_moderator, is_banned, ban_expires_at, ban_reason, banned_at FROM users WHERE id = $1',
+            'SELECT is_moderator, is_super_moderator, is_banned, is_shadow_banned, ban_expires_at, ban_reason, banned_at FROM users WHERE id = $1',
             [user.id]
         );
         
@@ -724,13 +820,15 @@ app.post('/api/discord/callback', authLimiter, async (req, res) => {
             user.is_moderator = userData.is_moderator;
             user.is_super_moderator = userData.is_super_moderator;
             user.is_banned = userData.is_banned;
+            user.is_shadow_banned = userData.is_shadow_banned;
             
             // Handle expired temporary bans
-            if (userData.is_banned && userData.ban_expires_at && new Date(userData.ban_expires_at) <= new Date()) {
+            if ((userData.is_banned || userData.is_shadow_banned) && userData.ban_expires_at && new Date(userData.ban_expires_at) <= new Date()) {
                 // Auto-unban expired temporary bans
                 await pgPool.query(
                     `UPDATE users 
-                     SET is_banned = FALSE, 
+                     SET is_banned = FALSE,
+                         is_shadow_banned = FALSE, 
                          ban_expires_at = NULL, 
                          ban_reason = NULL, 
                          banned_by = NULL, 
@@ -739,8 +837,9 @@ app.post('/api/discord/callback', authLimiter, async (req, res) => {
                     [user.id]
                 );
                 user.is_banned = false;
+                user.is_shadow_banned = false;
                 user.ban_expired = true;
-            } else if (userData.is_banned) {
+            } else if (userData.is_banned && !userData.is_shadow_banned) {
                 // User remains banned
                 user.ban_info = {
                     is_banned: true,
@@ -921,7 +1020,7 @@ app.get('/api/users/:userId', authenticateUser, async (req, res) => {
 
 // Get comments by page or user
 app.get('/api/comments', optionalAuth, async (req, res) => {
-    const { pageId, userId, limit, offset = 0, orderBy = 'created_at', order = 'ASC' } = req.query;
+    const { pageId, userId, limit, offset = 0, orderBy = 'created_at', order = 'ASC', search } = req.query;
     
     // Require pageId or userId
     if (!pageId && !userId) {
@@ -943,6 +1042,12 @@ app.get('/api/comments', optionalAuth, async (req, res) => {
             queryParams.push(userId);
         }
         
+        // Add search functionality
+        if (search && search.trim()) {
+            whereConditions.push(`(c.content ILIKE $${queryParams.length + 1} OR u.name ILIKE $${queryParams.length + 1})`);
+            queryParams.push(`%${search.trim()}%`);
+        }
+        
         // Include user's votes if logged in
         queryParams.push(req.user?.id || null);
         const userVoteParam = `$${queryParams.length}`;
@@ -958,6 +1063,7 @@ app.get('/api/comments', optionalAuth, async (req, res) => {
             SELECT 
                 c.id, c.page_id, c.user_id, c.parent_id, c.content, 
                 c.likes, c.dislikes, c.created_at, c.updated_at,
+                c.is_locked, c.locked_by, c.locked_at,
                 u.name as user_name, u.picture as user_picture,
                 v.vote_type as user_vote
             FROM comments c
@@ -1029,18 +1135,49 @@ app.post('/api/comments', authenticateUser, async (req, res) => {
         return res.status(400).json({ error: 'Comment too long (max 5000 characters)' });
     }
     
+    // Check if user is shadow banned - if so, pretend to create comment but don't
+    if (req.user.is_shadow_banned) {
+        // Return fake success response
+        res.json({
+            id: Math.floor(Math.random() * 1000000),
+            pageId: pageId,
+            userId: userId,
+            parentId: parentId || null,
+            content: content,
+            likes: 0,
+            dislikes: 0,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            userName: req.user.name,
+            userPicture: req.user.picture || null
+        });
+        return;
+    }
+    
     const client = await pgPool.connect();
     try {
         await client.query('BEGIN');
         
-        // Verify parent exists if provided
+        // Check if page is locked
+        const pageLockCheck = await client.query(
+            'SELECT page_id FROM page_locks WHERE page_id = $1',
+            [pageId]
+        );
+        if (pageLockCheck.rows.length > 0) {
+            throw new Error('This page is locked and not accepting new comments');
+        }
+        
+        // Verify parent exists and is not locked if provided
         if (parentId) {
             const parentCheck = await client.query(
-                'SELECT id FROM comments WHERE id = $1',
+                'SELECT id, is_locked FROM comments WHERE id = $1',
                 [parentId]
             );
             if (parentCheck.rows.length === 0) {
                 throw new Error('Parent comment not found');
+            }
+            if (parentCheck.rows[0].is_locked) {
+                throw new Error('This comment thread is locked');
             }
         }
         
@@ -1091,11 +1228,91 @@ app.post('/api/comments', authenticateUser, async (req, res) => {
         console.error('Create comment error:', error);
         if (error.message === 'Parent comment not found') {
             res.status(404).json({ error: 'Parent comment not found' });
+        } else if (error.message === 'This page is locked and not accepting new comments') {
+            res.status(403).json({ error: 'This page is locked and not accepting new comments' });
+        } else if (error.message === 'This comment thread is locked') {
+            res.status(403).json({ error: 'This comment thread is locked' });
         } else {
             res.status(500).json({ error: 'Failed to create comment' });
         }
     } finally {
         client.release();
+    }
+});
+
+// Save comment draft
+app.post('/api/drafts', authenticateUser, async (req, res) => {
+    const { pageId, content, parentId } = req.body;
+    const userId = req.user.id;
+    
+    if (!pageId || !content) {
+        return res.status(400).json({ error: 'Missing required fields' });
+    }
+    
+    try {
+        await pgPool.query(
+            `INSERT INTO comment_drafts (user_id, page_id, parent_id, content)
+             VALUES ($1, $2, $3, $4)
+             ON CONFLICT (user_id, page_id, parent_id)
+             DO UPDATE SET content = $4, updated_at = CURRENT_TIMESTAMP`,
+            [userId, pageId, parentId || null, content]
+        );
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Save draft error:', error);
+        res.status(500).json({ error: 'Failed to save draft' });
+    }
+});
+
+// Get comment draft
+app.get('/api/drafts', authenticateUser, async (req, res) => {
+    const { pageId, parentId } = req.query;
+    const userId = req.user.id;
+    
+    if (!pageId) {
+        return res.status(400).json({ error: 'Missing pageId' });
+    }
+    
+    try {
+        const result = await pgPool.query(
+            `SELECT content, updated_at 
+             FROM comment_drafts 
+             WHERE user_id = $1 AND page_id = $2 AND parent_id IS NOT DISTINCT FROM $3`,
+            [userId, pageId, parentId || null]
+        );
+        
+        if (result.rows.length === 0) {
+            res.json({ draft: null });
+        } else {
+            res.json({ draft: result.rows[0] });
+        }
+    } catch (error) {
+        console.error('Get draft error:', error);
+        res.status(500).json({ error: 'Failed to get draft' });
+    }
+});
+
+// Delete comment draft
+app.delete('/api/drafts', authenticateUser, async (req, res) => {
+    const { pageId, parentId } = req.query;
+    const userId = req.user.id;
+    
+    if (!pageId) {
+        return res.status(400).json({ error: 'Missing pageId' });
+    }
+    
+    try {
+        await pgPool.query(
+            `DELETE FROM comment_drafts 
+             WHERE user_id = $1 AND page_id = $2 AND parent_id IS NOT DISTINCT FROM $3`,
+            [userId, pageId, parentId || null]
+        );
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Delete draft error:', error);
+        res.status(500).json({ error: 'Failed to delete draft' });
     }
 });
 
@@ -1112,6 +1329,17 @@ app.post('/api/comments/:commentId/vote', authenticateUser, async (req, res) => 
     const commentIdNum = parseInt(commentId);
     if (isNaN(commentIdNum)) {
         return res.status(400).json({ error: 'Invalid comment ID' });
+    }
+    
+    // Check if user is shadow banned - if so, pretend to vote but don't
+    if (req.user.is_shadow_banned) {
+        // Return fake success response
+        res.json({
+            voteType: voteType,
+            likes: Math.floor(Math.random() * 10) + 1,
+            dislikes: Math.floor(Math.random() * 5)
+        });
+        return;
     }
     
     const client = await pgPool.connect();
@@ -1311,6 +1539,19 @@ app.delete('/api/comments/:commentId', authenticateUser, async (req, res) => {
         
         await client.query('COMMIT');
         
+        // Log moderation action if deleted by moderator
+        if (comment.user_id !== userId && isUserModerator) {
+            await logModerationAction(userId, 'delete_comment', {
+                targetCommentId: commentIdNum,
+                targetUserId: comment.user_id,
+                targetPageId: comment.page_id,
+                extra: {
+                    commentContent: comment.content.substring(0, 100) + (comment.content.length > 100 ? '...' : ''),
+                    hasChildren: hasChildren
+                }
+            });
+        }
+        
         // Clear cache
         await safeRedisOp(() => redisClient.del(`comments:${comment.page_id}`));
         
@@ -1327,6 +1568,176 @@ app.delete('/api/comments/:commentId', authenticateUser, async (req, res) => {
         }
     } finally {
         client.release();
+    }
+});
+
+// Lock/unlock comment thread
+app.post('/api/comments/:commentId/lock', authenticateUser, requireModerator, async (req, res) => {
+    const { commentId } = req.params;
+    const { lock = true } = req.body;
+    const userId = req.user.id;
+    
+    const commentIdNum = parseInt(commentId);
+    if (isNaN(commentIdNum)) {
+        return res.status(400).json({ error: 'Invalid comment ID' });
+    }
+    
+    try {
+        const result = await pgPool.query(
+            `UPDATE comments 
+             SET is_locked = $1,
+                 locked_by = $2,
+                 locked_at = $3
+             WHERE id = $4
+             RETURNING page_id`,
+            [lock, lock ? userId : null, lock ? new Date() : null, commentIdNum]
+        );
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Comment not found' });
+        }
+        
+        // Log moderation action
+        await logModerationAction(userId, lock ? 'lock_comment' : 'unlock_comment', {
+            targetCommentId: commentIdNum,
+            targetPageId: result.rows[0].page_id
+        });
+        
+        // Clear cache
+        await safeRedisOp(() => redisClient.del(`comments:${result.rows[0].page_id}`));
+        
+        res.json({ success: true, locked: lock });
+    } catch (error) {
+        console.error('Lock comment error:', error);
+        res.status(500).json({ error: 'Failed to lock/unlock comment' });
+    }
+});
+
+// Lock/unlock page
+app.post('/api/pages/:pageId/lock', authenticateUser, requireModerator, async (req, res) => {
+    const { pageId } = req.params;
+    const { lock = true, reason } = req.body;
+    const userId = req.user.id;
+    
+    const client = await pgPool.connect();
+    try {
+        await client.query('BEGIN');
+        
+        if (lock) {
+            // Add page lock
+            await client.query(
+                `INSERT INTO page_locks (page_id, locked_by, lock_reason)
+                 VALUES ($1, $2, $3)
+                 ON CONFLICT (page_id) 
+                 DO UPDATE SET locked_by = $2, locked_at = CURRENT_TIMESTAMP, lock_reason = $3`,
+                [pageId, userId, reason || 'Page locked by moderator']
+            );
+        } else {
+            // Remove page lock
+            await client.query(
+                'DELETE FROM page_locks WHERE page_id = $1',
+                [pageId]
+            );
+        }
+        
+        await client.query('COMMIT');
+        
+        // Log moderation action
+        await logModerationAction(userId, lock ? 'lock_page' : 'unlock_page', {
+            targetPageId: pageId,
+            extra: { reason: reason }
+        });
+        
+        // Clear cache
+        await safeRedisOp(() => redisClient.del(`comments:${pageId}`));
+        
+        res.json({ success: true, locked: lock });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Lock page error:', error);
+        res.status(500).json({ error: 'Failed to lock/unlock page' });
+    } finally {
+        client.release();
+    }
+});
+
+// Get page lock status
+app.get('/api/pages/:pageId/lock-status', optionalAuth, async (req, res) => {
+    const { pageId } = req.params;
+    
+    try {
+        const result = await pgPool.query(
+            'SELECT locked_by, locked_at, lock_reason FROM page_locks WHERE page_id = $1',
+            [pageId]
+        );
+        
+        if (result.rows.length === 0) {
+            res.json({ locked: false });
+        } else {
+            res.json({
+                locked: true,
+                lockedBy: result.rows[0].locked_by,
+                lockedAt: result.rows[0].locked_at,
+                lockReason: result.rows[0].lock_reason
+            });
+        }
+    } catch (error) {
+        console.error('Get page lock status error:', error);
+        res.status(500).json({ error: 'Failed to get page lock status' });
+    }
+});
+
+// Get moderation logs
+app.get('/api/moderation-logs', authenticateUser, requireModerator, async (req, res) => {
+    const { limit = 50, offset = 0, action, targetUserId, moderatorId } = req.query;
+    
+    try {
+        let query = `
+            SELECT 
+                ml.*,
+                u1.name as moderator_name,
+                u2.name as target_user_name
+            FROM moderation_logs ml
+            LEFT JOIN users u1 ON ml.moderator_id = u1.id
+            LEFT JOIN users u2 ON ml.target_user_id = u2.id
+            WHERE 1=1
+        `;
+        const params = [];
+        let paramCount = 0;
+        
+        if (action) {
+            params.push(action);
+            query += ` AND ml.action = $${++paramCount}`;
+        }
+        
+        if (targetUserId) {
+            params.push(targetUserId);
+            query += ` AND ml.target_user_id = $${++paramCount}`;
+        }
+        
+        if (moderatorId) {
+            params.push(moderatorId);
+            query += ` AND ml.moderator_id = $${++paramCount}`;
+        }
+        
+        query += ` ORDER BY ml.created_at DESC`;
+        
+        params.push(limit);
+        query += ` LIMIT $${++paramCount}`;
+        
+        params.push(offset);
+        query += ` OFFSET $${++paramCount}`;
+        
+        const result = await pgPool.query(query, params);
+        
+        res.json({
+            logs: result.rows,
+            limit: parseInt(limit),
+            offset: parseInt(offset)
+        });
+    } catch (error) {
+        console.error('Get moderation logs error:', error);
+        res.status(500).json({ error: 'Failed to get moderation logs' });
     }
 });
 
@@ -1532,12 +1943,36 @@ app.put('/api/reports/:reportId/resolve', authenticateUser, requireModerator, as
     }
     
     try {
+        // Get report details for logging
+        const reportResult = await pgPool.query(
+            'SELECT comment_id, comment_user_id, reporter_id, page_id, reason FROM reports WHERE id = $1',
+            [reportId]
+        );
+        
+        if (reportResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Report not found' });
+        }
+        
+        const report = reportResult.rows[0];
+        
         await pgPool.query(
             `UPDATE reports 
              SET status = $1, resolved_at = CURRENT_TIMESTAMP, resolved_by = $2
              WHERE id = $3`,
             [action, userId, reportId]
         );
+        
+        // Log moderation action
+        await logModerationAction(userId, action === 'resolved' ? 'resolve_report' : 'dismiss_report', {
+            targetUserId: report.comment_user_id,
+            targetCommentId: report.comment_id,
+            targetPageId: report.page_id,
+            extra: {
+                reportId: reportId,
+                reportReason: report.reason,
+                reporterId: report.reporter_id
+            }
+        });
         
         res.json({ success: true });
     } catch (error) {
@@ -1549,7 +1984,7 @@ app.put('/api/reports/:reportId/resolve', authenticateUser, requireModerator, as
 // Block user from commenting
 app.post('/api/users/:targetUserId/ban', authenticateUser, requireModerator, async (req, res) => {
     const { targetUserId } = req.params;
-    const { duration, reason, deleteComments = true } = req.body;
+    const { duration, reason, deleteComments = true, shadowBan = false } = req.body;
     const userId = req.user.id;
     
     // Convert duration to timestamp
@@ -1575,12 +2010,13 @@ app.post('/api/users/:targetUserId/ban', authenticateUser, requireModerator, asy
         await client.query(
             `UPDATE users 
              SET is_banned = TRUE,
+                 is_shadow_banned = $5,
                  ban_expires_at = $2,
                  ban_reason = $3,
                  banned_by = $4,
                  banned_at = CURRENT_TIMESTAMP
              WHERE id = $1`,
-            [targetUserId, banExpiresAt, reason || 'No reason provided', userId]
+            [targetUserId, banExpiresAt, reason || 'No reason provided', userId, shadowBan]
         );
         
         // Remove user's comments if requested
@@ -1603,6 +2039,18 @@ app.post('/api/users/:targetUserId/ban', authenticateUser, requireModerator, asy
         
         await client.query('COMMIT');
         
+        // Log moderation action
+        await logModerationAction(userId, shadowBan ? 'shadow_ban_user' : 'ban_user', {
+            targetUserId: targetUserId,
+            extra: {
+                duration: duration || 'permanent',
+                reason: reason || 'No reason provided',
+                shadowBan: shadowBan,
+                deletedComments: deleteComments,
+                userName: userCheck.rows[0].name
+            }
+        });
+        
         // Flush Redis cache
         await safeRedisOp(() => redisClient.flushDb());
         
@@ -1613,7 +2061,8 @@ app.post('/api/users/:targetUserId/ban', authenticateUser, requireModerator, asy
             ban_type: banExpiresAt ? 'temporary' : 'permanent',
             ban_expires_at: banExpiresAt,
             ban_duration_text: banExpiresAt ? formatBanDuration(banDurationMs) : 'Permanent ban',
-            reason: reason || 'No reason provided'
+            reason: reason || 'No reason provided',
+            shadow_ban: shadowBan
         };
         
         res.json(banInfo);
@@ -2005,7 +2454,8 @@ app.post('/api/users/:userId/unban', authenticateUser, requireModerator, async (
     try {
         await pgPool.query(
             `UPDATE users 
-             SET is_banned = FALSE, 
+             SET is_banned = FALSE,
+                 is_shadow_banned = FALSE, 
                  ban_expires_at = NULL, 
                  ban_reason = NULL,
                  banned_by = NULL,
@@ -2013,6 +2463,11 @@ app.post('/api/users/:userId/unban', authenticateUser, requireModerator, async (
              WHERE id = $1`,
             [userId]
         );
+        
+        // Log moderation action
+        await logModerationAction(req.user.id, 'unban_user', {
+            targetUserId: userId
+        });
         
         res.json({ success: true });
     } catch (error) {
