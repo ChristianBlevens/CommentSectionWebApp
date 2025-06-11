@@ -127,6 +127,12 @@ body {
     padding: 0;
 }
 
+/* Main container padding */
+.container {
+    padding-top: var(--space-md);
+    padding-bottom: var(--space-md);
+}
+
 /* =====================================================
    MAIN COMMENT SECTION CONTAINER
    ===================================================== */
@@ -217,6 +223,19 @@ body {
 
 .comment-container:hover > .comment-line {
     background-color: var(--color-thread-line-hover);
+}
+
+.comment-container.collapsed > .comment-line {
+    bottom: 2rem;
+}
+
+.comment-container.collapsed .comment-children {
+    display: none;
+}
+
+/* Nested comment indentation */
+.comment-children {
+    margin-left: var(--space-md);
 }
 
 /* =====================================================
@@ -430,6 +449,17 @@ body {
     border-color: var(--color-border-secondary);
 }
 
+.sort-btn.bg-blue-500 {
+    background-color: var(--color-primary);
+    color: var(--color-text-inverse);
+    border-color: var(--color-primary);
+}
+
+.sort-btn.bg-blue-500:hover {
+    background-color: var(--color-primary-hover);
+    border-color: var(--color-primary-hover);
+}
+
 /* Markdown toolbar buttons */
 .markdown-buttons {
     display: flex;
@@ -638,6 +668,49 @@ body {
 
 .dropdown-item:last-child {
     border-radius: 0 0 calc(var(--radius-md) - 1px) calc(var(--radius-md) - 1px);
+}
+
+/* Reply form styling */
+.reply-form {
+    margin-top: var(--space-sm);
+    padding: var(--space-md);
+    background: var(--color-bg-secondary);
+    border-radius: var(--radius-md);
+    width: 100%;
+}
+
+.reply-textarea {
+    width: 100%;
+    min-height: clamp(4rem, 3rem + 3vw, 6rem);
+    padding: var(--space-md);
+    border: 1px solid var(--color-border-secondary);
+    border-radius: var(--radius-md);
+    font-size: var(--text-base);
+    color: var(--color-text-primary);
+    background-color: var(--color-bg-primary);
+    resize: vertical;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    font-family: inherit;
+}
+
+.reply-textarea:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(0, 121, 211, 0.1);
+}
+
+.reply-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: var(--space-sm);
+    gap: var(--space-sm);
+    flex-wrap: wrap;
+}
+
+.reply-actions {
+    display: flex;
+    gap: var(--space-sm);
 }
 
 /* =====================================================
