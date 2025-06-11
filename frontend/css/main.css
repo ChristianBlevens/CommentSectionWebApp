@@ -219,13 +219,26 @@ body {
 /* Thread Indicator Line - Fluid Width */
 .comment-line {
     position: absolute;
-    left: -0.075rem; /* Negative offset to align with parent comment above */
+    left: -1.5rem; /* Position to align with parent comment's left edge */
     top: 0;
     bottom: 0;
     width: clamp(2px, 0.15vw + 1px, 3px);
     background-color: var(--color-thread-line);
     transition: background-color 0.2s;
     cursor: pointer;
+}
+
+/* Adjust thread line position for different depths */
+.comment-depth-1 > .comment-line {
+    left: -1.5rem; /* Aligns with parent (base comment) */
+}
+
+.comment-depth-2 > .comment-line {
+    left: -1.5rem; /* Aligns with parent (depth-1 comment) */
+}
+
+.comment-depth-3 > .comment-line {
+    left: -1.5rem; /* Aligns with parent (depth-2 comment) */
 }
 
 .comment-container:hover > .comment-line {
