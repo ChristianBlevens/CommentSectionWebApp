@@ -69,7 +69,7 @@
         <div x-show="user && user.is_moderator" id="moderation-panel" class="mb-4">
             <!-- Tab Navigation - Always visible for moderators -->
             <div class="bg-white rounded-lg shadow-md">
-                <div class="border-b border-gray-200 flex justify-between items-center">
+                <div class="border-b border-gray-200">
                     <nav class="flex -mb-px">
                         <button @click="activeTab = 'comments'" 
                                 :class="{'border-blue-500 text-blue-600': activeTab === 'comments', 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300': activeTab !== 'comments'}"
@@ -91,14 +91,6 @@
                             <i class="fas fa-users mr-2"></i>Users
                         </button>
                     </nav>
-                    <div class="px-4 py-2">
-                        <button @click="togglePageLock()" 
-                                :class="pageLocked ? 'bg-red-500 hover:bg-red-600' : 'bg-yellow-500 hover:bg-yellow-600'"
-                                class="text-white px-3 py-1 rounded text-sm transition-colors">
-                            <i :class="pageLocked ? 'fas fa-lock' : 'fas fa-lock-open'" class="mr-1"></i>
-                            <span x-text="pageLocked ? 'Unlock Page' : 'Lock Page'"></span>
-                        </button>
-                    </div>
                 </div>
 
                 <!-- Tab Content - Only show for non-comment tabs -->
@@ -555,9 +547,9 @@
                     <!-- Comment box -->
                     <div class="space-y-3">
                         <textarea x-model="newCommentText" 
-                                  @input="onCommentTextChange()"
-                                  :placeholder="user?.is_banned ? 'You are banned from commenting' : (pageLocked && !user?.is_moderator ? 'This page is locked and not accepting new comments' : 'Write your comment... (Markdown supported)')"
-                                  :disabled="user?.is_banned || (pageLocked && !user?.is_moderator)"
+                                  @input="updatePreview()"
+                                  :placeholder="user?.is_banned ? 'You are banned from commenting' : 'Write your comment... (Markdown supported)'"
+                                  :disabled="user?.is_banned"
                                   class="comment-textarea"
                                   rows="3"></textarea>
                         
@@ -596,7 +588,7 @@
                             
                             <!-- Post button -->
                             <button @click="submitComment()" 
-                                    :disabled="!newCommentText.trim() || user?.is_banned || (pageLocked && !user?.is_moderator)"
+                                    :disabled="!newCommentText.trim() || user?.is_banned"
                                     class="btn btn-primary">
                                 Post Comment
                             </button>
@@ -605,66 +597,28 @@
                 </div>
             </div>
 
-            <!-- Page Lock Notification -->
-            <div x-show="pageLocked && !user?.is_moderator" class="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4">
-                <div class="flex items-center">
-                    <i class="fas fa-lock mr-2"></i>
-                    <span>This page is locked. New comments are not allowed.</span>
-                    <span x-show="pageLockReason" class="ml-2 italic" x-text="`Reason: ${pageLockReason}`"></span>
-                </div>
-            </div>
-            
-            <!-- Sorting and Search -->
-            <div class="sorting-search-container">
-                <div class="sorting-buttons-wrapper">
-                    <div class="flex gap-2 overflow-x-auto pb-2">
-                        <button @click="sortBy = 'likes'; sortComments()" 
-                                :class="{'bg-blue-500 text-white': sortBy === 'likes', 'bg-gray-200': sortBy !== 'likes'}"
-                                class="sort-btn flex-shrink-0">
-                            <i class="fas fa-thumbs-up mr-1"></i>Top
-                        </button>
-                        <button @click="sortBy = 'popularity'; sortComments()" 
-                                :class="{'bg-blue-500 text-white': sortBy === 'popularity', 'bg-gray-200': sortBy !== 'popularity'}"
-                                class="sort-btn flex-shrink-0">
-                            <i class="fas fa-fire mr-1"></i>Popular
-                        </button>
-                        <button @click="sortBy = 'newest'; sortComments()" 
-                                :class="{'bg-blue-500 text-white': sortBy === 'newest', 'bg-gray-200': sortBy !== 'newest'}"
-                                class="sort-btn flex-shrink-0">
-                            <i class="fas fa-clock mr-1"></i>Newest
-                        </button>
-                        <button @click="sortBy = 'oldest'; sortComments()" 
-                                :class="{'bg-blue-500 text-white': sortBy === 'oldest', 'bg-gray-200': sortBy !== 'oldest'}"
-                                class="sort-btn flex-shrink-0">
-                            <i class="fas fa-history mr-1"></i>Oldest
-                        </button>
-                    </div>
-                </div>
-                
-                <!-- Search -->
-                <div class="search-controls-wrapper">
-                    <div class="search-controls">
-                        <div class="search-input-wrapper">
-                            <input type="text" 
-                                   x-model="searchQuery" 
-                                   @keyup.enter="searchComments()"
-                                   placeholder="Search comments..."
-                                   class="pl-8 pr-3 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm w-full">
-                            <i class="fas fa-search absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm"></i>
-                        </div>
-                        <div class="search-buttons">
-                            <button @click="searchComments()" 
-                                    class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm transition-colors">
-                                Search
-                            </button>
-                            <button x-show="searchQuery" 
-                                    @click="clearSearch()" 
-                                    class="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm transition-colors">
-                                Clear
-                            </button>
-                        </div>
-                    </div>
-                </div>
+            <!-- Sorting -->
+            <div class="flex gap-2 overflow-x-auto pb-2">
+                <button @click="sortBy = 'likes'; sortComments()" 
+                        :class="{'bg-blue-500 text-white': sortBy === 'likes', 'bg-gray-200': sortBy !== 'likes'}"
+                        class="sort-btn flex-shrink-0">
+                    <i class="fas fa-thumbs-up mr-1"></i>Top
+                </button>
+                <button @click="sortBy = 'popularity'; sortComments()" 
+                        :class="{'bg-blue-500 text-white': sortBy === 'popularity', 'bg-gray-200': sortBy !== 'popularity'}"
+                        class="sort-btn flex-shrink-0">
+                    <i class="fas fa-fire mr-1"></i>Popular
+                </button>
+                <button @click="sortBy = 'newest'; sortComments()" 
+                        :class="{'bg-blue-500 text-white': sortBy === 'newest', 'bg-gray-200': sortBy !== 'newest'}"
+                        class="sort-btn flex-shrink-0">
+                    <i class="fas fa-clock mr-1"></i>Newest
+                </button>
+                <button @click="sortBy = 'oldest'; sortComments()" 
+                        :class="{'bg-blue-500 text-white': sortBy === 'oldest', 'bg-gray-200': sortBy !== 'oldest'}"
+                        class="sort-btn flex-shrink-0">
+                    <i class="fas fa-history mr-1"></i>Oldest
+                </button>
             </div>
         </div>
 

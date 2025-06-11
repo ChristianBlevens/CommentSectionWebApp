@@ -3,7 +3,6 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const natural = require('natural');
 const { Pool } = require('pg');
-const crypto = require('crypto');
 
 // Create Express app instance
 const app = express();
@@ -91,27 +90,11 @@ const initDatabase = async () => {
             )
         `);
         
-        // Create content hash tracking table for duplicate detection
-        await client.query(`
-            CREATE TABLE IF NOT EXISTS content_hashes (
-                id SERIAL PRIMARY KEY,
-                user_id VARCHAR(255) NOT NULL,
-                content_hash VARCHAR(64) NOT NULL,
-                content_preview TEXT,
-                occurrence_count INTEGER DEFAULT 1,
-                first_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE(user_id, content_hash)
-            )
-        `);
-        
         // Add performance indexes
         await client.query(`
             CREATE INDEX IF NOT EXISTS idx_moderation_logs_created_at ON moderation_logs(created_at);
             CREATE INDEX IF NOT EXISTS idx_moderation_logs_user_id ON moderation_logs(user_id);
             CREATE INDEX IF NOT EXISTS idx_blocked_words_word ON blocked_words(word);
-            CREATE INDEX IF NOT EXISTS idx_content_hashes_user_id ON content_hashes(user_id);
-            CREATE INDEX IF NOT EXISTS idx_content_hashes_last_seen ON content_hashes(last_seen);
         `);
         
         // Add initial banned words
@@ -202,16 +185,6 @@ class ContentModerator {
             result.approved = false;
             result.reason = 'Content too long (max 5000 characters)';
             return result;
-        }
-        
-        // Check for duplicate spam
-        if (userId) {
-            const isDuplicate = await this.checkDuplicateContent(content, userId);
-            if (isDuplicate) {
-                result.approved = false;
-                result.reason = 'Duplicate content detected. Please wait 15 minutes before posting similar content.';
-                return result;
-            }
         }
         
         // Block HTML/JS code
@@ -459,52 +432,6 @@ class ContentModerator {
             );
         } catch (error) {
             console.error('Error logging moderation:', error);
-        }
-    }
-    
-    // Check for duplicate content from the same user
-    async checkDuplicateContent(content, userId) {
-        try {
-            // Generate content hash
-            const contentHash = crypto.createHash('sha256')
-                .update(content.trim().toLowerCase())
-                .digest('hex');
-            
-            // Check for recent duplicate
-            const recentCheck = await pgPool.query(
-                `SELECT last_seen FROM content_hashes 
-                 WHERE user_id = $1 AND content_hash = $2 
-                 AND last_seen > NOW() - INTERVAL '15 minutes'`,
-                [userId, contentHash]
-            );
-            
-            if (recentCheck.rows.length > 0) {
-                // Update occurrence count
-                await pgPool.query(
-                    `UPDATE content_hashes 
-                     SET occurrence_count = occurrence_count + 1,
-                         last_seen = CURRENT_TIMESTAMP
-                     WHERE user_id = $1 AND content_hash = $2`,
-                    [userId, contentHash]
-                );
-                return true; // Duplicate found within 15 minutes
-            }
-            
-            // Record new content hash or update old one
-            await pgPool.query(
-                `INSERT INTO content_hashes (user_id, content_hash, content_preview)
-                 VALUES ($1, $2, $3)
-                 ON CONFLICT (user_id, content_hash)
-                 DO UPDATE SET 
-                     occurrence_count = content_hashes.occurrence_count + 1,
-                     last_seen = CURRENT_TIMESTAMP`,
-                [userId, contentHash, content.substring(0, 100)]
-            );
-            
-            return false; // No recent duplicate
-        } catch (error) {
-            console.error('Error checking duplicate content:', error);
-            return false; // Don't block on error
         }
     }
 }

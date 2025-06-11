@@ -28,7 +28,7 @@ const BanHandler = {
     },
 
     // Execute ban request
-    async banUser(apiUrl, userId, userName, duration, reason, deleteComments = false, shadowBan = false) {
+    async banUser(apiUrl, userId, userName, duration, reason, deleteComments = false) {
         const sessionToken = localStorage.getItem('sessionToken');
         if (!sessionToken) {
             alert('Session expired. Please sign in again.');
@@ -45,8 +45,7 @@ const BanHandler = {
                 body: JSON.stringify({
                     duration: duration,
                     reason: reason,
-                    deleteComments: deleteComments,
-                    shadowBan: shadowBan
+                    deleteComments: deleteComments
                 })
             });
             
