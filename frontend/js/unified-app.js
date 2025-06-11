@@ -804,11 +804,11 @@ function unifiedApp() {
                                 </div>
                                 <div class="reply-actions">
                                     <button onclick="window.unifiedAppInstance.cancelReply('${comment.id}')" 
-                                            class="btn-secondary">
+                                            class="reply-btn reply-btn-secondary">
                                         Cancel
                                     </button>
                                     <button onclick="window.unifiedAppInstance.submitReply('${comment.id}')" 
-                                            class="btn-primary">
+                                            class="reply-btn reply-btn-primary">
                                         Reply
                                     </button>
                                 </div>

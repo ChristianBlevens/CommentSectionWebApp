@@ -255,7 +255,6 @@ body {
 .comment-content:hover {
     box-shadow: 0 4px 12px var(--color-shadow-md);
     transform: translateY(-1px);
-    z-index: 1;
 }
 
 /* Reported Comment Styling */
@@ -513,6 +512,7 @@ body {
 .comment-dropdown-container {
     position: relative;
     display: inline-block;
+    z-index: 1000;
 }
 
 .comment-dropdown {
