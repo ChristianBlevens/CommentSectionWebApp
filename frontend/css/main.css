@@ -249,11 +249,13 @@ body {
     margin-bottom: var(--space-sm);
     box-shadow: 0 1px 3px var(--color-shadow-sm);
     transition: box-shadow 0.2s, transform 0.2s;
+    position: relative;
 }
 
 .comment-content:hover {
     box-shadow: 0 4px 12px var(--color-shadow-md);
     transform: translateY(-1px);
+    z-index: 1;
 }
 
 /* Reported Comment Styling */
@@ -523,7 +525,7 @@ body {
     border: 1px solid var(--color-border-primary);
     border-radius: var(--radius-md);
     box-shadow: 0 4px 12px var(--color-shadow-lg);
-    z-index: 1000;
+    z-index: 9999;
     display: none;
 }
 
@@ -711,6 +713,46 @@ body {
 .reply-actions {
     display: flex;
     gap: var(--space-sm);
+}
+
+/* Reply form buttons */
+.reply-btn {
+    padding: clamp(0.5rem, 0.45rem + 0.25vw, 0.75rem) clamp(1rem, 0.9rem + 0.5vw, 1.5rem);
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+}
+
+.reply-btn-primary {
+    background-color: var(--color-primary);
+    color: var(--color-text-inverse);
+}
+
+.reply-btn-primary:hover:not(:disabled) {
+    background-color: var(--color-primary-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px var(--color-shadow-md);
+}
+
+.reply-btn-primary:disabled {
+    background-color: var(--color-secondary);
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.reply-btn-secondary {
+    background-color: var(--color-secondary);
+    color: var(--color-text-inverse);
+}
+
+.reply-btn-secondary:hover {
+    background-color: var(--color-secondary-hover);
 }
 
 /* =====================================================
