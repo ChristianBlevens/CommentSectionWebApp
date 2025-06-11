@@ -1071,7 +1071,26 @@ function unifiedApp() {
                 this.focusedComments = [comment];
             }
             
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            // Wait for DOM to update, then scroll to the focused content
+            setTimeout(() => {
+                // Try to find the focus mode header first
+                const focusHeader = document.querySelector('[x-show="focusedCommentId"]');
+                if (focusHeader && focusHeader.offsetParent !== null) {
+                    // Scroll to focus mode header with some offset
+                    const offset = 20; // Small offset from top
+                    const elementTop = focusHeader.getBoundingClientRect().top + window.pageYOffset;
+                    window.scrollTo({
+                        top: elementTop - offset,
+                        behavior: 'smooth'
+                    });
+                } else {
+                    // Fallback to comments container
+                    const commentsContainer = document.querySelector('.comments-container');
+                    if (commentsContainer) {
+                        commentsContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                }
+            }, 100); // Small delay to ensure DOM is updated
         },
         
         exitFocusMode() {
