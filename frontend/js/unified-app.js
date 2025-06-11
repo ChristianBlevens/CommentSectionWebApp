@@ -69,6 +69,10 @@ document.addEventListener('click', (event) => {
         document.querySelectorAll('.comment-dropdown.show').forEach(dropdown => {
             dropdown.classList.remove('show');
         });
+        // Remove has-open-dropdown class from all comments
+        document.querySelectorAll('.comment-content.has-open-dropdown').forEach(comment => {
+            comment.classList.remove('has-open-dropdown');
+        });
     }
 });
 
@@ -1011,17 +1015,34 @@ function unifiedApp() {
         toggleCommentDropdown(commentId) {
             const dropdown = document.getElementById(`dropdown-${commentId}`);
             const allDropdowns = document.querySelectorAll('.comment-dropdown');
+            const allComments = document.querySelectorAll('.comment-content');
             
-            // Close all other dropdowns
-            allDropdowns.forEach(d => {
+            // Close all other dropdowns and remove has-open-dropdown class
+            allDropdowns.forEach((d, index) => {
                 if (d !== dropdown) {
                     d.classList.remove('show');
                 }
             });
             
+            // Remove has-open-dropdown class from all comments
+            allComments.forEach(comment => {
+                comment.classList.remove('has-open-dropdown');
+            });
+            
             // Toggle current dropdown
             if (dropdown) {
+                const isShowing = dropdown.classList.contains('show');
                 dropdown.classList.toggle('show');
+                
+                // Add/remove has-open-dropdown class to the comment
+                const commentElement = document.querySelector(`#comment-${commentId}`);
+                if (commentElement) {
+                    if (!isShowing) {
+                        commentElement.classList.add('has-open-dropdown');
+                    } else {
+                        commentElement.classList.remove('has-open-dropdown');
+                    }
+                }
             }
         },
         

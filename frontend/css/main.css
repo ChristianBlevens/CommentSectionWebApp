@@ -258,6 +258,11 @@ body {
     z-index: 9998;
 }
 
+/* Maintain high z-index when dropdown is open */
+.comment-content.has-open-dropdown {
+    z-index: 9998;
+}
+
 /* Reported Comment Styling */
 .comment-content.reported,
 .comment-content.reported-comment {
