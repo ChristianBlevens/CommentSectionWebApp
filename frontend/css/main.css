@@ -552,19 +552,23 @@ button {
     background: transparent;
     border: none;
     color: var(--color-text-secondary);
-    font-size: clamp(0.7rem, 0.75rem, var(--text-sm)); /* Smaller font */
     cursor: pointer;
     border-radius: var(--radius-md);
     transition: all 0.2s;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 1.5rem; /* Smaller min width */
+    min-width: clamp(1.75rem, 2rem, 2.25rem); /* Ensure minimum width */
     user-select: none;
     -webkit-user-select: none;
     -moz-user-select: none;
     -ms-user-select: none;
     flex-shrink: 0; /* Prevent shrinking */
+}
+
+.comment-options-btn i {
+    font-size: clamp(0.875rem, 1rem, 1.125rem); /* Ensure icon is visible */
+    color: inherit;
 }
 
 .comment-options-btn:hover {
