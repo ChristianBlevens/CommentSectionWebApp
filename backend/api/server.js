@@ -12,6 +12,9 @@ const crypto = require('crypto');
 const app = express();
 const port = process.env.PORT || 3000;
 
+// Trust proxy - needed for rate limiting behind reverse proxy
+app.set('trust proxy', true);
+
 // Configuration
 const config = {
     discord: {

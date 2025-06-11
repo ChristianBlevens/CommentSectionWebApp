@@ -376,6 +376,12 @@ function unifiedApp() {
                     console.log('Loaded reports data:', data);
                     this.reports = data.reports || [];
                     this.pages = data.pages || [];
+                    
+                    // If selectedReportsPage is not set, default to current page
+                    if (this.selectedReportsPage === null) {
+                        this.selectedReportsPage = this.pageId;
+                    }
+                    
                     this.filterReports();
                     this.filterPages();
                     this.reportsLoaded = true;
@@ -395,7 +401,7 @@ function unifiedApp() {
         },
         
         filterReports() {
-            if (this.selectedReportsPage) {
+            if (this.selectedReportsPage && this.selectedReportsPage !== 'all') {
                 this.filteredReports = this.reports.filter(r => r.page_id === this.selectedReportsPage);
             } else {
                 this.filteredReports = [...this.reports];

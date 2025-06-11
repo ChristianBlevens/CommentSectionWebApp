@@ -103,13 +103,14 @@
                     <div class="mb-4 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
                         <p class="text-gray-600 flex-shrink-0">
                             Showing <span class="font-semibold" x-text="filteredReports.length"></span> pending reports
-                            <span x-show="selectedReportsPage">(from page: <span class="font-semibold" x-text="selectedReportsPage"></span>)</span>
-                            <span x-show="!selectedReportsPage">(from all pages)</span>
+                            <span x-show="selectedReportsPage && selectedReportsPage !== 'all'">(from page: <span class="font-semibold" x-text="selectedReportsPage"></span>)</span>
+                            <span x-show="!selectedReportsPage || selectedReportsPage === 'all'">(from all pages)</span>
                         </p>
                         <div class="flex flex-wrap gap-2 ml-auto">
                             <select x-model="selectedReportsPage" @change="filterReports()" 
                                     class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <option :value="null">All Pages</option>
+                                <option value="all">All Pages</option>
+                                <option :value="pageId" x-text="`Current Page (${pageId})`" x-show="pageId && pageId !== 'default'"></option>
                                 <template x-for="page in pages" :key="page.page_id">
                                     <option :value="page.page_id" x-text="`${page.page_id} (${page.report_count} report${page.report_count != 1 ? 's' : ''})`"></option>
                                 </template>
@@ -187,6 +188,10 @@
                                     <button @click="deleteReportedComment(report)" 
                                             class="report-action-btn delete">
                                         <i class="fas fa-trash"></i>Delete Comment
+                                    </button>
+                                    <button @click="warnUser(report.comment_user_id, report.comment_user_name)" 
+                                            class="report-action-btn warn bg-yellow-600 hover:bg-yellow-700">
+                                        <i class="fas fa-exclamation-triangle"></i>Warn User
                                     </button>
                                     <div class="ban-dropdown-container">
                                         <button @click="toggleBanDropdown(report.id, $event)" 
