@@ -553,12 +553,22 @@ const initDatabase = async () => {
             CREATE INDEX IF NOT EXISTS idx_warnings_acknowledged ON warnings(acknowledged);
         `);
         
-        // Create moderation logs indexes separately to ensure table exists
-        await client.query(`
-            CREATE INDEX IF NOT EXISTS idx_moderation_logs_moderator_id ON moderation_logs(moderator_id);
-            CREATE INDEX IF NOT EXISTS idx_moderation_logs_created_at ON moderation_logs(created_at);
-            CREATE INDEX IF NOT EXISTS idx_moderation_logs_action_type ON moderation_logs(action_type);
+        // Check if moderation_logs table exists before creating indexes
+        const tableCheck = await client.query(`
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_name = 'moderation_logs'
+            );
         `);
+        
+        if (tableCheck.rows[0].exists) {
+            // Create moderation logs indexes only if table exists
+            await client.query(`
+                CREATE INDEX IF NOT EXISTS idx_moderation_logs_moderator_id ON moderation_logs(moderator_id);
+                CREATE INDEX IF NOT EXISTS idx_moderation_logs_created_at ON moderation_logs(created_at);
+                CREATE INDEX IF NOT EXISTS idx_moderation_logs_action_type ON moderation_logs(action_type);
+            `);
+        }
         
         await client.query('COMMIT');
         console.log('Database schema initialized successfully');
