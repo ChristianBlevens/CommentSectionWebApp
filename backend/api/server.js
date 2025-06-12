@@ -542,9 +542,15 @@ const initDatabase = async () => {
             DO $$ 
             BEGIN
                 IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='moderation_logs') THEN
-                    -- Check if old 'action' column exists and rename it to 'action_type'
+                    -- Handle the case where both 'action' and 'action_type' columns might exist
                     IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='moderation_logs' AND column_name='action') THEN
-                        ALTER TABLE moderation_logs RENAME COLUMN action TO action_type;
+                        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='moderation_logs' AND column_name='action_type') THEN
+                            -- Both columns exist, drop the old 'action' column
+                            ALTER TABLE moderation_logs DROP COLUMN action;
+                        ELSE
+                            -- Only 'action' exists, rename it to 'action_type'
+                            ALTER TABLE moderation_logs RENAME COLUMN action TO action_type;
+                        END IF;
                     END IF;
                     
                     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='moderation_logs' AND column_name='action_type') THEN
