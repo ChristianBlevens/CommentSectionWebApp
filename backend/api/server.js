@@ -551,6 +551,10 @@ const initDatabase = async () => {
             CREATE INDEX IF NOT EXISTS idx_users_is_banned ON users(is_banned);
             CREATE INDEX IF NOT EXISTS idx_warnings_user_id ON warnings(user_id);
             CREATE INDEX IF NOT EXISTS idx_warnings_acknowledged ON warnings(acknowledged);
+        `);
+        
+        // Create moderation logs indexes separately to ensure table exists
+        await client.query(`
             CREATE INDEX IF NOT EXISTS idx_moderation_logs_moderator_id ON moderation_logs(moderator_id);
             CREATE INDEX IF NOT EXISTS idx_moderation_logs_created_at ON moderation_logs(created_at);
             CREATE INDEX IF NOT EXISTS idx_moderation_logs_action_type ON moderation_logs(action_type);
