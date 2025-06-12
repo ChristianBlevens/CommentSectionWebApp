@@ -444,7 +444,7 @@
                                             <div x-show="!userItem.comments || userItem.comments.length === 0" 
                                                  class="text-sm text-gray-500">No comments found</div>
                                             <div x-show="userItem.comments && userItem.comments.length > 0" class="space-y-2">
-                                                <template x-for="comment in userItem.comments" :key="comment.id">
+                                                <template x-for="comment in getDisplayedComments(userItem)" :key="comment.id">
                                                     <div class="text-sm bg-white p-2 rounded">
                                                         <p class="text-gray-500">
                                                             Page: <span x-text="comment.page_id"></span> • 
@@ -465,7 +465,7 @@
                                                     </div>
                                                 </template>
                                             </div>
-                                            <button x-show="userItem.comments && userItem.comments.length >= 5" 
+                                            <button x-show="shouldShowLoadMoreButton(userItem)" 
                                                     @click="loadMoreUserComments(userItem.id)" 
                                                     class="mt-2 text-blue-600 hover:text-blue-800 text-sm">
                                                 Load more comments...

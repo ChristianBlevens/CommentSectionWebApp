@@ -245,6 +245,12 @@ body {
     margin-bottom: var(--space-sm);
 }
 
+/* Base level comments should have same horizontal padding as form */
+.comments-container > .comment-container > .comment-content {
+    margin-left: 0;
+    margin-right: 0;
+}
+
 /* Apply indentation only to nested comments */
 .comment-depth-1,
 .comment-depth-2,

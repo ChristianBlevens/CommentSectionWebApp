@@ -155,6 +155,7 @@ function unifiedApp() {
         totalUserPages: 1,
         usersPerPage: 20,
         expandedUsers: [],
+        userCommentsDisplayCount: {}, // Track how many comments are displayed per user
         
         // Ban UI state
         showBanDropdown: null,
@@ -560,6 +561,10 @@ function unifiedApp() {
                     const userIndex = this.users.findIndex(u => u.id === userId);
                     if (userIndex !== -1) {
                         this.users[userIndex] = { ...this.users[userIndex], ...details };
+                        // Initialize comments display count to 10 if not set
+                        if (!this.userCommentsDisplayCount[userId] && details.comments) {
+                            this.userCommentsDisplayCount[userId] = 10;
+                        }
                         this.filterUsers();
                     }
                 }
@@ -655,8 +660,30 @@ function unifiedApp() {
         },
         
         async loadMoreUserComments(userId) {
-            // This would need a new API endpoint to paginate user comments
-            alert('Load more comments feature coming soon!');
+            // Get current display count, default to 10
+            const currentCount = this.userCommentsDisplayCount[userId] || 10;
+            
+            // Increment by 10, max 50
+            const newCount = Math.min(currentCount + 10, 50);
+            this.userCommentsDisplayCount[userId] = newCount;
+            
+            // Force re-render by updating the user object
+            const userIndex = this.users.findIndex(u => u.id === userId);
+            if (userIndex !== -1) {
+                this.users[userIndex] = { ...this.users[userIndex] };
+                this.filterUsers();
+            }
+        },
+        
+        getDisplayedComments(userItem) {
+            const displayCount = this.userCommentsDisplayCount[userItem.id] || 10;
+            return userItem.comments ? userItem.comments.slice(0, displayCount) : [];
+        },
+        
+        shouldShowLoadMoreButton(userItem) {
+            if (!userItem.comments || userItem.comments.length === 0) return false;
+            const displayCount = this.userCommentsDisplayCount[userItem.id] || 10;
+            return userItem.comments.length > displayCount && displayCount < 50;
         },
         
         // Helper methods
