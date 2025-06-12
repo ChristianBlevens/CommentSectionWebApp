@@ -116,6 +116,37 @@
     box-sizing: border-box;
 }
 
+/* Prevent text selection on all interactive elements globally */
+button, a, select, [role="button"], [onclick], .clickable {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+/* Ensure no text selection highlights appear on buttons */
+button::-moz-selection,
+button *::-moz-selection,
+a::-moz-selection,
+a *::-moz-selection {
+    background: transparent;
+}
+
+button::selection,
+button *::selection,
+a::selection,
+a *::selection {
+    background: transparent;
+}
+
+/* Disable highlight on tap for mobile */
+button, a, select, [role="button"], [onclick], .clickable {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-tap-highlight-color: rgba(0,0,0,0);
+}
+
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
     font-size: var(--text-base);
@@ -427,7 +458,10 @@ a,
 .comment-dropdown-item,
 .report-action-btn,
 .markdown-btn,
-.sort-btn {
+.sort-btn,
+select,
+input[type="button"],
+input[type="submit"] {
     user-select: none;
     -webkit-user-select: none;
     -moz-user-select: none;
@@ -435,10 +469,11 @@ a,
     -webkit-tap-highlight-color: transparent;
 }
 
-/* Prevent text selection when double-clicking */
+/* Prevent text selection when clicking */
 button:active,
 a:active,
-.clickable:active {
+.clickable:active,
+select:active {
     user-select: none;
     -webkit-user-select: none;
     -moz-user-select: none;
@@ -450,12 +485,43 @@ a:active,
     -webkit-tap-highlight-color: transparent;
 }
 
-/* Prevent selection on double-click for all interactive elements */
+/* Prevent selection highlighting for all interactive elements */
 button::selection,
 a::selection,
 .clickable::selection,
-[onclick]::selection {
+[onclick]::selection,
+select::selection {
     background: transparent;
+}
+
+/* Remove focus outline text selection */
+button:focus,
+a:focus,
+.clickable:focus,
+select:focus,
+[onclick]:focus {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+}
+
+/* Prevent text cursor on buttons */
+button,
+a,
+.clickable,
+[role="button"],
+[onclick] {
+    cursor: pointer;
+}
+
+/* Disable text selection for button content */
+button *,
+a *,
+.clickable *,
+[onclick] * {
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
 }
 
 /* =====================================================
@@ -484,6 +550,7 @@ a::selection,
     -ms-user-select: none;
     background-color: transparent;
     color: var(--color-text-secondary);
+    -webkit-touch-callout: none;
 }
 
 .btn-base:hover:not(:disabled) {
@@ -662,7 +729,8 @@ a::selection,
 .markdown-buttons {
     display: flex;
     gap: var(--space-xs);
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    overflow: hidden;
 }
 
 /* Markdown toolbar buttons - extends btn-base */
@@ -670,7 +738,9 @@ a::selection,
     padding: clamp(0.5rem, 0.45rem + 0.25vw, 0.625rem);
     background: var(--color-bg-primary);
     border: 1px solid var(--color-border-primary);
-    min-width: 2.5rem;
+    min-width: 2rem;
+    flex-shrink: 1;
+    flex-basis: auto;
 }
 
 .markdown-btn:hover {
@@ -1140,6 +1210,9 @@ a::selection,
 .mt-lg { margin-top: var(--space-lg); }
 .mt-xl { margin-top: var(--space-xl); }
 
+/* Width utilities */
+.max-w-xs { max-width: 20rem; }
+
 .mb-xs { margin-bottom: var(--space-xs); }
 .mb-sm { margin-bottom: var(--space-sm); }
 .mb-md { margin-bottom: var(--space-md); }
@@ -1167,8 +1240,18 @@ a::selection,
     border-width: 0;
 }
 
-/* Focus styles */
-:focus {
+/* Remove all button focus highlights on mobile */
+@media (hover: none) and (pointer: coarse) {
+    button:focus,
+    a:focus,
+    .clickable:focus,
+    [onclick]:focus {
+        outline: none;
+    }
+}
+
+/* Focus styles - only for non-button elements */
+:focus:not(button):not(a):not(.clickable):not([onclick]):not([role="button"]) {
     outline: 2px solid var(--color-primary);
     outline-offset: 2px;
 }

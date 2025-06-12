@@ -105,9 +105,9 @@
                             <span x-show="selectedReportsPage && selectedReportsPage !== 'all'">(from page: <span class="font-semibold" x-text="selectedReportsPage"></span>)</span>
                             <span x-show="!selectedReportsPage || selectedReportsPage === 'all'">(from all pages)</span>
                         </p>
-                        <div class="flex flex-wrap gap-2 ml-auto">
+                        <div class="flex gap-2 ml-auto">
                             <select x-model="selectedReportsPage" @change="filterReports()" 
-                                    class="textarea-base">
+                                    class="textarea-base max-w-xs">
                                 <option value="all">All Pages</option>
                                 <option :value="pageId" x-text="`Current Page (${pageId})`" x-show="pageId && pageId !== 'default'"></option>
                                 <template x-for="page in pages" :key="page.page_id">
@@ -263,18 +263,20 @@
                                    placeholder="Search users by name or ID..." 
                                    class="textarea-base">
                         </div>
-                        <select x-model="userFilter" @change="filterUsers()" 
-                                class="textarea-base">
-                            <option value="all">All Users</option>
-                            <option value="moderators">Moderators Only</option>
-                            <option value="banned">Banned Users</option>
-                            <option value="warned">Users with Warnings</option>
-                            <option value="reported">Users with Reports</option>
-                        </select>
-                        <button @click="loadUsers()" 
-                                class="btn-base btn btn-primary">
-                            <i class="fas fa-sync-alt"></i>
-                        </button>
+                        <div class="flex gap-2">
+                            <select x-model="userFilter" @change="filterUsers()" 
+                                    class="textarea-base max-w-xs">
+                                <option value="all">All Users</option>
+                                <option value="moderators">Moderators Only</option>
+                                <option value="banned">Banned Users</option>
+                                <option value="warned">Users with Warnings</option>
+                                <option value="reported">Users with Reports</option>
+                            </select>
+                            <button @click="loadUsers()" 
+                                    class="btn-base btn btn-primary">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Loading users -->
