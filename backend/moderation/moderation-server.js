@@ -3,6 +3,7 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const natural = require('natural');
 const { Pool } = require('pg');
+const crypto = require('crypto');
 
 // Create Express app instance
 const app = express();
@@ -90,11 +91,23 @@ const initDatabase = async () => {
             )
         `);
         
+        // Create comment hashes table for duplicate detection
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS comment_hashes (
+                id SERIAL PRIMARY KEY,
+                hash VARCHAR(64) NOT NULL,
+                user_id VARCHAR(255) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        
         // Add performance indexes
         await client.query(`
             CREATE INDEX IF NOT EXISTS idx_moderation_logs_created_at ON moderation_logs(created_at);
             CREATE INDEX IF NOT EXISTS idx_moderation_logs_user_id ON moderation_logs(user_id);
             CREATE INDEX IF NOT EXISTS idx_blocked_words_word ON blocked_words(word);
+            CREATE INDEX IF NOT EXISTS idx_comment_hashes_hash_user ON comment_hashes(hash, user_id);
+            CREATE INDEX IF NOT EXISTS idx_comment_hashes_created_at ON comment_hashes(created_at);
         `);
         
         // Add initial banned words
@@ -136,6 +149,22 @@ initDatabase().catch(err => {
     console.error('Failed to initialize database:', err);
     process.exit(1);
 });
+
+// Cleanup old comment hashes every hour
+const cleanupOldHashes = async () => {
+    try {
+        const result = await pgPool.query(
+            'DELETE FROM comment_hashes WHERE created_at < NOW() - INTERVAL \'15 minutes\''
+        );
+        console.log(`Cleaned up ${result.rowCount} old comment hashes`);
+    } catch (error) {
+        console.error('Error cleaning up old hashes:', error);
+    }
+};
+
+// Run cleanup immediately on startup and then every hour
+cleanupOldHashes();
+const cleanupInterval = setInterval(cleanupOldHashes, 60 * 60 * 1000); // 1 hour
 
 // Natural language processing tools
 const tokenizer = new natural.WordTokenizer();
@@ -201,6 +230,18 @@ class ContentModerator {
             return result;
         }
         
+        // Check for duplicate comments (skip for moderators)
+        const trustScore = userId ? await this.getUserTrustScore(userId) : 0.5;
+        if (trustScore < 0.9) { // Only check non-moderators
+            const isDuplicate = await this.checkDuplicateComment(content, userId);
+            if (isDuplicate) {
+                result.approved = false;
+                result.reason = 'Duplicate comment detected';
+                result.confidence = 0.95;
+                return result;
+            }
+        }
+        
         // Split content into words
         const tokens = tokenizer.tokenize(content.toLowerCase());
         
@@ -229,8 +270,7 @@ class ContentModerator {
         // Detect repeated characters
         const hasRepetition = this.checkRepetition(content);
         
-        // Lookup user reputation
-        const trustScore = userId ? await this.getUserTrustScore(userId) : 0.5;
+        // Trust score already fetched above for duplicate check
         
         // Apply moderation rules
         if (foundBlockedWords.length > 0 && severityScore >= 5) {
@@ -430,8 +470,39 @@ class ContentModerator {
                     userId
                 ]
             );
+            
+            // Store hash for approved comments to detect future duplicates
+            if (result.approved && userId) {
+                const hash = crypto.createHash('sha256').update(content.toLowerCase().trim()).digest('hex');
+                await pgPool.query(
+                    'INSERT INTO comment_hashes (hash, user_id) VALUES ($1, $2)',
+                    [hash, userId]
+                );
+            }
         } catch (error) {
             console.error('Error logging moderation:', error);
+        }
+    }
+    
+    // Check if comment is a duplicate
+    async checkDuplicateComment(content, userId) {
+        if (!userId) return false;
+        
+        try {
+            const hash = crypto.createHash('sha256').update(content.toLowerCase().trim()).digest('hex');
+            
+            const result = await pgPool.query(
+                `SELECT id FROM comment_hashes 
+                 WHERE hash = $1 AND user_id = $2 
+                 AND created_at > NOW() - INTERVAL '15 minutes'
+                 LIMIT 1`,
+                [hash, userId]
+            );
+            
+            return result.rows.length > 0;
+        } catch (error) {
+            console.error('Error checking duplicate:', error);
+            return false;
         }
     }
 }
@@ -620,6 +691,7 @@ app.use((req, res) => {
 // Handle process termination
 process.on('SIGTERM', async () => {
     console.log('SIGTERM received, shutting down gracefully...');
+    clearInterval(cleanupInterval);
     server.close(() => console.log('HTTP server closed'));
     await pgPool.end();
     process.exit(0);
