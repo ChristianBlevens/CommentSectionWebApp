@@ -3,7 +3,6 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const natural = require('natural');
 const { Pool } = require('pg');
-const crypto = require('crypto');
 
 // Create Express app instance
 const app = express();
@@ -91,24 +90,11 @@ const initDatabase = async () => {
             )
         `);
         
-        // Create content hash table for duplicate detection
-        await client.query(`
-            CREATE TABLE IF NOT EXISTS content_hashes (
-                id SERIAL PRIMARY KEY,
-                user_id VARCHAR(255) NOT NULL,
-                content_hash VARCHAR(64) NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                CONSTRAINT unique_user_hash_recent UNIQUE (user_id, content_hash)
-            )
-        `);
-        
         // Add performance indexes
         await client.query(`
             CREATE INDEX IF NOT EXISTS idx_moderation_logs_created_at ON moderation_logs(created_at);
             CREATE INDEX IF NOT EXISTS idx_moderation_logs_user_id ON moderation_logs(user_id);
             CREATE INDEX IF NOT EXISTS idx_blocked_words_word ON blocked_words(word);
-            CREATE INDEX IF NOT EXISTS idx_content_hashes_user_id ON content_hashes(user_id);
-            CREATE INDEX IF NOT EXISTS idx_content_hashes_created_at ON content_hashes(created_at);
         `);
         
         // Add initial banned words
@@ -151,25 +137,6 @@ initDatabase().catch(err => {
     process.exit(1);
 });
 
-// Cleanup expired content hashes
-async function cleanupExpiredHashes() {
-    try {
-        const result = await pgPool.query(
-            `DELETE FROM content_hashes 
-             WHERE created_at < NOW() - INTERVAL '15 minutes'`
-        );
-        console.log(`Cleaned up ${result.rowCount} expired content hashes`);
-    } catch (error) {
-        console.error('Error cleaning up expired hashes:', error);
-    }
-}
-
-// Run cleanup job every hour
-setInterval(cleanupExpiredHashes, 60 * 60 * 1000); // 60 minutes
-
-// Run initial cleanup on startup
-setTimeout(cleanupExpiredHashes, 5000); // Wait 5 seconds after startup
-
 // Natural language processing tools
 const tokenizer = new natural.WordTokenizer();
 const stemmer = natural.PorterStemmer;
@@ -197,64 +164,8 @@ class ContentModerator {
         }
     }
     
-    // Generate SHA256 hash of content
-    generateContentHash(content) {
-        // Normalize content: lowercase, trim, remove extra whitespace
-        const normalized = content.toLowerCase().trim().replace(/\s+/g, ' ');
-        return crypto.createHash('sha256').update(normalized).digest('hex');
-    }
-    
-    // Check if content is duplicate
-    async checkDuplicateContent(userId, contentHash, isModerator = false) {
-        // Moderators are exempt from duplicate checks
-        if (isModerator) {
-            return { isDuplicate: false };
-        }
-        
-        try {
-            // Check for duplicate within 15 minutes
-            const result = await pgPool.query(
-                `SELECT id, created_at FROM content_hashes 
-                 WHERE user_id = $1 AND content_hash = $2 
-                 AND created_at > NOW() - INTERVAL '15 minutes'
-                 ORDER BY created_at DESC
-                 LIMIT 1`,
-                [userId, contentHash]
-            );
-            
-            if (result.rows.length > 0) {
-                const minutesAgo = Math.floor((Date.now() - new Date(result.rows[0].created_at)) / 60000);
-                return { 
-                    isDuplicate: true,
-                    minutesAgo: minutesAgo
-                };
-            }
-            
-            return { isDuplicate: false };
-        } catch (error) {
-            console.error('Error checking duplicate content:', error);
-            // On error, allow the content to proceed
-            return { isDuplicate: false };
-        }
-    }
-    
-    // Store content hash
-    async storeContentHash(userId, contentHash) {
-        try {
-            await pgPool.query(
-                `INSERT INTO content_hashes (user_id, content_hash) 
-                 VALUES ($1, $2) 
-                 ON CONFLICT (user_id, content_hash) DO UPDATE 
-                 SET created_at = CURRENT_TIMESTAMP`,
-                [userId, contentHash]
-            );
-        } catch (error) {
-            console.error('Error storing content hash:', error);
-        }
-    }
-    
     // Analyze content for violations
-    async moderate(content, userId = null, isModerator = false) {
+    async moderate(content, userId = null) {
         const result = {
             approved: true,
             reason: null,
@@ -267,19 +178,6 @@ class ContentModerator {
             result.approved = false;
             result.reason = 'Empty content';
             return result;
-        }
-        
-        // Check for duplicate content (only if userId is provided)
-        if (userId) {
-            const contentHash = this.generateContentHash(content);
-            const duplicateCheck = await this.checkDuplicateContent(userId, contentHash, isModerator);
-            
-            if (duplicateCheck.isDuplicate) {
-                result.approved = false;
-                result.reason = `Duplicate content detected. Please wait ${15 - duplicateCheck.minutesAgo} more minutes before posting the same comment.`;
-                result.confidence = 1.0;
-                return result;
-            }
         }
         
         // Enforce length limit
@@ -367,12 +265,6 @@ class ContentModerator {
         
         // Save moderation result
         await this.logModeration(content, result, userId);
-        
-        // Store content hash if approved and userId is provided
-        if (result.approved && userId && !isModerator) {
-            const contentHash = this.generateContentHash(content);
-            await this.storeContentHash(userId, contentHash);
-        }
         
         return result;
     }
@@ -551,14 +443,14 @@ const moderator = new ContentModerator();
 
 // Check content endpoint
 app.post('/api/moderate', async (req, res) => {
-    const { content, userId, isModerator } = req.body;
+    const { content, userId } = req.body;
     
     if (content === undefined || content === null) {
         return res.status(400).json({ error: 'Content parameter is required' });
     }
     
     try {
-        const result = await moderator.moderate(content, userId, isModerator || false);
+        const result = await moderator.moderate(content, userId);
         
         // Update user reputation in background
         if (userId) {
