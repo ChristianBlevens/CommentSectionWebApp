@@ -517,7 +517,7 @@
         </div>
 
         <!-- Main Comments Section (always shown) -->
-        <div class="comment-section">
+        <div class="comment-section bg-white rounded-lg shadow-md">
             <!-- Header -->
             <div class="comment-form">
                 <h1 class="comment-form-header">Comments</h1>
@@ -600,7 +600,7 @@
             </div>
 
             <!-- Sorting -->
-            <div class="flex gap-2 pb-2 flex-wrap">
+            <div class="flex gap-2 flex-wrap">
                 <button @click="sortBy = 'likes'; sortComments()" 
                         :class="{'active': sortBy === 'likes'}"
                         class="btn-base sort-btn">
@@ -622,10 +622,28 @@
                     <i class="fas fa-history mr-1"></i><span>Oldest</span>
                 </button>
             </div>
+
+            <!-- Comments -->
+            <div class="comments-container">
+                <template x-for="comment in (focusedCommentId ? focusedComments : sortedComments)" :key="comment.id">
+                    <div x-html="renderComment(comment, 0)"></div>
+                </template>
+            </div>
+
+            <!-- Loading -->
+            <div x-show="loading" class="text-center py-8 px-4">
+                <div class="loading-spinner"></div>
+            </div>
+
+            <!-- Empty state -->
+            <div x-show="!loading && comments.length === 0" class="text-center py-8 px-4 text-gray-500">
+                <i class="fas fa-comments text-4xl mb-4"></i>
+                <p class="text-sm">No comments yet. Be the first to comment!</p>
+            </div>
         </div>
 
         <!-- Focus mode header -->
-        <div x-show="focusedCommentId" class="bg-white rounded-lg shadow-md p-4 mb-4">
+        <div x-show="focusedCommentId" class="bg-white rounded-lg shadow-md p-4 mb-4 mt-4">
             <div class="flex justify-between items-center">
                 <h2 class="text-lg font-semibold">Viewing replies</h2>
                 <button @click="exitFocusMode()" class="btn-base btn btn-secondary text-sm">
@@ -633,28 +651,6 @@
                     Back to discussion
                 </button>
             </div>
-        </div>
-        
-        <!-- Comments -->
-        <div class="comments-container">
-            <template x-for="comment in (focusedCommentId ? focusedComments : sortedComments)" :key="comment.id">
-                <div x-html="renderComment(comment, 0)"></div>
-            </template>
-        </div>
-
-        <!-- Loading -->
-        <div x-show="loading" class="text-center py-8">
-            <div class="loading-spinner"></div>
-        </div>
-
-        <!-- Empty state -->
-        <div x-show="!loading && comments.length === 0" class="text-center py-8 text-gray-500">
-            <i class="fas fa-comments text-4xl mb-4"></i>
-            <p class="text-sm">No comments yet. Be the first to comment!</p>
-        </div>
-        
-            <!-- Bottom padding for dropdown menu -->
-            <div class="comment-section-bottom-padding"></div>
         </div>
     </div>
 
