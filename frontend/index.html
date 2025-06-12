@@ -562,9 +562,9 @@
                         </div>
                         
                         <!-- Toolbar -->
-                        <div class="flex justify-between items-center">
+                        <div class="flex justify-between items-center gap-2 min-w-0">
                             <!-- Markdown buttons -->
-                            <div class="markdown-buttons">
+                            <div class="markdown-buttons min-w-0 flex-1">
                                 <button @click="insertMarkdown('**', '**')" title="Bold" class="btn-base markdown-btn">
                                     <i class="fas fa-bold"></i>
                                 </button>
@@ -591,7 +591,7 @@
                             <!-- Post button -->
                             <button @click="submitComment()" 
                                     :disabled="!newCommentText.trim() || user?.is_banned"
-                                    class="btn-base btn btn-primary">
+                                    class="btn-base btn btn-primary flex-shrink-0">
                                 Post Comment
                             </button>
                         </div>
@@ -600,26 +600,26 @@
             </div>
 
             <!-- Sorting -->
-            <div class="flex gap-2 overflow-x-auto pb-2">
+            <div class="flex gap-2 pb-2 flex-wrap">
                 <button @click="sortBy = 'likes'; sortComments()" 
                         :class="{'active': sortBy === 'likes'}"
-                        class="btn-base sort-btn flex-shrink-0">
-                    <i class="fas fa-thumbs-up mr-1"></i>Top
+                        class="btn-base sort-btn">
+                    <i class="fas fa-thumbs-up mr-1"></i><span>Top</span>
                 </button>
                 <button @click="sortBy = 'popularity'; sortComments()" 
                         :class="{'active': sortBy === 'popularity'}"
-                        class="btn-base sort-btn flex-shrink-0">
-                    <i class="fas fa-fire mr-1"></i>Popular
+                        class="btn-base sort-btn">
+                    <i class="fas fa-fire mr-1"></i><span>Popular</span>
                 </button>
                 <button @click="sortBy = 'newest'; sortComments()" 
                         :class="{'active': sortBy === 'newest'}"
-                        class="btn-base sort-btn flex-shrink-0">
-                    <i class="fas fa-clock mr-1"></i>Newest
+                        class="btn-base sort-btn">
+                    <i class="fas fa-clock mr-1"></i><span>Newest</span>
                 </button>
                 <button @click="sortBy = 'oldest'; sortComments()" 
                         :class="{'active': sortBy === 'oldest'}"
-                        class="btn-base sort-btn flex-shrink-0">
-                    <i class="fas fa-history mr-1"></i>Oldest
+                        class="btn-base sort-btn">
+                    <i class="fas fa-history mr-1"></i><span>Oldest</span>
                 </button>
             </div>
         </div>

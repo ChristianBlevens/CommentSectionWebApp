@@ -1254,6 +1254,10 @@ a *,
 
 /* Width utilities */
 .max-w-xs { max-width: 20rem; }
+.min-w-0 { min-width: 0; }
+.flex-1 { flex: 1 1 0%; }
+.flex-shrink-0 { flex-shrink: 0; }
+.flex-wrap { flex-wrap: wrap; }
 
 .mb-xs { margin-bottom: var(--space-xs); }
 .mb-sm { margin-bottom: var(--space-sm); }
