@@ -115,6 +115,7 @@ function unifiedApp() {
         user: null,
         comments: [],
         sortedComments: [],
+        filteredComments: [],
         loading: true,
         newCommentText: '',
         commentPreview: '',
@@ -126,6 +127,7 @@ function unifiedApp() {
         focusedComments: [],
         highlightedCommentId: null,
         commentVotes: {},
+        commentSearchQuery: '',
         
         // Moderator dashboard state
         activeTab: 'comments',
@@ -330,6 +332,37 @@ function unifiedApp() {
             }
             
             this.sortedComments = sorted;
+            this.filterComments();
+        },
+        
+        filterComments() {
+            if (!this.commentSearchQuery.trim()) {
+                this.filteredComments = this.sortedComments;
+                return;
+            }
+            
+            const query = this.commentSearchQuery.toLowerCase().trim();
+            
+            // Recursive function to search through comments and their children
+            const searchComment = (comment) => {
+                // Check if the comment matches the search query
+                const contentMatch = comment.content && comment.content.toLowerCase().includes(query);
+                const authorMatch = comment.userName && comment.userName.toLowerCase().includes(query);
+                
+                if (contentMatch || authorMatch) {
+                    return true;
+                }
+                
+                // Check if any child comments match
+                if (comment.children && comment.children.length > 0) {
+                    return comment.children.some(child => searchComment(child));
+                }
+                
+                return false;
+            };
+            
+            // Filter top-level comments that match or have matching children
+            this.filteredComments = this.sortedComments.filter(comment => searchComment(comment));
         },
         
         async submitComment() {

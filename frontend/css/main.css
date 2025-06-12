@@ -1336,6 +1336,40 @@ html {
 }
 
 /* =====================================================
+   SEARCH AND SORTING RESPONSIVE LAYOUT
+   ===================================================== */
+.sorting-search-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+/* Stack vertically on small screens */
+@media (max-width: 640px) {
+    .sorting-search-container {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .sorting-search-container > div:first-child {
+        order: 2; /* Buttons below */
+    }
+    
+    .sorting-search-container > div:last-child {
+        order: 1; /* Search above */
+        width: 100%;
+        margin-bottom: 0.5rem;
+    }
+    
+    .sorting-search-container input {
+        min-width: 100% !important;
+        max-width: 100% !important;
+    }
+}
+
+/* =====================================================
    PRINT STYLES
    ===================================================== */
 @media print {

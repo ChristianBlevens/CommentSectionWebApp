@@ -686,28 +686,44 @@
                 </div>
             </div>
 
-            <!-- Sorting -->
-            <div class="flex gap-2 flex-wrap mb-4">
-                <button @click="sortBy = 'likes'; sortComments()" 
-                        :class="{'active': sortBy === 'likes'}"
-                        class="btn-base sort-btn">
-                    <i class="fas fa-thumbs-up mr-1"></i><span>Top</span>
-                </button>
-                <button @click="sortBy = 'popularity'; sortComments()" 
-                        :class="{'active': sortBy === 'popularity'}"
-                        class="btn-base sort-btn">
-                    <i class="fas fa-fire mr-1"></i><span>Popular</span>
-                </button>
-                <button @click="sortBy = 'newest'; sortComments()" 
-                        :class="{'active': sortBy === 'newest'}"
-                        class="btn-base sort-btn">
-                    <i class="fas fa-clock mr-1"></i><span>Newest</span>
-                </button>
-                <button @click="sortBy = 'oldest'; sortComments()" 
-                        :class="{'active': sortBy === 'oldest'}"
-                        class="btn-base sort-btn">
-                    <i class="fas fa-history mr-1"></i><span>Oldest</span>
-                </button>
+            <!-- Sorting and Search -->
+            <div class="sorting-search-container mb-4">
+                <!-- Sorting buttons on the left -->
+                <div class="flex gap-2 flex-wrap">
+                    <button @click="sortBy = 'likes'; sortComments()" 
+                            :class="{'active': sortBy === 'likes'}"
+                            class="btn-base sort-btn">
+                        <i class="fas fa-thumbs-up mr-1"></i><span>Top</span>
+                    </button>
+                    <button @click="sortBy = 'popularity'; sortComments()" 
+                            :class="{'active': sortBy === 'popularity'}"
+                            class="btn-base sort-btn">
+                        <i class="fas fa-fire mr-1"></i><span>Popular</span>
+                    </button>
+                    <button @click="sortBy = 'newest'; sortComments()" 
+                            :class="{'active': sortBy === 'newest'}"
+                            class="btn-base sort-btn">
+                        <i class="fas fa-clock mr-1"></i><span>Newest</span>
+                    </button>
+                    <button @click="sortBy = 'oldest'; sortComments()" 
+                            :class="{'active': sortBy === 'oldest'}"
+                            class="btn-base sort-btn">
+                        <i class="fas fa-history mr-1"></i><span>Oldest</span>
+                    </button>
+                </div>
+                
+                <!-- Search input on the right -->
+                <div class="relative">
+                    <input type="text" 
+                           x-model="commentSearchQuery" 
+                           @input="filterComments()"
+                           placeholder="Search comments..." 
+                           class="textarea-base pr-10 min-w-0"
+                           style="min-width: 200px; max-width: 300px;">
+                    <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                        <i class="fas fa-search text-gray-400"></i>
+                    </div>
+                </div>
             </div>
 
             <!-- Focus mode header -->
@@ -723,7 +739,7 @@
 
             <!-- Comments -->
             <div class="comments-container">
-                <template x-for="comment in (focusedCommentId ? focusedComments : sortedComments)" :key="comment.id">
+                <template x-for="comment in (focusedCommentId ? focusedComments : filteredComments)" :key="comment.id">
                     <div x-html="renderComment(comment, 0)"></div>
                 </template>
             </div>
@@ -737,6 +753,12 @@
             <div x-show="!loading && comments.length === 0" class="text-center py-8 px-4 text-gray-500">
                 <i class="fas fa-comments text-4xl mb-4"></i>
                 <p class="text-sm">No comments yet. Be the first to comment!</p>
+            </div>
+            
+            <!-- No search results -->
+            <div x-show="!loading && comments.length > 0 && filteredComments.length === 0 && commentSearchQuery.trim()" class="text-center py-8 px-4 text-gray-500">
+                <i class="fas fa-search text-4xl mb-4"></i>
+                <p class="text-sm">No comments match your search.</p>
             </div>
         </div>
     </div>
