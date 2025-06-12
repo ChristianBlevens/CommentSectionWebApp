@@ -116,6 +116,28 @@
     box-sizing: border-box;
 }
 
+/* Hide ALL visual selection globally */
+*::selection {
+    background-color: transparent !important;
+    color: inherit !important;
+}
+
+*::-moz-selection {
+    background-color: transparent !important;
+    color: inherit !important;
+}
+
+/* Allow text selection to work functionally in text inputs and textareas (but still invisible) */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+textarea {
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    user-select: text;
+}
+
 /* Prevent text selection on all interactive elements globally */
 button, a, select, [role="button"], [onclick], .clickable {
     -webkit-touch-callout: none;
@@ -124,27 +146,34 @@ button, a, select, [role="button"], [onclick], .clickable {
     -moz-user-select: none;
     -ms-user-select: none;
     user-select: none;
-}
-
-/* Ensure no text selection highlights appear on buttons */
-button::-moz-selection,
-button *::-moz-selection,
-a::-moz-selection,
-a *::-moz-selection {
-    background: transparent;
-}
-
-button::selection,
-button *::selection,
-a::selection,
-a *::selection {
-    background: transparent;
-}
-
-/* Disable highlight on tap for mobile */
-button, a, select, [role="button"], [onclick], .clickable {
     -webkit-tap-highlight-color: transparent;
     -webkit-tap-highlight-color: rgba(0,0,0,0);
+    tap-highlight-color: transparent;
+}
+
+/* Remove ALL focus outlines */
+*:focus {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+*:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+/* Remove focus rings on buttons specifically */
+button:focus,
+button:focus-visible,
+a:focus,
+a:focus-visible,
+select:focus,
+select:focus-visible,
+[role="button"]:focus,
+[role="button"]:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+    border-color: inherit !important;
 }
 
 body {
@@ -187,6 +216,7 @@ body {
     padding: var(--space-md);
     margin-bottom: var(--space-lg);
     box-shadow: 0 2px 4px var(--color-shadow-sm);
+    overflow: visible; /* Ensure markdown buttons aren't clipped */
 }
 
 .comment-form-header {
@@ -730,22 +760,32 @@ a *,
     display: flex;
     gap: var(--space-xs);
     flex-wrap: nowrap;
-    overflow: hidden;
+    overflow: visible; /* Changed from hidden to visible */
 }
 
 /* Markdown toolbar buttons - extends btn-base */
 .markdown-btn {
-    padding: clamp(0.5rem, 0.45rem + 0.25vw, 0.625rem);
+    padding: 0.5rem; /* Fixed padding for square buttons */
     background: var(--color-bg-primary);
     border: 1px solid var(--color-border-primary);
-    min-width: 2rem;
+    min-width: 0; /* Remove min-width */
+    min-height: 0; /* Override btn-base min-height */
+    width: 2.5rem; /* Fixed width for square */
+    height: 2.5rem; /* Fixed height for square */
     flex-shrink: 1;
     flex-basis: auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    overflow: visible;
+    position: relative;
+    z-index: 1;
 }
 
 .markdown-btn:hover {
     background: var(--color-bg-secondary);
     border-color: var(--color-border-secondary);
+    z-index: 10; /* Ensure hover state is above siblings */
 }
 
 /* Comment options button (three dots) - extends btn-base */
@@ -863,6 +903,7 @@ a *,
     background: var(--color-bg-secondary);
     border-radius: var(--radius-md);
     width: 100%;
+    overflow: visible; /* Ensure markdown buttons aren't clipped */
 }
 
 /* Reply textarea - extends textarea-base */
@@ -880,6 +921,7 @@ a *,
     margin-top: var(--space-sm);
     gap: var(--space-sm);
     flex-wrap: wrap;
+    overflow: visible; /* Ensure markdown buttons aren't clipped */
 }
 
 .reply-actions {
@@ -1250,11 +1292,7 @@ a *,
     }
 }
 
-/* Focus styles - only for non-button elements */
-:focus:not(button):not(a):not(.clickable):not([onclick]):not([role="button"]) {
-    outline: 2px solid var(--color-primary);
-    outline-offset: 2px;
-}
+/* Focus styles - removed to prevent all visual highlighting */
 
 /* High contrast mode support */
 @media (prefers-contrast: high) {
