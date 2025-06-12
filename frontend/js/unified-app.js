@@ -558,11 +558,20 @@ function unifiedApp() {
                 
                 if (response.ok) {
                     const details = await response.json();
+                    console.log('Loaded user details:', details);
                     const userIndex = this.users.findIndex(u => u.id === userId);
                     if (userIndex !== -1) {
-                        this.users[userIndex] = { ...this.users[userIndex], ...details };
+                        // Ensure we properly merge the details including comments
+                        this.users[userIndex] = { 
+                            ...this.users[userIndex], 
+                            ...details,
+                            comments: details.comments || [],
+                            ban_history: details.ban_history || [],
+                            warnings: details.warnings || [],
+                            reports_received: details.reports_received || []
+                        };
                         // Initialize comments display count to 5 if not set
-                        if (!this.userCommentsDisplayCount[userId] && details.comments) {
+                        if (!this.userCommentsDisplayCount[userId] && details.comments && details.comments.length > 0) {
                             this.userCommentsDisplayCount[userId] = 5;
                         }
                         this.filterUsers();
@@ -676,8 +685,11 @@ function unifiedApp() {
         },
         
         getDisplayedComments(userItem) {
+            if (!userItem.comments || userItem.comments.length === 0) {
+                return [];
+            }
             const displayCount = this.userCommentsDisplayCount[userItem.id] || 5;
-            return userItem.comments ? userItem.comments.slice(0, displayCount) : [];
+            return userItem.comments.slice(0, displayCount);
         },
         
         shouldShowLoadMoreButton(userItem) {
