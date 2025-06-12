@@ -478,6 +478,25 @@ function unifiedApp() {
             }
         },
         
+        async resolveReport(reportId) {
+            try {
+                const response = await fetch(`${API_URL}/api/reports/${reportId}/resolve`, {
+                    method: 'PUT',
+                    headers: getAuthHeaders(),
+                    credentials: 'include',
+                    body: JSON.stringify({ action: 'resolved' })
+                });
+                
+                if (response.ok) {
+                    this.reports = this.reports.filter(r => r.id !== reportId);
+                    this.filterReports();
+                    await this.loadReportCount();
+                }
+            } catch (error) {
+                console.error('Error resolving report:', error);
+            }
+        },
+        
         // User admin functions
         async loadUsers() {
             if (this.activeTab !== 'users') return;
@@ -599,7 +618,7 @@ function unifiedApp() {
             }
         },
         
-        async warnUser(userId, userName) {
+        async warnUser(userId, userName, reportId = null) {
             const reason = prompt(`Why are you warning ${userName}?`);
             if (!reason) return;
             
@@ -615,7 +634,17 @@ function unifiedApp() {
                 
                 if (response.ok) {
                     alert(`${userName} has been warned.`);
-                    await this.loadUsers();
+                    
+                    // If this was from a report, resolve it
+                    if (reportId) {
+                        await this.resolveReport(reportId);
+                    }
+                    
+                    if (this.activeTab === 'users') {
+                        await this.loadUsers();
+                    } else if (this.activeTab === 'reports') {
+                        await this.loadReports();
+                    }
                 }
             } catch (error) {
                 console.error('Error warning user:', error);

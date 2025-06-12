@@ -90,7 +90,7 @@
                                 class="btn-base moderation-tab">
                             <i class="fas fa-users mr-2"></i>Users
                         </button>
-                        <button @click="activeTab = 'logs'; $nextTick(() => { if (user && user.is_moderator) { loadModerationLogs() } })" 
+                        <button @click="activeTab = 'logs'; logsLoaded = false; $nextTick(() => { if (user && user.is_moderator) { loadModerationLogs() } })" 
                                 :class="{'active': activeTab === 'logs'}"
                                 class="btn-base moderation-tab">
                             <i class="fas fa-history mr-2"></i>Logs
@@ -193,7 +193,7 @@
                                             class="btn-base report-action-btn delete">
                                         <i class="fas fa-trash"></i>Delete Comment
                                     </button>
-                                    <button @click="warnUser(report.comment_user_id, report.comment_user_name)" 
+                                    <button @click="warnUser(report.comment_user_id, report.comment_user_name, report.id)" 
                                             class="btn-base report-action-btn warn">
                                         <i class="fas fa-exclamation-triangle"></i>Warn User
                                     </button>

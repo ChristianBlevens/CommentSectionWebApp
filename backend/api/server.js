@@ -514,8 +514,7 @@ const initDatabase = async () => {
                 target_user_id VARCHAR(255),
                 target_user_name VARCHAR(255),
                 details JSONB,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (moderator_id) REFERENCES users(id) ON DELETE SET NULL
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         `);
         
@@ -543,6 +542,11 @@ const initDatabase = async () => {
             DO $$ 
             BEGIN
                 IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='moderation_logs') THEN
+                    -- Check if old 'action' column exists and rename it to 'action_type'
+                    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='moderation_logs' AND column_name='action') THEN
+                        ALTER TABLE moderation_logs RENAME COLUMN action TO action_type;
+                    END IF;
+                    
                     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='moderation_logs' AND column_name='action_type') THEN
                         ALTER TABLE moderation_logs ADD COLUMN action_type VARCHAR(50) NOT NULL DEFAULT 'unknown';
                     END IF;
@@ -563,6 +567,15 @@ const initDatabase = async () => {
                     END IF;
                     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='moderation_logs' AND column_name='created_at') THEN
                         ALTER TABLE moderation_logs ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+                    END IF;
+                    -- Remove foreign key constraint if it exists
+                    IF EXISTS (
+                        SELECT 1 
+                        FROM information_schema.table_constraints 
+                        WHERE constraint_name = 'moderation_logs_moderator_id_fkey' 
+                        AND table_name = 'moderation_logs'
+                    ) THEN
+                        ALTER TABLE moderation_logs DROP CONSTRAINT moderation_logs_moderator_id_fkey;
                     END IF;
                 END IF;
             END $$;
@@ -668,13 +681,21 @@ initDatabase().catch(err => {
 // Log moderation actions
 const logModerationAction = async (actionType, moderatorId, moderatorName, targetUserId = null, targetUserName = null, details = {}) => {
     try {
-        await pgPool.query(
+        const result = await pgPool.query(
             `INSERT INTO moderation_logs (action_type, moderator_id, moderator_name, target_user_id, target_user_name, details)
-             VALUES ($1, $2, $3, $4, $5, $6)`,
+             VALUES ($1, $2, $3, $4, $5, $6)
+             RETURNING id`,
             [actionType, moderatorId, moderatorName, targetUserId, targetUserName, JSON.stringify(details)]
         );
+        console.log(`Moderation action logged: ${actionType} by ${moderatorName} (ID: ${result.rows[0].id})`);
     } catch (error) {
-        console.error('Failed to log moderation action:', error);
+        console.error('Failed to log moderation action:', {
+            error: error.message,
+            actionType,
+            moderatorId,
+            moderatorName,
+            details: error.detail || error.hint
+        });
         // Don't throw - logging failures shouldn't break the main action
     }
 };
@@ -2273,6 +2294,13 @@ app.get('/api/moderation-logs', authenticateUser, requireModerator, async (req, 
         const moderatorsResult = await pgPool.query(
             'SELECT id, name, picture FROM users WHERE is_moderator = TRUE ORDER BY name'
         );
+        
+        // Disable browser caching
+        res.set({
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+        });
         
         res.json({
             logs: result.rows,
