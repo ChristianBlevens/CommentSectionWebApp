@@ -504,6 +504,21 @@ const initDatabase = async () => {
             )
         `);
         
+        // Create moderation_logs table
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS moderation_logs (
+                id SERIAL PRIMARY KEY,
+                action_type VARCHAR(50) NOT NULL,
+                moderator_id VARCHAR(255) NOT NULL,
+                moderator_name VARCHAR(255) NOT NULL,
+                target_user_id VARCHAR(255),
+                target_user_name VARCHAR(255),
+                details JSONB,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (moderator_id) REFERENCES users(id) ON DELETE SET NULL
+            )
+        `);
+        
         // Add warning tracking columns
         await client.query(`
             DO $$ 
@@ -536,6 +551,9 @@ const initDatabase = async () => {
             CREATE INDEX IF NOT EXISTS idx_users_is_banned ON users(is_banned);
             CREATE INDEX IF NOT EXISTS idx_warnings_user_id ON warnings(user_id);
             CREATE INDEX IF NOT EXISTS idx_warnings_acknowledged ON warnings(acknowledged);
+            CREATE INDEX IF NOT EXISTS idx_moderation_logs_moderator_id ON moderation_logs(moderator_id);
+            CREATE INDEX IF NOT EXISTS idx_moderation_logs_created_at ON moderation_logs(created_at);
+            CREATE INDEX IF NOT EXISTS idx_moderation_logs_action_type ON moderation_logs(action_type);
         `);
         
         await client.query('COMMIT');
@@ -616,6 +634,20 @@ initDatabase().catch(err => {
     console.error('Failed to initialize database:', err);
     process.exit(1);
 });
+
+// Log moderation actions
+const logModerationAction = async (actionType, moderatorId, moderatorName, targetUserId = null, targetUserName = null, details = {}) => {
+    try {
+        await pgPool.query(
+            `INSERT INTO moderation_logs (action_type, moderator_id, moderator_name, target_user_id, target_user_name, details)
+             VALUES ($1, $2, $3, $4, $5, $6)`,
+            [actionType, moderatorId, moderatorName, targetUserId, targetUserName, JSON.stringify(details)]
+        );
+    } catch (error) {
+        console.error('Failed to log moderation action:', error);
+        // Don't throw - logging failures shouldn't break the main action
+    }
+};
 
 // API endpoints
 
@@ -1314,6 +1346,29 @@ app.delete('/api/comments/:commentId', authenticateUser, async (req, res) => {
         // Clear cache
         await safeRedisOp(() => redisClient.del(`comments:${comment.page_id}`));
         
+        // Log moderation action if deleted by moderator (not own comment)
+        if (isUserModerator && comment.user_id !== userId) {
+            // Get comment author name
+            const authorResult = await pgPool.query(
+                'SELECT name FROM users WHERE id = $1',
+                [comment.user_id]
+            );
+            const authorName = authorResult.rows.length > 0 ? authorResult.rows[0].name : 'Unknown User';
+            
+            await logModerationAction(
+                'delete_comment',
+                req.user.id,
+                req.user.name,
+                comment.user_id,
+                authorName,
+                {
+                    comment_id: commentIdNum,
+                    page_id: comment.page_id,
+                    content_preview: comment.content.substring(0, 100) + (comment.content.length > 100 ? '...' : '')
+                }
+            );
+        }
+        
         res.json({ success: true });
     } catch (error) {
         await client.query('ROLLBACK');
@@ -1532,11 +1587,43 @@ app.put('/api/reports/:reportId/resolve', authenticateUser, requireModerator, as
     }
     
     try {
+        // Get report details for logging
+        const reportResult = await pgPool.query(
+            `SELECT r.*, u.name as reporter_name, u2.name as comment_user_name
+             FROM reports r
+             LEFT JOIN users u ON r.reporter_id = u.id
+             LEFT JOIN users u2 ON r.comment_user_id = u2.id
+             WHERE r.id = $1`,
+            [reportId]
+        );
+        
+        if (reportResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Report not found' });
+        }
+        
+        const report = reportResult.rows[0];
+        
         await pgPool.query(
             `UPDATE reports 
              SET status = $1, resolved_at = CURRENT_TIMESTAMP, resolved_by = $2
              WHERE id = $3`,
             [action, userId, reportId]
+        );
+        
+        // Log moderation action
+        await logModerationAction(
+            action === 'dismissed' ? 'dismiss_report' : 'resolve_report',
+            req.user.id,
+            req.user.name,
+            report.comment_user_id,
+            report.comment_user_name,
+            {
+                report_id: reportId,
+                reporter_name: report.reporter_name,
+                report_reason: report.reason,
+                page_id: report.page_id,
+                comment_preview: report.comment_content ? report.comment_content.substring(0, 100) + (report.comment_content.length > 100 ? '...' : '') : ''
+            }
         );
         
         res.json({ success: true });
@@ -1615,6 +1702,21 @@ app.post('/api/users/:targetUserId/ban', authenticateUser, requireModerator, asy
             ban_duration_text: banExpiresAt ? formatBanDuration(banDurationMs) : 'Permanent ban',
             reason: reason || 'No reason provided'
         };
+        
+        // Log moderation action
+        await logModerationAction(
+            'ban_user',
+            req.user.id,
+            req.user.name,
+            targetUserId,
+            userCheck.rows[0].name,
+            {
+                duration: duration || 'permanent',
+                ban_expires_at: banExpiresAt,
+                reason: reason || 'No reason provided',
+                comments_deleted: deleteComments
+            }
+        );
         
         res.json(banInfo);
     } catch (error) {
@@ -1905,6 +2007,19 @@ app.post('/api/users/:userId/warn', authenticateUser, requireModerator, async (r
     try {
         await client.query('BEGIN');
         
+        // Get target user name
+        const userResult = await client.query(
+            'SELECT name FROM users WHERE id = $1',
+            [userId]
+        );
+        
+        if (userResult.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: 'User not found' });
+        }
+        
+        const targetUserName = userResult.rows[0].name;
+        
         // Create warning
         await client.query(
             `INSERT INTO warnings (user_id, moderator_id, reason, message)
@@ -1922,6 +2037,20 @@ app.post('/api/users/:userId/warn', authenticateUser, requireModerator, async (r
         );
         
         await client.query('COMMIT');
+        
+        // Log moderation action
+        await logModerationAction(
+            'warn_user',
+            req.user.id,
+            req.user.name,
+            userId,
+            targetUserName,
+            {
+                reason: reason,
+                message: message || null
+            }
+        );
+        
         res.json({ success: true });
     } catch (error) {
         await client.query('ROLLBACK');
@@ -1986,9 +2115,31 @@ app.put('/api/users/:userId/moderator', authenticateUser, async (req, res) => {
     }
     
     try {
+        // Get user name
+        const userResult = await pgPool.query(
+            'SELECT name FROM users WHERE id = $1',
+            [userId]
+        );
+        
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        
+        const targetUserName = userResult.rows[0].name;
+        
         await pgPool.query(
             'UPDATE users SET is_moderator = $1 WHERE id = $2',
             [is_moderator, userId]
+        );
+        
+        // Log moderation action
+        await logModerationAction(
+            is_moderator ? 'grant_moderator' : 'revoke_moderator',
+            req.user.id,
+            req.user.name,
+            userId,
+            targetUserName,
+            {}
         );
         
         res.json({ success: true });
@@ -2003,6 +2154,17 @@ app.post('/api/users/:userId/unban', authenticateUser, requireModerator, async (
     const { userId } = req.params;
     
     try {
+        // Get user name
+        const userResult = await pgPool.query(
+            'SELECT name FROM users WHERE id = $1',
+            [userId]
+        );
+        
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        
+        const targetUserName = userResult.rows[0].name;
         await pgPool.query(
             `UPDATE users 
              SET is_banned = FALSE, 
@@ -2012,6 +2174,16 @@ app.post('/api/users/:userId/unban', authenticateUser, requireModerator, async (
                  banned_at = NULL
              WHERE id = $1`,
             [userId]
+        );
+        
+        // Log moderation action
+        await logModerationAction(
+            'unban_user',
+            req.user.id,
+            req.user.name,
+            userId,
+            targetUserName,
+            {}
         );
         
         res.json({ success: true });
@@ -2033,6 +2205,52 @@ app.get('/api/reports/count', authenticateUser, requireModerator, async (req, re
     } catch (error) {
         console.error('Get report count error:', error);
         res.status(500).json({ error: 'Failed to get report count' });
+    }
+});
+
+// Get moderation logs
+app.get('/api/moderation-logs', authenticateUser, requireModerator, async (req, res) => {
+    const { userId, limit = 25, offset = 0 } = req.query;
+    
+    try {
+        let query = `
+            SELECT 
+                ml.*,
+                u.picture as moderator_picture,
+                u2.picture as target_user_picture
+            FROM moderation_logs ml
+            LEFT JOIN users u ON ml.moderator_id = u.id
+            LEFT JOIN users u2 ON ml.target_user_id = u2.id
+        `;
+        
+        const queryParams = [];
+        
+        if (userId) {
+            query += ' WHERE ml.moderator_id = $1';
+            queryParams.push(userId);
+        }
+        
+        query += ' ORDER BY ml.created_at DESC';
+        
+        // Add pagination
+        const limitNum = Math.min(parseInt(limit) || 25, 100);
+        const offsetNum = parseInt(offset) || 0;
+        query += ` LIMIT ${limitNum} OFFSET ${offsetNum}`;
+        
+        const result = await pgPool.query(query, queryParams);
+        
+        // Get list of moderators for filtering
+        const moderatorsResult = await pgPool.query(
+            'SELECT id, name, picture FROM users WHERE is_moderator = TRUE ORDER BY name'
+        );
+        
+        res.json({
+            logs: result.rows,
+            moderators: moderatorsResult.rows
+        });
+    } catch (error) {
+        console.error('Get moderation logs error:', error);
+        res.status(500).json({ error: 'Failed to get moderation logs' });
     }
 });
 

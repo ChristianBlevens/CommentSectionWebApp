@@ -90,6 +90,11 @@
                                 class="btn-base moderation-tab">
                             <i class="fas fa-users mr-2"></i>Users
                         </button>
+                        <button @click="activeTab = 'logs'; $nextTick(() => { if (user && user.is_moderator) { loadModerationLogs() } })" 
+                                :class="{'active': activeTab === 'logs'}"
+                                class="btn-base moderation-tab">
+                            <i class="fas fa-history mr-2"></i>Logs
+                        </button>
                     </nav>
                 </div>
 
@@ -510,6 +515,88 @@
                                 class="btn-base markdown-btn">
                             <i class="fas fa-chevron-right"></i>
                         </button>
+                    </div>
+                </div>
+                
+                <!-- Logs Tab -->
+                <div x-show="activeTab === 'logs'">
+                    <div class="mb-4 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                        <p class="text-gray-600 flex-shrink-0">
+                            Showing the 25 most recent moderation actions
+                            <span x-show="selectedModeratorId && selectedModeratorId !== 'all'">by <span class="font-semibold" x-text="moderators.find(m => m.id === selectedModeratorId)?.name"></span></span>
+                        </p>
+                        <div class="flex gap-2 ml-auto">
+                            <select x-model="selectedModeratorId" @change="loadModerationLogs()" 
+                                    class="textarea-base max-w-xs">
+                                <option value="all">All Moderators</option>
+                                <template x-for="mod in moderators" :key="mod.id">
+                                    <option :value="mod.id" x-text="mod.name"></option>
+                                </template>
+                            </select>
+                            <button @click="loadModerationLogs()" 
+                                    class="btn-base btn btn-primary">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Loading logs -->
+                    <div x-show="loadingLogs" class="text-center py-8">
+                        <i class="fas fa-spinner fa-spin text-4xl text-gray-400"></i>
+                        <p class="mt-4 text-gray-600">Loading moderation logs...</p>
+                    </div>
+
+                    <!-- No logs -->
+                    <div x-show="!loadingLogs && moderationLogs.length === 0" class="text-center py-8">
+                        <i class="fas fa-clipboard-list text-4xl text-gray-400 mb-4"></i>
+                        <p class="text-gray-600">No moderation actions found</p>
+                    </div>
+
+                    <!-- Logs list -->
+                    <div x-show="!loadingLogs && moderationLogs.length > 0" class="space-y-3">
+                        <template x-for="log in moderationLogs" :key="log.id">
+                            <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                                <div class="flex items-start justify-between">
+                                    <div class="flex items-start gap-3">
+                                        <img :src="log.moderator_picture || 'https://cdn.discordapp.com/embed/avatars/1.png'" 
+                                             class="w-10 h-10 rounded-full">
+                                        <div class="flex-1">
+                                            <div class="flex items-center gap-2 mb-1">
+                                                <span class="font-semibold" x-text="log.moderator_name"></span>
+                                                <span class="text-sm text-gray-500" x-text="formatActionType(log.action_type)"></span>
+                                                <template x-if="log.target_user_name">
+                                                    <span class="text-sm">
+                                                        <span class="text-gray-500">→</span>
+                                                        <span class="font-medium" x-text="log.target_user_name"></span>
+                                                    </span>
+                                                </template>
+                                            </div>
+                                            <div class="text-sm text-gray-600">
+                                                <template x-if="log.details">
+                                                    <div>
+                                                        <template x-if="log.details.reason">
+                                                            <p><span class="font-medium">Reason:</span> <span x-text="log.details.reason"></span></p>
+                                                        </template>
+                                                        <template x-if="log.details.duration">
+                                                            <p><span class="font-medium">Duration:</span> <span x-text="log.details.duration"></span></p>
+                                                        </template>
+                                                        <template x-if="log.details.message">
+                                                            <p><span class="font-medium">Message:</span> <span x-text="log.details.message"></span></p>
+                                                        </template>
+                                                        <template x-if="log.details.content_preview">
+                                                            <p class="text-gray-500 italic mt-1" x-text="log.details.content_preview"></p>
+                                                        </template>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="text-sm text-gray-500 text-right">
+                                        <span x-text="getRelativeTime(log.created_at)"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
                     </div>
                 </div>
                 </div>

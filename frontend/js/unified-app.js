@@ -162,6 +162,13 @@ function unifiedApp() {
         banNotification: { show: false, message: '', expired: false },
         warningNotification: { show: false, message: '' },
         
+        // Moderation logs data
+        moderationLogs: [],
+        moderators: [],
+        selectedModeratorId: 'all',
+        loadingLogs: false,
+        logsLoaded: false,
+        
         // Setup app on load
         async init() {
             // Store app reference globally
@@ -701,6 +708,62 @@ function unifiedApp() {
             if (!userItem.comments || userItem.comments.length === 0) return false;
             const displayCount = this.userCommentsDisplayCount[userItem.id] || 5;
             return userItem.comments.length > displayCount && displayCount < 25;
+        },
+        
+        // Moderation logs methods
+        async loadModerationLogs() {
+            if (this.activeTab !== 'logs') return;
+            if (!this.user?.is_moderator) return;
+            
+            this.loadingLogs = true;
+            try {
+                let url = `${API_URL}/api/moderation-logs?limit=25`;
+                if (this.selectedModeratorId && this.selectedModeratorId !== 'all') {
+                    url += `&userId=${this.selectedModeratorId}`;
+                }
+                
+                const response = await fetch(url, {
+                    headers: getAuthHeaders(),
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    this.moderationLogs = data.logs || [];
+                    this.moderators = data.moderators || [];
+                    
+                    // Parse JSON details
+                    this.moderationLogs.forEach(log => {
+                        if (log.details && typeof log.details === 'string') {
+                            try {
+                                log.details = JSON.parse(log.details);
+                            } catch (e) {
+                                log.details = {};
+                            }
+                        }
+                    });
+                    
+                    this.logsLoaded = true;
+                }
+            } catch (error) {
+                console.error('Error loading moderation logs:', error);
+            } finally {
+                this.loadingLogs = false;
+            }
+        },
+        
+        formatActionType(actionType) {
+            const actionLabels = {
+                'ban_user': 'banned',
+                'unban_user': 'unbanned',
+                'warn_user': 'warned',
+                'delete_comment': 'deleted comment from',
+                'dismiss_report': 'dismissed report against',
+                'resolve_report': 'resolved report against',
+                'grant_moderator': 'granted moderator to',
+                'revoke_moderator': 'revoked moderator from'
+            };
+            return actionLabels[actionType] || actionType;
         },
         
         // Helper methods
