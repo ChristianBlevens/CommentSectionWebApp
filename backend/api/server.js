@@ -538,6 +538,36 @@ const initDatabase = async () => {
             END $$;
         `);
         
+        // Add moderation_logs columns if table exists but columns are missing
+        await client.query(`
+            DO $$ 
+            BEGIN
+                IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='moderation_logs') THEN
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='moderation_logs' AND column_name='action_type') THEN
+                        ALTER TABLE moderation_logs ADD COLUMN action_type VARCHAR(50) NOT NULL DEFAULT 'unknown';
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='moderation_logs' AND column_name='moderator_id') THEN
+                        ALTER TABLE moderation_logs ADD COLUMN moderator_id VARCHAR(255) NOT NULL DEFAULT '';
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='moderation_logs' AND column_name='moderator_name') THEN
+                        ALTER TABLE moderation_logs ADD COLUMN moderator_name VARCHAR(255) NOT NULL DEFAULT '';
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='moderation_logs' AND column_name='target_user_id') THEN
+                        ALTER TABLE moderation_logs ADD COLUMN target_user_id VARCHAR(255);
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='moderation_logs' AND column_name='target_user_name') THEN
+                        ALTER TABLE moderation_logs ADD COLUMN target_user_name VARCHAR(255);
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='moderation_logs' AND column_name='details') THEN
+                        ALTER TABLE moderation_logs ADD COLUMN details JSONB;
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='moderation_logs' AND column_name='created_at') THEN
+                        ALTER TABLE moderation_logs ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+                    END IF;
+                END IF;
+            END $$;
+        `);
+        
         // Create performance indexes
         await client.query(`
             CREATE INDEX IF NOT EXISTS idx_comments_page_id ON comments(page_id);
@@ -551,24 +581,10 @@ const initDatabase = async () => {
             CREATE INDEX IF NOT EXISTS idx_users_is_banned ON users(is_banned);
             CREATE INDEX IF NOT EXISTS idx_warnings_user_id ON warnings(user_id);
             CREATE INDEX IF NOT EXISTS idx_warnings_acknowledged ON warnings(acknowledged);
+            CREATE INDEX IF NOT EXISTS idx_moderation_logs_moderator_id ON moderation_logs(moderator_id);
+            CREATE INDEX IF NOT EXISTS idx_moderation_logs_created_at ON moderation_logs(created_at);
+            CREATE INDEX IF NOT EXISTS idx_moderation_logs_action_type ON moderation_logs(action_type);
         `);
-        
-        // Check if moderation_logs table exists before creating indexes
-        const tableCheck = await client.query(`
-            SELECT EXISTS (
-                SELECT FROM information_schema.tables 
-                WHERE table_name = 'moderation_logs'
-            );
-        `);
-        
-        if (tableCheck.rows[0].exists) {
-            // Create moderation logs indexes only if table exists
-            await client.query(`
-                CREATE INDEX IF NOT EXISTS idx_moderation_logs_moderator_id ON moderation_logs(moderator_id);
-                CREATE INDEX IF NOT EXISTS idx_moderation_logs_created_at ON moderation_logs(created_at);
-                CREATE INDEX IF NOT EXISTS idx_moderation_logs_action_type ON moderation_logs(action_type);
-            `);
-        }
         
         await client.query('COMMIT');
         console.log('Database schema initialized successfully');
