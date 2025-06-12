@@ -561,9 +561,9 @@ function unifiedApp() {
                     const userIndex = this.users.findIndex(u => u.id === userId);
                     if (userIndex !== -1) {
                         this.users[userIndex] = { ...this.users[userIndex], ...details };
-                        // Initialize comments display count to 10 if not set
+                        // Initialize comments display count to 5 if not set
                         if (!this.userCommentsDisplayCount[userId] && details.comments) {
-                            this.userCommentsDisplayCount[userId] = 10;
+                            this.userCommentsDisplayCount[userId] = 5;
                         }
                         this.filterUsers();
                     }
@@ -660,11 +660,11 @@ function unifiedApp() {
         },
         
         async loadMoreUserComments(userId) {
-            // Get current display count, default to 10
-            const currentCount = this.userCommentsDisplayCount[userId] || 10;
+            // Get current display count, default to 5
+            const currentCount = this.userCommentsDisplayCount[userId] || 5;
             
-            // Increment by 10, max 50
-            const newCount = Math.min(currentCount + 10, 50);
+            // Increment by 5, max 25
+            const newCount = Math.min(currentCount + 5, 25);
             this.userCommentsDisplayCount[userId] = newCount;
             
             // Force re-render by updating the user object
@@ -676,14 +676,14 @@ function unifiedApp() {
         },
         
         getDisplayedComments(userItem) {
-            const displayCount = this.userCommentsDisplayCount[userItem.id] || 10;
+            const displayCount = this.userCommentsDisplayCount[userItem.id] || 5;
             return userItem.comments ? userItem.comments.slice(0, displayCount) : [];
         },
         
         shouldShowLoadMoreButton(userItem) {
             if (!userItem.comments || userItem.comments.length === 0) return false;
-            const displayCount = this.userCommentsDisplayCount[userItem.id] || 10;
-            return userItem.comments.length > displayCount && displayCount < 50;
+            const displayCount = this.userCommentsDisplayCount[userItem.id] || 5;
+            return userItem.comments.length > displayCount && displayCount < 25;
         },
         
         // Helper methods

@@ -245,8 +245,8 @@ body {
     margin-bottom: var(--space-sm);
 }
 
-/* Base level comments should have same horizontal padding as form */
-.comments-container > .comment-container > .comment-content {
+/* Base level comments don't need extra margins since parent has padding */
+.comments-container > .comment-container {
     margin-left: 0;
     margin-right: 0;
 }
