@@ -30,6 +30,9 @@ const config = {
     },
     session: {
         duration: parseInt(process.env.SESSION_DURATION) || 86400
+    },
+    moderation: {
+        serviceUrl: process.env.MODERATION_SERVICE_URL || 'http://localhost:3001'
     }
 };
 
@@ -1108,6 +1111,7 @@ app.post('/api/comments', authenticateUser, async (req, res) => {
     console.log('Parent ID type:', typeof req.body.parentId, 'value:', req.body.parentId);
     const { pageId, content, parentId } = req.body;
     const userId = req.user.id;
+    const isModerator = req.user.is_moderator || false;
     
     if (!pageId || !content) {
         console.log('Missing fields - pageId:', pageId, 'content:', content);
@@ -1116,6 +1120,25 @@ app.post('/api/comments', authenticateUser, async (req, res) => {
     
     if (content.length > 5000) {
         return res.status(400).json({ error: 'Comment too long (max 5000 characters)' });
+    }
+    
+    // Check content with moderation service
+    try {
+        const moderationResponse = await axios.post(`${config.moderation.serviceUrl}/api/moderate`, {
+            content,
+            userId,
+            isModerator
+        });
+        
+        if (!moderationResponse.data.approved) {
+            return res.status(400).json({ 
+                error: moderationResponse.data.reason || 'Comment rejected by moderation service'
+            });
+        }
+    } catch (error) {
+        console.error('Moderation service error:', error);
+        // If moderation service is down, allow the comment through
+        // You might want to change this behavior based on your requirements
     }
     
     const client = await pgPool.connect();
