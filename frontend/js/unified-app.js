@@ -562,10 +562,15 @@ function unifiedApp() {
                     const userIndex = this.users.findIndex(u => u.id === userId);
                     if (userIndex !== -1) {
                         // Ensure we properly merge the details including comments
+                        // Sort comments by created_at in descending order (most recent first)
+                        const sortedComments = details.comments ? 
+                            [...details.comments].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)) : 
+                            [];
+                        
                         this.users[userIndex] = { 
                             ...this.users[userIndex], 
                             ...details,
-                            comments: details.comments || [],
+                            comments: sortedComments,
                             ban_history: details.ban_history || [],
                             warnings: details.warnings || [],
                             reports_received: details.reports_received || []
