@@ -574,13 +574,18 @@ function unifiedApp() {
                             [...details.comments].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)) : 
                             [];
                         
+                        // Sort reports by created_at in descending order (most recent first)
+                        const sortedReports = details.reports_received ? 
+                            [...details.reports_received].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)) : 
+                            [];
+                        
                         this.users[userIndex] = { 
                             ...this.users[userIndex], 
                             ...details,
                             comments: sortedComments,
                             ban_history: details.ban_history || [],
                             warnings: details.warnings || [],
-                            reports_received: details.reports_received || []
+                            reports_received: sortedReports
                         };
                         // Initialize comments display count to 5 if not set
                         if (!this.userCommentsDisplayCount[userId] && details.comments && details.comments.length > 0) {

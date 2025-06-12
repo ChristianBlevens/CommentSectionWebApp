@@ -1985,7 +1985,7 @@ app.get('/api/users', authenticateUser, requireModerator, async (req, res) => {
                     SELECT * FROM reports 
                     WHERE comment_user_id = u.id 
                     ORDER BY created_at DESC 
-                    LIMIT 10
+                    LIMIT 5
                 ) r ON true
                 LEFT JOIN users rep ON r.reporter_id = rep.id
             ` : ''}

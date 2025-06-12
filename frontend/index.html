@@ -710,6 +710,17 @@
                 </button>
             </div>
 
+            <!-- Focus mode header -->
+            <div x-show="focusedCommentId" class="bg-white rounded-lg shadow-md p-4 mb-4">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-lg font-semibold">Viewing replies</h2>
+                    <button @click="exitFocusMode()" class="btn-base btn btn-secondary text-sm">
+                        <i class="fas fa-arrow-left mr-1"></i>
+                        Back to discussion
+                    </button>
+                </div>
+            </div>
+
             <!-- Comments -->
             <div class="comments-container">
                 <template x-for="comment in (focusedCommentId ? focusedComments : sortedComments)" :key="comment.id">
@@ -726,17 +737,6 @@
             <div x-show="!loading && comments.length === 0" class="text-center py-8 px-4 text-gray-500">
                 <i class="fas fa-comments text-4xl mb-4"></i>
                 <p class="text-sm">No comments yet. Be the first to comment!</p>
-            </div>
-        </div>
-
-        <!-- Focus mode header -->
-        <div x-show="focusedCommentId" class="bg-white rounded-lg shadow-md p-4 mb-4 mt-4">
-            <div class="flex justify-between items-center">
-                <h2 class="text-lg font-semibold">Viewing replies</h2>
-                <button @click="exitFocusMode()" class="btn-base btn btn-secondary text-sm">
-                    <i class="fas fa-arrow-left mr-1"></i>
-                    Back to discussion
-                </button>
             </div>
         </div>
     </div>
