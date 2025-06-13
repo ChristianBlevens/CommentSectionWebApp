@@ -122,7 +122,7 @@ function unifiedApp() {
         replyingTo: null,
         editingComment: null,
         editText: '',
-        sortBy: 'popularity',
+        sortBy: 'likes', // Default to 'Top' sorting
         focusedCommentId: null,
         focusedComments: [],
         highlightedCommentId: null,
@@ -314,26 +314,75 @@ function unifiedApp() {
         },
         
         sortComments() {
+            // Helper to count total replies recursively
+            const countReplies = (comment) => {
+                let count = 0;
+                if (comment.children && comment.children.length > 0) {
+                    count = comment.children.length;
+                    comment.children.forEach(child => {
+                        count += countReplies(child);
+                    });
+                }
+                return count;
+            };
+
             // Function to recursively sort comments and their children
             const sortRecursive = (comments) => {
                 let sorted = [...comments];
                 
                 switch (this.sortBy) {
                     case 'likes':
-                        sorted.sort((a, b) => b.likes - a.likes);
+                        // Top - sort by likes with newest as fallback
+                        sorted.sort((a, b) => {
+                            if (b.likes !== a.likes) {
+                                return b.likes - a.likes;
+                            }
+                            // Fallback to newest when likes are equal
+                            const dateA = new Date(a.created_at || a.createdAt);
+                            const dateB = new Date(b.created_at || b.createdAt);
+                            return dateB.getTime() - dateA.getTime();
+                        });
                         break;
                     case 'popularity':
-                        sorted.sort((a, b) => (b.likes - b.dislikes) - (a.likes - a.dislikes));
+                        // Popular - sort by reply count with newest as fallback
+                        sorted.sort((a, b) => {
+                            const aReplies = countReplies(a);
+                            const bReplies = countReplies(b);
+                            if (bReplies !== aReplies) {
+                                return bReplies - aReplies;
+                            }
+                            // Fallback to newest when reply counts are equal
+                            const dateA = new Date(a.created_at || a.createdAt);
+                            const dateB = new Date(b.created_at || b.createdAt);
+                            return dateB.getTime() - dateA.getTime();
+                        });
                         break;
                     case 'newest':
-                        sorted.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                        // Newest first - ensure proper date parsing
+                        sorted.sort((a, b) => {
+                            const dateA = new Date(a.created_at || a.createdAt);
+                            const dateB = new Date(b.created_at || b.createdAt);
+                            return dateB.getTime() - dateA.getTime();
+                        });
                         break;
                     case 'oldest':
-                        sorted.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+                        // Oldest first
+                        sorted.sort((a, b) => {
+                            const dateA = new Date(a.created_at || a.createdAt);
+                            const dateB = new Date(b.created_at || b.createdAt);
+                            return dateA.getTime() - dateB.getTime();
+                        });
                         break;
+                    default:
+                        // Default to newest first
+                        sorted.sort((a, b) => {
+                            const dateA = new Date(a.created_at || a.createdAt);
+                            const dateB = new Date(b.created_at || b.createdAt);
+                            return dateB.getTime() - dateA.getTime();
+                        });
                 }
                 
-                // Sort children recursively
+                // Sort children recursively using the same criteria
                 sorted = sorted.map(comment => ({
                     ...comment,
                     children: comment.children ? sortRecursive(comment.children) : []
@@ -1088,12 +1137,30 @@ function unifiedApp() {
                 
                 if (response.ok) {
                     const result = await response.json();
-                    const comment = this.findComment(commentId, this.comments);
-                    if (comment) {
-                        comment.likes = result.likes;
-                        comment.dislikes = result.dislikes;
-                        comment.userVote = result.userVote;
-                    }
+                    
+                    // Update the comment in all arrays
+                    const updateCommentInArray = (comments) => {
+                        for (let i = 0; i < comments.length; i++) {
+                            if (comments[i].id === commentId) {
+                                comments[i].likes = result.likes;
+                                comments[i].dislikes = result.dislikes;
+                                comments[i].userVote = result.userVote;
+                                return true;
+                            }
+                            if (comments[i].children && updateCommentInArray(comments[i].children)) {
+                                return true;
+                            }
+                        }
+                        return false;
+                    };
+                    
+                    // Update in all arrays to trigger reactivity
+                    updateCommentInArray(this.comments);
+                    updateCommentInArray(this.sortedComments);
+                    updateCommentInArray(this.filteredComments);
+                    
+                    // Force Alpine to detect the change
+                    this.filteredComments = [...this.filteredComments];
                 }
             } catch (error) {
                 console.error('Error voting:', error);
