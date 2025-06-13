@@ -410,15 +410,20 @@ function unifiedApp() {
                 return;
             }
             
-            const query = this.commentSearchQuery.toLowerCase().trim();
+            // Split query into individual words and convert to lowercase
+            const searchTerms = this.commentSearchQuery.toLowerCase().trim().split(/\s+/);
             
             // Recursive function to search through comments and their children
             const searchComment = (comment) => {
-                // Check if the comment matches the search query
-                const contentMatch = comment.content && comment.content.toLowerCase().includes(query);
-                const authorMatch = comment.userName && comment.userName.toLowerCase().includes(query);
+                // Get searchable text from comment
+                const searchableContent = (comment.content || '').toLowerCase();
+                const searchableAuthor = (comment.userName || '').toLowerCase();
+                const searchableText = searchableContent + ' ' + searchableAuthor;
                 
-                if (contentMatch || authorMatch) {
+                // Check if ALL search terms are present in the comment
+                const allTermsMatch = searchTerms.every(term => searchableText.includes(term));
+                
+                if (allTermsMatch) {
                     return true;
                 }
                 
@@ -1191,7 +1196,46 @@ function unifiedApp() {
                 });
                 
                 if (response.ok) {
+                    // Mark comment as deleted locally for immediate visual feedback
+                    const markAsDeleted = (comments) => {
+                        for (let comment of comments) {
+                            if (comment.id === commentId) {
+                                comment.content = '[deleted]';
+                                comment.deleted = true;
+                                comment.userName = '[deleted]';
+                                comment.userPicture = '';
+                                return true;
+                            }
+                            if (comment.children && markAsDeleted(comment.children)) {
+                                return true;
+                            }
+                        }
+                        return false;
+                    };
+                    
+                    // Update in all arrays
+                    markAsDeleted(this.comments);
+                    markAsDeleted(this.sortedComments);
+                    markAsDeleted(this.filteredComments);
+                    
+                    // If in focus mode, update focused comments too
+                    if (this.focusedCommentId) {
+                        markAsDeleted(this.focusedComments);
+                        // Force re-render
+                        this.focusedComments = [...this.focusedComments];
+                    }
+                    
+                    // Force re-render
+                    this.filteredComments = [...this.filteredComments];
+                    
+                    // Then reload comments to get the actual server state
                     await this.loadComments();
+                    
+                    // If in focus mode, refresh the focused view with updated data
+                    if (this.focusedCommentId) {
+                        const currentFocusId = this.focusedCommentId;
+                        this.enterFocusMode(currentFocusId, this.highlightedCommentId === currentFocusId);
+                    }
                 }
             } catch (error) {
                 console.error('Error deleting comment:', error);
