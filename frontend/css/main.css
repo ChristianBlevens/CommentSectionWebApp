@@ -227,7 +227,7 @@ body {
    COMMENT THREAD STYLING
    ===================================================== */
 .comments-container {
-    padding: 0 1rem 1rem 1rem; /* Match p-4 but no top padding since it follows comment-form */
+    padding: 0 1rem 0rem 1rem; /* Match p-4 but no top padding since it follows comment-form */
 }
 
 .comment-thread {

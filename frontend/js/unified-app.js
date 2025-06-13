@@ -314,24 +314,35 @@ function unifiedApp() {
         },
         
         sortComments() {
-            let sorted = [...this.comments];
+            // Function to recursively sort comments and their children
+            const sortRecursive = (comments) => {
+                let sorted = [...comments];
+                
+                switch (this.sortBy) {
+                    case 'likes':
+                        sorted.sort((a, b) => b.likes - a.likes);
+                        break;
+                    case 'popularity':
+                        sorted.sort((a, b) => (b.likes - b.dislikes) - (a.likes - a.dislikes));
+                        break;
+                    case 'newest':
+                        sorted.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                        break;
+                    case 'oldest':
+                        sorted.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+                        break;
+                }
+                
+                // Sort children recursively
+                sorted = sorted.map(comment => ({
+                    ...comment,
+                    children: comment.children ? sortRecursive(comment.children) : []
+                }));
+                
+                return sorted;
+            };
             
-            switch (this.sortBy) {
-                case 'likes':
-                    sorted.sort((a, b) => b.likes - a.likes);
-                    break;
-                case 'popularity':
-                    sorted.sort((a, b) => (b.likes - b.dislikes) - (a.likes - a.dislikes));
-                    break;
-                case 'newest':
-                    sorted.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-                    break;
-                case 'oldest':
-                    sorted.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-                    break;
-            }
-            
-            this.sortedComments = sorted;
+            this.sortedComments = sortRecursive(this.comments);
             this.filterComments();
         },
         
