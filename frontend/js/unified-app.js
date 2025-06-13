@@ -1008,11 +1008,12 @@ function unifiedApp() {
             const content = isDeleted ? '' : window.md?.render(processed) || displayContent;
             
             let html = `
-                <div class="comment-container ${depth > 0 ? 'comment-depth-' + depth : ''}" 
-                     data-comment-id="${comment.id}">
-                    <div class="comment-line" onclick="window.unifiedAppInstance.toggleCollapse(event)"></div>
-                    
-                    <div class="comment-content ${this.highlightedCommentId == comment.id ? 'reported-comment' : ''}" id="comment-${comment.id}">
+                <div class="comment-wrapper">
+                    <div class="comment-container ${depth > 0 ? 'comment-depth-' + depth : ''}" 
+                         data-comment-id="${comment.id}">
+                        <div class="comment-line" onclick="window.unifiedAppInstance.toggleCollapse(event)"></div>
+                        
+                        <div class="comment-content ${this.highlightedCommentId == comment.id ? 'reported-comment' : ''}" id="comment-${comment.id}">
                         
                         <div class="comment-header">
                             ${!isDeleted ? `<img src="${comment.userPicture}" class="comment-avatar">` : '<div class="comment-avatar bg-gray-300"></div>'}
@@ -1126,6 +1127,7 @@ function unifiedApp() {
                                 </div>
                             ` : '')
                         }
+                    </div>
                 </div>
             `;
             

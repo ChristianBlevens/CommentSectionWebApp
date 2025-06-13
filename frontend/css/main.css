@@ -235,14 +235,18 @@ body {
     margin-bottom: var(--space-md);
 }
 
-.comment-container {
-    position: relative;
-    padding-left: 0; /* Base comments have no left padding */
+/* Comment wrapper - contains both comment and its children */
+.comment-wrapper {
     margin-bottom: var(--space-sm);
 }
 
+.comment-container {
+    position: relative;
+    padding-left: 0; /* Base comments have no left padding */
+}
+
 /* Base level comments don't need extra margins since parent has padding */
-.comments-container > .comment-container {
+.comments-container > .comment-wrapper > .comment-container {
     margin-left: 0;
     margin-right: 0;
 }
@@ -332,8 +336,12 @@ body {
 
 .comment-container.collapsed .comment-body,
 .comment-container.collapsed .comment-actions,
-.comment-container.collapsed .comment-children,
 .comment-container.collapsed .reply-form {
+    display: none;
+}
+
+/* Hide children when parent is collapsed */
+.comment-container.collapsed ~ .comment-children {
     display: none;
 }
 
