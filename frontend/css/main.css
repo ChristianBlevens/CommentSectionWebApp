@@ -829,15 +829,14 @@ a *,
 
 /* Markdown toolbar buttons - extends btn-base */
 .markdown-btn {
-    padding: 0.5rem; /* Fixed padding for square buttons */
+    padding: clamp(0.375rem, 1vw, 0.5rem);
     background: var(--color-bg-primary);
     border: 1px solid var(--color-border-primary);
     min-width: 0; /* Remove min-width */
     min-height: 0; /* Override btn-base min-height */
-    width: 2.5rem; /* Fixed width for square */
-    height: 2.5rem; /* Fixed height for square */
-    flex-shrink: 1;
-    flex-basis: auto;
+    width: clamp(2rem, 6vw, 2.5rem); /* Responsive width */
+    height: clamp(2rem, 6vw, 2.5rem); /* Responsive height */
+    flex: 0 1 auto; /* Allow shrinking */
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -968,6 +967,7 @@ a *,
     border-radius: var(--radius-md);
     width: 100%;
     overflow: visible; /* Ensure markdown buttons aren't clipped */
+    container-type: inline-size; /* Enable container queries */
 }
 
 /* Reply textarea - extends textarea-base */
@@ -991,6 +991,26 @@ a *,
 .reply-actions {
     display: flex;
     gap: var(--space-sm);
+}
+
+/* Container query for reply toolbar stacking */
+@container (max-width: 450px) {
+    .reply-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .reply-toolbar .markdown-buttons {
+        order: 1;
+        width: 100%;
+    }
+    
+    .reply-toolbar .reply-actions {
+        order: 2;
+        width: 100%;
+        margin-top: clamp(0.5rem, 1.5vw, 0.75rem);
+        justify-content: flex-end;
+    }
 }
 
 /* Reply form buttons - extends btn-base */
@@ -1315,12 +1335,14 @@ a *,
     color: var(--color-text-secondary);
     font-size: clamp(0.75rem, 1.25vw, 0.875rem);
     /* Force each word to new line */
-    display: inline-block;
-    word-spacing: 9999px;
-    white-space: normal;
+    display: inline-flex;
+    flex-direction: column;
     text-align: center;
-    line-height: 1;
-    max-width: max-content;
+    line-height: 1.2;
+}
+
+.log-action-line .action-type span {
+    display: block;
 }
 
 .log-action-line .target-name {
@@ -1457,8 +1479,8 @@ a *,
     flex-wrap: nowrap; /* Default: side by side */
 }
 
-/* Container query for stacking when tight */
-@container (max-width: 500px) {
+/* Container query for stacking when buttons would overlap */
+@container (max-width: 650px) {
     .comment-toolbar {
         flex-direction: column;
         align-items: stretch;
@@ -1472,7 +1494,7 @@ a *,
     .comment-toolbar .btn-primary {
         order: 2; /* Post button below */
         width: 100%;
-        margin-top: var(--space-sm);
+        margin-top: clamp(0.75rem, 2vw, 1rem); /* Proper spacing */
     }
 }
 

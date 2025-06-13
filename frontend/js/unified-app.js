@@ -830,7 +830,9 @@ function unifiedApp() {
                 'grant_moderator': 'granted moderator to',
                 'revoke_moderator': 'revoked moderator from'
             };
-            return actionLabels[actionType] || actionType;
+            const label = actionLabels[actionType] || actionType;
+            // For multi-word actions, split into separate spans
+            return label.split(' ').map(word => `<span>${word}</span>`).join('');
         },
         
         // Helper methods

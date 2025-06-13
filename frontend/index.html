@@ -565,12 +565,12 @@
                                         <div class="flex-1">
                                             <div class="log-action-line">
                                                 <span class="moderator-name" x-text="log.moderator_name"></span>
-                                                <span class="action-type" x-text="formatActionType(log.action_type)"></span>
+                                                <span class="action-type" x-html="formatActionType(log.action_type)"></span>
                                                 <template x-if="log.target_user_name">
-                                                    <>
+                                                    <span>
                                                         <span class="arrow">→</span>
                                                         <span class="target-name" x-text="log.target_user_name"></span>
-                                                    </>
+                                                    </span>
                                                 </template>
                                             </div>
                                             <span class="log-timestamp" x-text="getRelativeTime(log.created_at)"></span>
