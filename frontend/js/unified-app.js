@@ -331,6 +331,7 @@ function unifiedApp() {
             const sortRecursive = (comments) => {
                 let sorted = [...comments];
                 
+                // First, apply the selected sort order
                 switch (this.sortBy) {
                     case 'likes':
                         // Top - sort by likes with newest as fallback
@@ -381,6 +382,13 @@ function unifiedApp() {
                             const dateB = new Date(b.created_at || b.createdAt);
                             return dateB.getTime() - dateA.getTime();
                         });
+                }
+                
+                // Then, move current user's comments to the top while maintaining their relative order
+                if (this.user) {
+                    const userComments = sorted.filter(comment => comment.userId === this.user.id);
+                    const otherComments = sorted.filter(comment => comment.userId !== this.user.id);
+                    sorted = [...userComments, ...otherComments];
                 }
                 
                 // Sort children recursively using the same criteria
