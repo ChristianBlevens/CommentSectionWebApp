@@ -192,7 +192,8 @@ body {
    MAIN COMMENT SECTION CONTAINER
    ===================================================== */
 .comment-section {
-    /* Removed redundant styles - now using Tailwind classes */
+    /* Base padding for all content */
+    padding: 0;
 }
 
 /* Comment Form Styling */
@@ -1655,6 +1656,7 @@ html {
     align-items: flex-start;
     gap: clamp(0.5rem, 2vw, 1rem);
     flex-wrap: wrap;
+    padding: 0 1rem; /* Match horizontal padding of comment-form */
 }
 
 /* Sorting buttons container - Shrinks to fit */

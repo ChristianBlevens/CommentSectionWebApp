@@ -689,26 +689,26 @@
             <!-- Sorting and Search -->
             <div class="sorting-search-container mb-4">
                 <!-- Sorting buttons on the left -->
-                <div class="flex gap-2 flex-wrap">
+                <div class="flex gap-2">
                     <button @click="sortBy = 'likes'; sortComments()" 
                             :class="{'active': sortBy === 'likes'}"
                             class="btn-base sort-btn">
-                        <i class="fas fa-thumbs-up mr-1"></i><span>Top</span>
+                        <i class="fas fa-thumbs-up"></i><span>Top</span>
                     </button>
                     <button @click="sortBy = 'popularity'; sortComments()" 
                             :class="{'active': sortBy === 'popularity'}"
                             class="btn-base sort-btn">
-                        <i class="fas fa-fire mr-1"></i><span>Popular</span>
+                        <i class="fas fa-fire"></i><span>Popular</span>
                     </button>
                     <button @click="sortBy = 'newest'; sortComments()" 
                             :class="{'active': sortBy === 'newest'}"
                             class="btn-base sort-btn">
-                        <i class="fas fa-clock mr-1"></i><span>Newest</span>
+                        <i class="fas fa-clock"></i><span>Newest</span>
                     </button>
                     <button @click="sortBy = 'oldest'; sortComments()" 
                             :class="{'active': sortBy === 'oldest'}"
                             class="btn-base sort-btn">
-                        <i class="fas fa-history mr-1"></i><span>Oldest</span>
+                        <i class="fas fa-history"></i><span>Oldest</span>
                     </button>
                 </div>
                 
