@@ -308,18 +308,20 @@
                                         <div>
                                             <div class="flex items-center gap-2">
                                                 <p class="font-medium" x-text="userItem.name"></p>
-                                                <span x-show="userItem.is_moderator" 
-                                                      class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">
-                                                    <i class="fas fa-shield-alt mr-1"></i>Moderator
-                                                </span>
-                                                <span x-show="userItem.is_super_moderator" 
-                                                      class="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs">
-                                                    <i class="fas fa-crown mr-1"></i>Super Mod
-                                                </span>
-                                                <span x-show="userItem.is_banned" 
-                                                      class="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs">
-                                                    <i class="fas fa-ban mr-1"></i>Banned
-                                                </span>
+                                                <div class="user-roles" :data-role-count="((userItem.is_moderator ? 1 : 0) + (userItem.is_banned ? 1 : 0)) - 1">
+                                                    <span x-show="userItem.is_super_moderator" 
+                                                          class="role-badge role-super-mod">
+                                                        <i class="fas fa-crown"></i><span>Super Mod</span>
+                                                    </span>
+                                                    <span x-show="userItem.is_moderator && !userItem.is_super_moderator" 
+                                                          class="role-badge role-mod">
+                                                        <i class="fas fa-shield-alt"></i><span>Moderator</span>
+                                                    </span>
+                                                    <span x-show="userItem.is_banned" 
+                                                          class="role-badge role-banned">
+                                                        <i class="fas fa-ban"></i><span>Banned</span>
+                                                    </span>
+                                                </div>
                                             </div>
                                             <p class="text-sm text-gray-600" x-text="userItem.id"></p>
                                         </div>
@@ -553,25 +555,26 @@
                     </div>
 
                     <!-- Logs list -->
-                    <div x-show="!loadingLogs && moderationLogs.length > 0" class="space-y-3">
+                    <div x-show="!loadingLogs && moderationLogs.length > 0" class="space-y-3 moderation-logs-container">
                         <template x-for="log in moderationLogs" :key="log.id">
-                            <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                                <div class="flex items-start justify-between">
+                            <div class="log-entry">
+                                <div class="log-header">
                                     <div class="flex items-start gap-3">
                                         <img :src="log.moderator_picture || 'https://cdn.discordapp.com/embed/avatars/1.png'" 
                                              class="w-10 h-10 rounded-full">
                                         <div class="flex-1">
-                                            <div class="flex items-center gap-2 mb-1">
-                                                <span class="font-semibold" x-text="log.moderator_name"></span>
-                                                <span class="text-sm text-gray-500" x-text="formatActionType(log.action_type)"></span>
+                                            <div class="log-action-line">
+                                                <span class="moderator-name" x-text="log.moderator_name"></span>
+                                                <span class="action-type" x-text="formatActionType(log.action_type)"></span>
                                                 <template x-if="log.target_user_name">
-                                                    <span class="text-sm">
-                                                        <span class="text-gray-500">→</span>
-                                                        <span class="font-medium" x-text="log.target_user_name"></span>
-                                                    </span>
+                                                    <>
+                                                        <span class="arrow">→</span>
+                                                        <span class="target-name" x-text="log.target_user_name"></span>
+                                                    </>
                                                 </template>
                                             </div>
-                                            <div class="text-sm text-gray-600">
+                                            <span class="log-timestamp" x-text="getRelativeTime(log.created_at)"></span>
+                                            <div class="log-details" x-show="log.details">
                                                 <template x-if="log.details">
                                                     <div>
                                                         <template x-if="log.details.reason">
@@ -590,9 +593,6 @@
                                                 </template>
                                             </div>
                                         </div>
-                                    </div>
-                                    <div class="text-sm text-gray-500 text-right">
-                                        <span x-text="getRelativeTime(log.created_at)"></span>
                                     </div>
                                 </div>
                             </div>

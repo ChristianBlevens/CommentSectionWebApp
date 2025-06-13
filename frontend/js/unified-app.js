@@ -888,7 +888,7 @@ function unifiedApp() {
             let html = `
                 <div class="comment-container ${depth > 0 ? 'comment-depth-' + depth : ''}" 
                      data-comment-id="${comment.id}">
-                    ${depth > 0 ? '<div class="comment-line" onclick="window.unifiedAppInstance.toggleCollapse(event)"></div>' : ''}
+                    <div class="comment-line" onclick="window.unifiedAppInstance.toggleCollapse(event)"></div>
                     
                     <div class="comment-content ${this.highlightedCommentId == comment.id ? 'reported-comment' : ''}" id="comment-${comment.id}">
                         
