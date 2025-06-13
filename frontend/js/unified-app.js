@@ -771,6 +771,16 @@ function unifiedApp() {
             return userItem.comments.slice(0, displayCount);
         },
         
+        getDisplayedWarnings(userItem) {
+            if (!userItem.warnings || userItem.warnings.length === 0) {
+                return [];
+            }
+            // Sort by date (most recent first) and limit to 5
+            return userItem.warnings
+                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+                .slice(0, 5);
+        },
+        
         shouldShowLoadMoreButton(userItem) {
             if (!userItem.comments || userItem.comments.length === 0) return false;
             const displayCount = this.userCommentsDisplayCount[userItem.id] || 5;

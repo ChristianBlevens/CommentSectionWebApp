@@ -1,9 +1,4 @@
 /* =====================================================
-   Responsive Comment System CSS - No Media Queries
-   Uses fluid typography and modern CSS techniques
-   ===================================================== */
-
-/* =====================================================
    COLOR CONFIGURATION SYSTEM - SIMPLIFIED
    ===================================================== */
 :root {
@@ -251,17 +246,17 @@ body {
     margin-right: 0;
 }
 
-/* Apply indentation only to nested comments */
+/* Remove extra padding from nested comments - indentation is handled by .comment-children */
 .comment-depth-1,
 .comment-depth-2,
 .comment-depth-3 {
-    padding-left: 0.075rem; /* Reduced from 0.1rem to 0.075rem */
+    padding-left: 0;
 }
 
 /* Thread Indicator Line - Reddit Style - Mobile First */
 .comment-line {
     position: absolute;
-    left: clamp(-1.25rem, -3vw, -1.5rem);
+    left: clamp(-0.75rem, -2vw, -1rem); /* Consistent positioning */
     top: 0;
     bottom: 0;
     width: clamp(3px, 0.5vw, 4px); /* Slightly wider for mobile touch */
@@ -353,7 +348,7 @@ body {
 
 /* Nested comment indentation */
 .comment-children {
-    margin-left: 1.5rem; /* Fixed margin to ensure consistent thread line alignment */
+    margin-left: 1rem; /* Reduced margin for tighter spacing */
 }
 
 /* =====================================================
