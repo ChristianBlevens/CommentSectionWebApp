@@ -782,10 +782,11 @@ a *,
 .sort-btn {
     border: 1px solid var(--color-border-primary);
     background-color: var(--color-bg-secondary);
-    flex: 0 0 auto; /* Prevent shrinking below content */
+    flex: 1 1 auto; /* Allow shrinking and growing */
+    min-width: 0; /* Allow shrinking below content */
     min-height: var(--touch-target-min);
-    padding: clamp(0.5rem, 1vw, 0.75rem) clamp(0.75rem, 1.5vw, 1rem);
-    font-size: clamp(0.875rem, 2vw, 1rem);
+    padding: clamp(0.375rem, 0.75vw, 0.75rem) clamp(0.5rem, 1vw, 1rem);
+    font-size: clamp(0.75rem, 1.5vw, 1rem);
 }
 
 .sort-btn:hover {
@@ -810,7 +811,12 @@ a *,
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: clamp(3ch, 10vw, 10ch);
+    /* Remove max-width to allow full shrinking */
+}
+
+/* Hide icon margins when very small */
+.sort-btn i {
+    margin-right: clamp(0, 0.5vw, 0.25rem);
 }
 
 /* Markdown toolbar buttons */
@@ -1208,20 +1214,21 @@ a *,
 
 /* Moderation tab - extends btn-base - Mobile First */
 .moderation-tab {
-    padding: clamp(0.75rem, 2vw, 1rem) clamp(1rem, 3vw, 1.5rem);
+    padding: clamp(0.5rem, 1.5vw, 1rem) clamp(0.75rem, 2vw, 1.5rem);
     font-weight: 500;
-    font-size: clamp(0.875rem, 1.5vw, 1rem);
+    font-size: clamp(0.75rem, 1.25vw, 1rem);
     background: none;
     border: none;
     border-bottom: 2px solid transparent;
     border-radius: 0;
     min-height: var(--touch-target-min);
     position: relative;
-    flex: 0 0 auto;
+    flex: 1 1 auto; /* Allow grow and shrink */
+    min-width: 0; /* Allow shrinking below content */
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: clamp(100px, 25vw, 200px);
+    /* Remove max-width constraint */
 }
 
 /* Container query for very small spaces */
@@ -1307,6 +1314,13 @@ a *,
 .log-action-line .action-type {
     color: var(--color-text-secondary);
     font-size: clamp(0.75rem, 1.25vw, 0.875rem);
+    /* Force each word to new line */
+    display: inline-block;
+    word-spacing: 9999px;
+    white-space: normal;
+    text-align: center;
+    line-height: 1;
+    max-width: max-content;
 }
 
 .log-action-line .target-name {
@@ -1425,6 +1439,41 @@ a *,
 
 @keyframes spin {
     to { transform: rotate(360deg); }
+}
+
+/* =====================================================
+   COMMENT FORM TOOLBAR - RESPONSIVE
+   ===================================================== */
+.comment-form {
+    container-type: inline-size;
+}
+
+/* Main comment toolbar container */
+.comment-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: clamp(0.5rem, 1vw, 1rem);
+    flex-wrap: nowrap; /* Default: side by side */
+}
+
+/* Container query for stacking when tight */
+@container (max-width: 500px) {
+    .comment-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .comment-toolbar .markdown-buttons {
+        order: 1; /* Markdown buttons on top */
+        width: 100%;
+    }
+    
+    .comment-toolbar .btn-primary {
+        order: 2; /* Post button below */
+        width: 100%;
+        margin-top: var(--space-sm);
+    }
 }
 
 /* =====================================================
@@ -1591,31 +1640,12 @@ html {
     flex-wrap: wrap;
 }
 
-/* Sorting buttons container - NEVER WRAPS */
+/* Sorting buttons container - Shrinks to fit */
 .sorting-search-container > div:first-child {
     display: flex;
-    gap: clamp(0.25rem, 1vw, 0.5rem);
-    flex-wrap: nowrap; /* Critical: prevent wrapping */
-    overflow-x: auto;
-    overflow-y: hidden;
-    scrollbar-width: thin;
-    scrollbar-color: var(--color-border-primary) transparent;
-    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
-    padding-bottom: 0.25rem; /* Space for scrollbar */
-}
-
-/* Custom scrollbar for sorting buttons */
-.sorting-search-container > div:first-child::-webkit-scrollbar {
-    height: 4px;
-}
-
-.sorting-search-container > div:first-child::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.sorting-search-container > div:first-child::-webkit-scrollbar-thumb {
-    background: var(--color-border-primary);
-    border-radius: 2px;
+    gap: clamp(0.125rem, 0.5vw, 0.5rem);
+    flex-wrap: nowrap; /* Keep on single row */
+    min-width: 0; /* Allow shrinking */
 }
 
 /* Search input responsive sizing */

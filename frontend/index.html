@@ -415,36 +415,6 @@
                                 <!-- Expanded Content -->
                                 <div x-show="expandedUsers.includes(userItem.id)" x-transition class="mt-4 border-t pt-4">
                                     <div class="space-y-4">
-                                        <!-- Ban History -->
-                                        <div x-show="userItem.ban_history && userItem.ban_history.length > 0">
-                                            <h4 class="font-semibold mb-2">Ban History</h4>
-                                            <div class="space-y-2">
-                                                <template x-for="ban in userItem.ban_history" :key="ban.id">
-                                                    <div class="text-sm bg-white p-2 rounded">
-                                                        <p><span class="font-medium">Banned by:</span> <span x-text="ban.banned_by_name"></span></p>
-                                                        <p><span class="font-medium">Date:</span> <span x-text="new Date(ban.banned_at).toLocaleString()"></span></p>
-                                                        <p><span class="font-medium">Duration:</span> <span x-text="ban.duration"></span></p>
-                                                        <p x-show="ban.reason"><span class="font-medium">Reason:</span> <span x-text="ban.reason"></span></p>
-                                                    </div>
-                                                </template>
-                                            </div>
-                                        </div>
-
-                                        <!-- Warning History -->
-                                        <div x-show="userItem.warnings && userItem.warnings.length > 0">
-                                            <h4 class="font-semibold mb-2">Warning History</h4>
-                                            <div class="space-y-2">
-                                                <template x-for="warning in userItem.warnings" :key="warning.id">
-                                                    <div class="text-sm bg-white p-2 rounded">
-                                                        <p><span class="font-medium">Warned by:</span> <span x-text="warning.moderator_name"></span></p>
-                                                        <p><span class="font-medium">Date:</span> <span x-text="new Date(warning.created_at).toLocaleString()"></span></p>
-                                                        <p><span class="font-medium">Reason:</span> <span x-text="warning.reason"></span></p>
-                                                        <p x-show="warning.message"><span class="font-medium">Message:</span> <span x-text="warning.message"></span></p>
-                                                    </div>
-                                                </template>
-                                            </div>
-                                        </div>
-
                                         <!-- Recent Comments -->
                                         <div>
                                             <h4 class="font-semibold mb-2">Recent Comments</h4>
@@ -479,6 +449,21 @@
                                             </button>
                                         </div>
 
+                                        <!-- Warning History -->
+                                        <div x-show="userItem.warnings && userItem.warnings.length > 0">
+                                            <h4 class="font-semibold mb-2">Warning History</h4>
+                                            <div class="space-y-2">
+                                                <template x-for="warning in userItem.warnings" :key="warning.id">
+                                                    <div class="text-sm bg-white p-2 rounded">
+                                                        <p><span class="font-medium">Warned by:</span> <span x-text="warning.moderator_name"></span></p>
+                                                        <p><span class="font-medium">Date:</span> <span x-text="new Date(warning.created_at).toLocaleString()"></span></p>
+                                                        <p><span class="font-medium">Reason:</span> <span x-text="warning.reason"></span></p>
+                                                        <p x-show="warning.message"><span class="font-medium">Message:</span> <span x-text="warning.message"></span></p>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </div>
+
                                         <!-- Reports Against User -->
                                         <div x-show="userItem.reports_received && userItem.reports_received.length > 0">
                                             <h4 class="font-semibold mb-2">Reports Against User</h4>
@@ -492,6 +477,21 @@
                                                             <span x-text="report.resolved_at ? 'Resolved' : 'Pending'" 
                                                                   :class="report.resolved_at ? 'text-green-600' : 'text-yellow-600'"></span>
                                                         </p>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </div>
+
+                                        <!-- Ban History -->
+                                        <div x-show="userItem.ban_history && userItem.ban_history.length > 0">
+                                            <h4 class="font-semibold mb-2">Ban History</h4>
+                                            <div class="space-y-2">
+                                                <template x-for="ban in userItem.ban_history" :key="ban.id">
+                                                    <div class="text-sm bg-white p-2 rounded">
+                                                        <p><span class="font-medium">Banned by:</span> <span x-text="ban.banned_by_name"></span></p>
+                                                        <p><span class="font-medium">Date:</span> <span x-text="new Date(ban.banned_at).toLocaleString()"></span></p>
+                                                        <p><span class="font-medium">Duration:</span> <span x-text="ban.duration"></span></p>
+                                                        <p x-show="ban.reason"><span class="font-medium">Reason:</span> <span x-text="ban.reason"></span></p>
                                                     </div>
                                                 </template>
                                             </div>
@@ -649,7 +649,7 @@
                         </div>
                         
                         <!-- Toolbar -->
-                        <div class="flex justify-between items-center gap-2 min-w-0">
+                        <div class="comment-toolbar">
                             <!-- Markdown buttons -->
                             <div class="markdown-buttons min-w-0 flex-1">
                                 <button @click="insertMarkdown('**', '**')" title="Bold" class="btn-base markdown-btn">
@@ -718,11 +718,8 @@
                            x-model="commentSearchQuery" 
                            @input="filterComments()"
                            placeholder="Search comments..." 
-                           class="textarea-base pr-10 min-w-0"
+                           class="textarea-base min-w-0"
                            style="min-width: 200px; max-width: 300px;">
-                    <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                        <i class="fas fa-search text-gray-400"></i>
-                    </div>
                 </div>
             </div>
 
