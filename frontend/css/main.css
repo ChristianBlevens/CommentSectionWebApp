@@ -827,6 +827,31 @@ a *,
     margin-right: clamp(0, 0.5vw, 0.25rem);
 }
 
+/* Search mode toggle button */
+.search-mode-btn {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-family: monospace;
+    font-size: 1rem;
+    background-color: var(--color-bg-secondary);
+    border: 1px solid var(--color-border-primary);
+    transition: all 0.2s ease;
+}
+
+.search-mode-btn:hover {
+    background-color: var(--color-bg-tertiary);
+    border-color: var(--color-border-secondary);
+}
+
+.search-mode-btn:active {
+    transform: scale(0.95);
+}
+
 /* Markdown toolbar buttons */
 .markdown-buttons {
     display: flex;

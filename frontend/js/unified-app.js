@@ -128,6 +128,7 @@ function unifiedApp() {
         highlightedCommentId: null,
         commentVotes: {},
         commentSearchQuery: '',
+        searchMode: 'and', // 'and', 'or', 'not'
         forceRerender: false,
         
         // Moderator dashboard state
@@ -404,6 +405,27 @@ function unifiedApp() {
             this.filterComments();
         },
         
+        toggleSearchMode() {
+            // Cycle through search modes: and -> or -> not -> and
+            if (this.searchMode === 'and') {
+                this.searchMode = 'or';
+            } else if (this.searchMode === 'or') {
+                this.searchMode = 'not';
+            } else {
+                this.searchMode = 'and';
+            }
+            this.filterComments();
+        },
+        
+        getSearchModeIcon() {
+            switch (this.searchMode) {
+                case 'and': return '&';
+                case 'or': return '||';
+                case 'not': return '!';
+                default: return '&';
+            }
+        },
+        
         filterComments() {
             if (!this.commentSearchQuery.trim()) {
                 this.filteredComments = this.sortedComments;
@@ -420,10 +442,24 @@ function unifiedApp() {
                 const searchableAuthor = (comment.userName || '').toLowerCase();
                 const searchableText = searchableContent + ' ' + searchableAuthor;
                 
-                // Check if ALL search terms are present in the comment
-                const allTermsMatch = searchTerms.every(term => searchableText.includes(term));
+                let matches = false;
                 
-                if (allTermsMatch) {
+                switch (this.searchMode) {
+                    case 'and':
+                        // ALL search terms must be present
+                        matches = searchTerms.every(term => searchableText.includes(term));
+                        break;
+                    case 'or':
+                        // AT LEAST ONE search term must be present
+                        matches = searchTerms.some(term => searchableText.includes(term));
+                        break;
+                    case 'not':
+                        // NONE of the search terms can be present
+                        matches = !searchTerms.some(term => searchableText.includes(term));
+                        break;
+                }
+                
+                if (matches) {
                     return true;
                 }
                 

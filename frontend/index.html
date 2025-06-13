@@ -713,7 +713,12 @@
                 </div>
                 
                 <!-- Search input on the right -->
-                <div class="relative">
+                <div class="flex gap-2">
+                    <button @click="toggleSearchMode()" 
+                            class="btn-base search-mode-btn"
+                            :title="searchMode === 'and' ? 'AND mode: All words must match' : searchMode === 'or' ? 'OR mode: Any word can match' : 'NOT mode: No words can match'">
+                        <span x-text="getSearchModeIcon()"></span>
+                    </button>
                     <input type="text" 
                            x-model="commentSearchQuery" 
                            @input="filterComments()"
