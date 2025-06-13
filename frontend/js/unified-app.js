@@ -128,6 +128,7 @@ function unifiedApp() {
         highlightedCommentId: null,
         commentVotes: {},
         commentSearchQuery: '',
+        forceRerender: false,
         
         // Moderator dashboard state
         activeTab: 'comments',
@@ -978,12 +979,12 @@ function unifiedApp() {
                         
                         ${!isDeleted ? `
                             <div class="comment-actions">
-                                <button onclick="window.unifiedAppInstance.voteComment('${comment.id}', 'like')" 
+                                <button onclick="if(window.unifiedAppInstance) window.unifiedAppInstance.voteComment('${comment.id}', 'like')" 
                                         class="comment-action ${comment.userVote === 'like' ? 'active-like' : ''}">
                                     <i class="fas fa-thumbs-up"></i>
                                     <span>${comment.likes}</span>
                                 </button>
-                                <button onclick="window.unifiedAppInstance.voteComment('${comment.id}', 'dislike')" 
+                                <button onclick="if(window.unifiedAppInstance) window.unifiedAppInstance.voteComment('${comment.id}', 'dislike')" 
                                         class="comment-action ${comment.userVote === 'dislike' ? 'active-dislike' : ''}">
                                     <i class="fas fa-thumbs-down"></i>
                                     <span>${comment.dislikes}</span>
@@ -1159,7 +1160,11 @@ function unifiedApp() {
                     updateCommentInArray(this.sortedComments);
                     updateCommentInArray(this.filteredComments);
                     
-                    // Force Alpine to detect the change
+                    // Force re-render by updating the comments key
+                    // This triggers Alpine to re-evaluate x-html
+                    this.forceRerender = !this.forceRerender;
+                    
+                    // Also update the filtered comments to trigger reactivity
                     this.filteredComments = [...this.filteredComments];
                 }
             } catch (error) {

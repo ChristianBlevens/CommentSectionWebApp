@@ -736,7 +736,7 @@
 
             <!-- Comments -->
             <div class="comments-container">
-                <template x-for="comment in (focusedCommentId ? focusedComments : filteredComments)" :key="comment.id">
+                <template x-for="comment in (focusedCommentId ? focusedComments : filteredComments)" :key="comment.id + '-' + comment.likes + '-' + comment.dislikes + '-' + (comment.userVote || 'none')">
                     <div x-html="renderComment(comment, 0)"></div>
                 </template>
             </div>
