@@ -172,7 +172,12 @@
                 if (this.currentColors[category] && this.currentColors[category][key]) {
                     const color = this.currentColors[category][key];
                     input.value = color;
-                    document.getElementById(`${category}-${key}-hex`).value = color;
+                    const hexInput = document.getElementById(`${category}-${key}-hex`);
+                    if (hexInput) {
+                        hexInput.value = color;
+                    }
+                } else {
+                    console.warn(`Missing color value for ${category}.${key}`);
                 }
                 
                 // Add change listener
@@ -199,14 +204,20 @@
             // Setup pick buttons
             document.querySelectorAll('.pick-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
+                    e.preventDefault();
                     const targetId = btn.dataset.target;
                     const input = document.getElementById(targetId);
-                    this.selectedColorTarget = {
-                        category: input.dataset.category,
-                        key: input.dataset.key,
-                        inputId: targetId
-                    };
-                    this.startEyedropper();
+                    if (input) {
+                        this.selectedColorTarget = {
+                            category: input.dataset.category,
+                            key: input.dataset.key,
+                            inputId: targetId
+                        };
+                        console.log('Pick button clicked for:', this.selectedColorTarget);
+                        this.startEyedropper();
+                    } else {
+                        console.error('Target input not found:', targetId);
+                    }
                 });
             });
         }
@@ -521,40 +532,54 @@
     color: var(--color-primary-main);
 }
 
-/* Tailwind Color Overrides for Theme Compatibility */
-.bg-white { background-color: var(--color-backgrounds-main) !important; }
-.bg-gray-50 { background-color: var(--color-backgrounds-secondary) !important; }
-.bg-gray-100 { background-color: var(--color-backgrounds-secondary) !important; }
-.bg-gray-200 { background-color: var(--color-borders-light) !important; }
-.bg-gray-300 { background-color: var(--color-borders-medium) !important; }
-.bg-red-500 { background-color: var(--color-status-error) !important; }
-.bg-red-600 { background-color: var(--color-status-error) !important; }
-.bg-green-500 { background-color: var(--color-status-success) !important; }
-.bg-green-600 { background-color: var(--color-status-success) !important; }
-.bg-yellow-600 { background-color: var(--color-status-warning) !important; }
-.bg-blue-500 { background-color: var(--color-primary-main) !important; }
-.bg-blue-600 { background-color: var(--color-primary-hover) !important; }
+/* Theme-aware utility classes */
+.bg-main { background-color: var(--color-backgrounds-main); }
+.bg-secondary { background-color: var(--color-backgrounds-secondary); }
+.bg-hover { background-color: var(--color-backgrounds-hover); }
+.bg-error { background-color: var(--color-status-error); }
+.bg-success { background-color: var(--color-status-success); }
+.bg-warning { background-color: var(--color-status-warning); }
+.bg-primary { background-color: var(--color-primary-main); }
 
-.text-white { color: var(--color-text-inverse) !important; }
-.text-gray-400 { color: var(--color-text-muted) !important; }
-.text-gray-500 { color: var(--color-text-muted) !important; }
-.text-gray-600 { color: var(--color-text-secondary) !important; }
-.text-gray-700 { color: var(--color-text-secondary) !important; }
-.text-gray-800 { color: var(--color-text-primary) !important; }
-.text-gray-900 { color: var(--color-text-primary) !important; }
-.text-red-500 { color: var(--color-status-error) !important; }
-.text-red-600 { color: var(--color-status-error) !important; }
-.text-green-500 { color: var(--color-status-success) !important; }
-.text-green-600 { color: var(--color-status-success) !important; }
-.text-blue-500 { color: var(--color-primary-main) !important; }
-.text-blue-600 { color: var(--color-primary-hover) !important; }
+.text-primary { color: var(--color-text-primary); }
+.text-secondary { color: var(--color-text-secondary); }
+.text-muted { color: var(--color-text-muted); }
+.text-inverse { color: var(--color-text-inverse); }
+.text-error { color: var(--color-status-error); }
+.text-success { color: var(--color-status-success); }
+.text-warning { color: var(--color-status-warning); }
+.text-link { color: var(--color-primary-main); }
 
-.border-gray-200 { border-color: var(--color-borders-light) !important; }
-.border-gray-300 { border-color: var(--color-borders-medium) !important; }
+.border-light { border-color: var(--color-borders-light); }
+.border-medium { border-color: var(--color-borders-medium); }
 
-.hover\\:text-gray-200:hover { color: var(--color-text-secondary) !important; }
-.hover\\:bg-gray-50:hover { background-color: var(--color-backgrounds-hover) !important; }
-.hover\\:bg-gray-100:hover { background-color: var(--color-backgrounds-hover) !important; }`;
+/* Component styles */
+.page-container {
+    background-color: var(--color-backgrounds-secondary);
+    color: var(--color-text-primary);
+}
+
+.card {
+    background-color: var(--color-backgrounds-main);
+    border: 1px solid var(--color-borders-light);
+    border-radius: 8px;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+}
+
+.notification-success {
+    background-color: var(--color-status-success);
+    color: var(--color-text-inverse);
+}
+
+.notification-error {
+    background-color: var(--color-status-error);
+    color: var(--color-text-inverse);
+}
+
+.notification-warning {
+    background-color: var(--color-status-warning);
+    color: var(--color-text-inverse);
+}`;
             
             return css;
         }
@@ -987,12 +1012,30 @@
                 if (response.ok) {
                     const data = await response.json();
                     if (data.colors) {
-                        this.currentColors = data.colors;
+                        // Merge saved colors with defaults to ensure all properties exist
+                        this.currentColors = this.mergeColors(defaultColors, data.colors);
                     }
                 }
             } catch (error) {
                 console.error('Error loading saved theme:', error);
             }
+        }
+        
+        mergeColors(defaults, saved) {
+            const merged = JSON.parse(JSON.stringify(defaults));
+            
+            // Deep merge saved colors into defaults
+            Object.keys(saved).forEach(category => {
+                if (merged[category]) {
+                    Object.keys(saved[category]).forEach(key => {
+                        if (saved[category][key]) {
+                            merged[category][key] = saved[category][key];
+                        }
+                    });
+                }
+            });
+            
+            return merged;
         }
 
         async loadCustomPresets() {

@@ -8,31 +8,38 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="css/main.css" rel="stylesheet">
     <script>
-        // Add dynamic theme CSS link after config is loaded
-        document.addEventListener('DOMContentLoaded', () => {
-            setTimeout(() => {
-                const apiBase = window.CONFIG?.backendUrl || window.location.origin;
-                const link = document.createElement('link');
-                link.rel = 'stylesheet';
-                link.href = `${apiBase}/api/theme.css`;
-                document.head.appendChild(link);
-            }, 100); // Small delay to ensure config is loaded
-        });
+        // Add dynamic theme CSS link
+        function loadThemeCSS() {
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = '/api/theme.css';
+            link.onerror = function() {
+                console.log('Theme CSS not found, using defaults');
+            };
+            document.head.appendChild(link);
+        }
+        
+        // Load theme CSS immediately
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', loadThemeCSS);
+        } else {
+            loadThemeCSS();
+        }
     </script>
 </head>
-<body class="bg-gray-100">
+<body class="page-container">
     <div class="container mx-auto p-4 max-w-7xl">
         <!-- Header -->
-        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div class="card p-6 mb-6">
             <h1 class="text-2xl font-bold mb-4">
-                <i class="fas fa-code mr-2 text-purple-600"></i>
+                <i class="fas fa-code mr-2 text-primary"></i>
                 Comment Section Iframe Test
             </h1>
-            <p class="text-gray-600 mb-4">
+            <p class="text-secondary mb-4">
                 This page demonstrates multiple comment sections loaded via iframes, each with a different page ID.
                 You can sign in once and interact with all comment sections independently.
             </p>
-            <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+            <div class="bg-warning-light border-l-4 border-warning p-4">
                 <p class="text-sm">
                     <strong>Note:</strong> Each iframe loads the comment section with a different pageId parameter.
                     Comments, votes, and reports are isolated per page.
@@ -43,25 +50,25 @@
         <!-- Multiple article sections with embedded comments -->
         <div class="space-y-8">
             <!-- Article 1 -->
-            <div class="bg-white rounded-lg shadow-md overflow-hidden">
+            <div class="card overflow-hidden">
                 <div class="p-6">
                     <h2 class="text-xl font-bold mb-3">
                         <i class="fas fa-newspaper mr-2"></i>
                         Article 1: Introduction to Web Development
                     </h2>
-                    <p class="text-gray-600 mb-4">
+                    <p class="text-secondary mb-4">
                         This is a sample article about web development basics. Lorem ipsum dolor sit amet, 
                         consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
                     </p>
-                    <p class="text-gray-600 mb-4">
+                    <p class="text-secondary mb-4">
                         Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea 
                         commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum.
                     </p>
                 </div>
                 
                 <!-- Comments Section for Article 1 -->
-                <div class="border-t border-gray-200">
-                    <div class="p-4 bg-gray-50">
+                <div class="border-t border-light">
+                    <div class="p-4 bg-secondary">
                         <h3 class="font-semibold mb-2">Comments for Article 1</h3>
                     </div>
                     <iframe 
@@ -74,25 +81,25 @@
             </div>
             
             <!-- Article 2 -->
-            <div class="bg-white rounded-lg shadow-md overflow-hidden">
+            <div class="card overflow-hidden">
                 <div class="p-6">
                     <h2 class="text-xl font-bold mb-3">
                         <i class="fas fa-rocket mr-2"></i>
                         Article 2: Advanced JavaScript Techniques
                     </h2>
-                    <p class="text-gray-600 mb-4">
+                    <p class="text-secondary mb-4">
                         Explore advanced JavaScript concepts and patterns. Lorem ipsum dolor sit amet, 
                         consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
                     </p>
-                    <p class="text-gray-600 mb-4">
+                    <p class="text-secondary mb-4">
                         Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea 
                         commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum.
                     </p>
                 </div>
                 
                 <!-- Comments Section for Article 2 -->
-                <div class="border-t border-gray-200">
-                    <div class="p-4 bg-gray-50">
+                <div class="border-t border-light">
+                    <div class="p-4 bg-secondary">
                         <h3 class="font-semibold mb-2">Comments for Article 2</h3>
                     </div>
                     <iframe 
@@ -105,25 +112,25 @@
             </div>
             
             <!-- Article 3 -->
-            <div class="bg-white rounded-lg shadow-md overflow-hidden">
+            <div class="card overflow-hidden">
                 <div class="p-6">
                     <h2 class="text-xl font-bold mb-3">
                         <i class="fas fa-database mr-2"></i>
                         Article 3: Database Design Best Practices
                     </h2>
-                    <p class="text-gray-600 mb-4">
+                    <p class="text-secondary mb-4">
                         Learn about database design principles and best practices. Lorem ipsum dolor sit amet, 
                         consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
                     </p>
-                    <p class="text-gray-600 mb-4">
+                    <p class="text-secondary mb-4">
                         Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea 
                         commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum.
                     </p>
                 </div>
                 
                 <!-- Comments Section for Article 3 -->
-                <div class="border-t border-gray-200">
-                    <div class="p-4 bg-gray-50">
+                <div class="border-t border-light">
+                    <div class="p-4 bg-secondary">
                         <h3 class="font-semibold mb-2">Comments for Article 3</h3>
                     </div>
                     <iframe 
@@ -137,7 +144,7 @@
         </div>
         
         <!-- Test Information -->
-        <div class="bg-blue-50 rounded-lg p-6 mt-8">
+        <div class="bg-info-light rounded-lg p-6 mt-8">
             <h3 class="font-semibold mb-3">
                 <i class="fas fa-info-circle mr-2"></i>
                 Testing Information
@@ -152,19 +159,19 @@
         </div>
         
         <!-- Quick Links -->
-        <div class="bg-white rounded-lg shadow-md p-6 mt-6">
+        <div class="card p-6 mt-6">
             <h3 class="font-semibold mb-3">
                 <i class="fas fa-link mr-2"></i>
                 Quick Links
             </h3>
             <div class="flex flex-wrap gap-4">
-                <a href="index.html" class="text-blue-600 hover:text-blue-800">
+                <a href="index.html" class="text-primary hover:text-primary-hover">
                     <i class="fas fa-comments mr-1"></i>Main Comment Section
                 </a>
-                <a href="moderators.html" class="text-blue-600 hover:text-blue-800">
+                <a href="moderators.html" class="text-primary hover:text-primary-hover">
                     <i class="fas fa-shield-alt mr-1"></i>Moderator Management
                 </a>
-                <a href="reports.html" class="text-blue-600 hover:text-blue-800">
+                <a href="reports.html" class="text-primary hover:text-primary-hover">
                     <i class="fas fa-flag mr-1"></i>Global Reports
                 </a>
             </div>
