@@ -1721,6 +1721,53 @@ html {
 }
 
 /* =====================================================
+   THEME-AWARE TAILWIND OVERRIDES
+   ===================================================== */
+
+/* Background color overrides */
+.bg-white { background-color: var(--color-backgrounds-main) !important; }
+.bg-gray-50 { background-color: var(--color-backgrounds-secondary) !important; }
+.bg-gray-100 { background-color: var(--color-backgrounds-secondary) !important; }
+.bg-gray-200 { background-color: var(--color-borders-light) !important; }
+.bg-gray-300 { background-color: var(--color-borders-medium) !important; }
+.bg-red-500 { background-color: var(--color-status-error) !important; }
+.bg-red-600 { background-color: var(--color-status-error) !important; }
+.bg-green-500 { background-color: var(--color-status-success) !important; }
+.bg-green-600 { background-color: var(--color-status-success) !important; }
+.bg-yellow-600 { background-color: var(--color-status-warning) !important; }
+.bg-blue-500 { background-color: var(--color-primary-main) !important; }
+.bg-blue-600 { background-color: var(--color-primary-hover) !important; }
+
+/* Text color overrides */
+.text-white { color: var(--color-text-inverse) !important; }
+.text-gray-400 { color: var(--color-text-muted) !important; }
+.text-gray-500 { color: var(--color-text-muted) !important; }
+.text-gray-600 { color: var(--color-text-secondary) !important; }
+.text-gray-700 { color: var(--color-text-secondary) !important; }
+.text-gray-800 { color: var(--color-text-primary) !important; }
+.text-gray-900 { color: var(--color-text-primary) !important; }
+.text-red-500 { color: var(--color-status-error) !important; }
+.text-red-600 { color: var(--color-status-error) !important; }
+.text-green-500 { color: var(--color-status-success) !important; }
+.text-green-600 { color: var(--color-status-success) !important; }
+.text-blue-500 { color: var(--color-primary-main) !important; }
+.text-blue-600 { color: var(--color-primary-hover) !important; }
+
+/* Border color overrides */
+.border-gray-200 { border-color: var(--color-borders-light) !important; }
+.border-gray-300 { border-color: var(--color-borders-medium) !important; }
+
+/* Hover state overrides */
+.hover\:text-gray-200:hover { color: var(--color-text-secondary) !important; }
+.hover\:bg-gray-50:hover { background-color: var(--color-backgrounds-hover) !important; }
+.hover\:bg-gray-100:hover { background-color: var(--color-backgrounds-hover) !important; }
+
+/* Shadow overrides using theme shadow variables */
+.shadow { box-shadow: 0 1px 3px 0 var(--color-shadow-sm), 0 1px 2px 0 var(--color-shadow-sm) !important; }
+.shadow-md { box-shadow: 0 4px 6px -1px var(--color-shadow-sm), 0 2px 4px -1px var(--color-shadow-sm) !important; }
+.shadow-lg { box-shadow: 0 10px 15px -3px var(--color-shadow-md), 0 4px 6px -2px var(--color-shadow-sm) !important; }
+
+/* =====================================================
    PRINT STYLES
    ===================================================== */
 @media print {

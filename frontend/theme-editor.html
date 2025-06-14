@@ -10,6 +10,9 @@
             max-width: 1400px;
             margin: 0 auto;
             padding: 20px;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
 
         .editor-layout {
@@ -17,6 +20,8 @@
             grid-template-columns: 1fr 1fr;
             gap: 30px;
             margin-top: 30px;
+            flex: 1;
+            min-height: 0;
         }
 
         .preview-section {
@@ -24,11 +29,20 @@
             border-radius: 8px;
             padding: 20px;
             border: 1px solid var(--color-borders-light);
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+        
+        .preview-section h2 {
+            margin: 0 0 15px 0;
+            flex-shrink: 0;
         }
 
         .preview-iframe {
             width: 100%;
-            height: 600px;
+            height: 100%;
+            min-height: 600px;
             border: 1px solid var(--color-borders-medium);
             border-radius: 4px;
             background: white;
@@ -38,6 +52,8 @@
             display: flex;
             flex-direction: column;
             gap: 20px;
+            overflow-y: auto;
+            min-height: 0;
         }
 
         .color-group {
@@ -550,6 +566,7 @@
     </div>
     <input type="file" id="importFileInput" accept=".json,.css" style="display: none;">
 
+    <script src="js/config.js"></script>
     <script src="js/theme-editor.js"></script>
 </body>
 </html>

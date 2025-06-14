@@ -135,6 +135,7 @@
             this.eyedropperActive = false;
             this.selectedColorTarget = null;
             this.hasEyeDropperAPI = 'EyeDropper' in window;
+            this.themeHistory = []; // Initialize to prevent TypeError
             
             this.init();
         }
@@ -153,7 +154,8 @@
             this.renderHistory();
             this.injectStyles();
             
-            // Save initial state to history
+            // Save initial state to history after all loading is complete
+            // This creates the first history entry
             this.saveToHistory();
             
             // Listen for keyboard shortcuts
@@ -302,6 +304,12 @@
             // Validate color
             if (!/^#[0-9A-F]{6}$/i.test(value)) {
                 return;
+            }
+            
+            // Check if the color actually changed
+            const oldValue = this.currentColors[category]?.[key];
+            if (oldValue === value) {
+                return; // No change, don't update history
             }
             
             // Save to history before changing
@@ -511,7 +519,42 @@
 .badge {
     background-color: var(--color-primary-light);
     color: var(--color-primary-main);
-}`;
+}
+
+/* Tailwind Color Overrides for Theme Compatibility */
+.bg-white { background-color: var(--color-backgrounds-main) !important; }
+.bg-gray-50 { background-color: var(--color-backgrounds-secondary) !important; }
+.bg-gray-100 { background-color: var(--color-backgrounds-secondary) !important; }
+.bg-gray-200 { background-color: var(--color-borders-light) !important; }
+.bg-gray-300 { background-color: var(--color-borders-medium) !important; }
+.bg-red-500 { background-color: var(--color-status-error) !important; }
+.bg-red-600 { background-color: var(--color-status-error) !important; }
+.bg-green-500 { background-color: var(--color-status-success) !important; }
+.bg-green-600 { background-color: var(--color-status-success) !important; }
+.bg-yellow-600 { background-color: var(--color-status-warning) !important; }
+.bg-blue-500 { background-color: var(--color-primary-main) !important; }
+.bg-blue-600 { background-color: var(--color-primary-hover) !important; }
+
+.text-white { color: var(--color-text-inverse) !important; }
+.text-gray-400 { color: var(--color-text-muted) !important; }
+.text-gray-500 { color: var(--color-text-muted) !important; }
+.text-gray-600 { color: var(--color-text-secondary) !important; }
+.text-gray-700 { color: var(--color-text-secondary) !important; }
+.text-gray-800 { color: var(--color-text-primary) !important; }
+.text-gray-900 { color: var(--color-text-primary) !important; }
+.text-red-500 { color: var(--color-status-error) !important; }
+.text-red-600 { color: var(--color-status-error) !important; }
+.text-green-500 { color: var(--color-status-success) !important; }
+.text-green-600 { color: var(--color-status-success) !important; }
+.text-blue-500 { color: var(--color-primary-main) !important; }
+.text-blue-600 { color: var(--color-primary-hover) !important; }
+
+.border-gray-200 { border-color: var(--color-borders-light) !important; }
+.border-gray-300 { border-color: var(--color-borders-medium) !important; }
+
+.hover\\:text-gray-200:hover { color: var(--color-text-secondary) !important; }
+.hover\\:bg-gray-50:hover { background-color: var(--color-backgrounds-hover) !important; }
+.hover\\:bg-gray-100:hover { background-color: var(--color-backgrounds-hover) !important; }`;
             
             return css;
         }
@@ -715,7 +758,7 @@
             const historyList = document.getElementById('historyList');
             historyList.innerHTML = '';
             
-            if (this.themeHistory.length === 0) {
+            if (!this.themeHistory || this.themeHistory.length === 0) {
                 historyList.innerHTML = '<p class="text-muted" style="text-align: center; padding: 20px;">No theme history yet</p>';
                 return;
             }
@@ -814,10 +857,14 @@
                 // Add to history first
                 await this.addToHistory('Saved Theme');
                 
-                const response = await fetch('/api/theme', {
+                // Get the API base URL from config or current origin
+                const apiBase = window.CONFIG?.backendUrl || window.location.origin;
+                
+                const response = await fetch(`${apiBase}/api/theme`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
                     },
                     body: JSON.stringify({
                         colors: this.currentColors,
@@ -935,7 +982,8 @@
 
         async loadSavedTheme() {
             try {
-                const response = await fetch('/api/theme');
+                const apiBase = window.CONFIG?.backendUrl || window.location.origin;
+                const response = await fetch(`${apiBase}/api/theme`);
                 if (response.ok) {
                     const data = await response.json();
                     if (data.colors) {
@@ -949,7 +997,12 @@
 
         async loadCustomPresets() {
             try {
-                const response = await fetch('/api/theme/presets');
+                const apiBase = window.CONFIG?.backendUrl || window.location.origin;
+                const response = await fetch(`${apiBase}/api/theme/presets`, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
                 if (response.ok) {
                     const data = await response.json();
                     this.customPresets = data || {};
@@ -961,9 +1014,13 @@
 
         async saveCustomPresets() {
             try {
-                const response = await fetch('/api/theme/presets', {
+                const apiBase = window.CONFIG?.backendUrl || window.location.origin;
+                const response = await fetch(`${apiBase}/api/theme/presets`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
                     body: JSON.stringify(this.customPresets)
                 });
                 
@@ -977,7 +1034,12 @@
 
         async loadThemeHistory() {
             try {
-                const response = await fetch('/api/theme/history');
+                const apiBase = window.CONFIG?.backendUrl || window.location.origin;
+                const response = await fetch(`${apiBase}/api/theme/history`, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
                 if (response.ok) {
                     const data = await response.json();
                     this.themeHistory = data || [];
@@ -989,9 +1051,13 @@
 
         async saveThemeHistory() {
             try {
-                const response = await fetch('/api/theme/history', {
+                const apiBase = window.CONFIG?.backendUrl || window.location.origin;
+                const response = await fetch(`${apiBase}/api/theme/history`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
                     body: JSON.stringify(this.themeHistory)
                 });
                 
@@ -1004,12 +1070,20 @@
         }
     }
 
-    // Initialize theme editor when DOM is ready
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => {
+    // Initialize theme editor when DOM is ready and config is loaded
+    function initializeThemeEditor() {
+        // Wait for config to be loaded
+        if (window.CONFIG && window.CONFIG.backendUrl) {
             new ThemeEditor();
-        });
+        } else {
+            // Retry after a short delay
+            setTimeout(initializeThemeEditor, 100);
+        }
+    }
+    
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeThemeEditor);
     } else {
-        new ThemeEditor();
+        initializeThemeEditor();
     }
 })();

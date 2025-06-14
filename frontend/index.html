@@ -7,7 +7,18 @@
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="css/main.css" rel="stylesheet">
-    <link href="/api/theme.css" rel="stylesheet">
+    <script>
+        // Add dynamic theme CSS link after config is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                const apiBase = window.CONFIG?.backendUrl || window.location.origin;
+                const link = document.createElement('link');
+                link.rel = 'stylesheet';
+                link.href = `${apiBase}/api/theme.css`;
+                document.head.appendChild(link);
+            }, 100); // Small delay to ensure config is loaded
+        });
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.12.0/dist/cdn.min.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/markdown-it/dist/markdown-it.min.js"></script>
 </head>
