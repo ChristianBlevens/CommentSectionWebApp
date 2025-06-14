@@ -297,6 +297,14 @@ const requireModerator = (req, res, next) => {
     next();
 };
 
+// Require user to be a super moderator
+const requireSuperModerator = (req, res, next) => {
+    if (!req.user?.is_super_moderator) {
+        return res.status(403).json({ error: 'Super moderator access required' });
+    }
+    next();
+};
+
 // Create database tables and indexes
 const initDatabase = async () => {
     const client = await pgPool.connect();
@@ -603,6 +611,24 @@ const initDatabase = async () => {
             CREATE INDEX IF NOT EXISTS idx_moderation_logs_moderator_id ON moderation_logs(moderator_id);
             CREATE INDEX IF NOT EXISTS idx_moderation_logs_created_at ON moderation_logs(created_at);
             CREATE INDEX IF NOT EXISTS idx_moderation_logs_action_type ON moderation_logs(action_type);
+        `);
+        
+        // Create site_settings table for theme storage
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS site_settings (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                theme_data JSONB,
+                custom_presets JSONB,
+                theme_history JSONB,
+                other_settings JSONB,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        
+        // Add indexes for JSONB queries
+        await client.query(`
+            CREATE INDEX IF NOT EXISTS idx_site_settings_theme_data ON site_settings USING gin(theme_data);
+            CREATE INDEX IF NOT EXISTS idx_site_settings_custom_presets ON site_settings USING gin(custom_presets);
         `);
         
         await client.query('COMMIT');
@@ -2315,6 +2341,158 @@ app.get('/api/moderation-logs', authenticateUser, requireModerator, async (req, 
     } catch (error) {
         console.error('Get moderation logs error:', error);
         res.status(500).json({ error: 'Failed to get moderation logs' });
+    }
+});
+
+// Theme Management Endpoints
+
+// Get current theme
+app.get('/api/theme', async (req, res) => {
+    try {
+        const result = await pgPool.query(
+            'SELECT theme_data FROM site_settings WHERE id = 1'
+        );
+        
+        if (result.rows.length > 0 && result.rows[0].theme_data) {
+            res.json(result.rows[0].theme_data);
+        } else {
+            res.json({ colors: null, css: null });
+        }
+    } catch (error) {
+        console.error('Error loading theme:', error);
+        res.status(500).json({ error: 'Failed to load theme' });
+    }
+});
+
+// Save theme (super moderator only)
+app.post('/api/theme', authenticateUser, requireSuperModerator, async (req, res) => {
+    try {
+        const { colors, css } = req.body;
+        
+        await pgPool.query(`
+            INSERT INTO site_settings (id, theme_data, updated_at)
+            VALUES (1, $1, NOW())
+            ON CONFLICT (id) DO UPDATE
+            SET theme_data = $1, updated_at = NOW()
+        `, [{ colors, css }]);
+        
+        // Clear theme cache if Redis is available
+        if (redisClient.isReady) {
+            await safeRedisOp(() => redisClient.del('theme:css'));
+        }
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error saving theme:', error);
+        res.status(500).json({ error: 'Failed to save theme' });
+    }
+});
+
+// Get custom presets (super moderator only)
+app.get('/api/theme/presets', authenticateUser, requireSuperModerator, async (req, res) => {
+    try {
+        const result = await pgPool.query(
+            'SELECT custom_presets FROM site_settings WHERE id = 1'
+        );
+        
+        if (result.rows.length > 0 && result.rows[0].custom_presets) {
+            res.json(result.rows[0].custom_presets);
+        } else {
+            res.json({});
+        }
+    } catch (error) {
+        console.error('Error loading presets:', error);
+        res.status(500).json({ error: 'Failed to load presets' });
+    }
+});
+
+// Save custom presets (super moderator only)
+app.post('/api/theme/presets', authenticateUser, requireSuperModerator, async (req, res) => {
+    try {
+        const presets = req.body;
+        
+        await pgPool.query(`
+            INSERT INTO site_settings (id, custom_presets, updated_at)
+            VALUES (1, $1, NOW())
+            ON CONFLICT (id) DO UPDATE
+            SET custom_presets = $1, updated_at = NOW()
+        `, [presets]);
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error saving presets:', error);
+        res.status(500).json({ error: 'Failed to save presets' });
+    }
+});
+
+// Get theme history (super moderator only)
+app.get('/api/theme/history', authenticateUser, requireSuperModerator, async (req, res) => {
+    try {
+        const result = await pgPool.query(
+            'SELECT theme_history FROM site_settings WHERE id = 1'
+        );
+        
+        if (result.rows.length > 0 && result.rows[0].theme_history) {
+            res.json(result.rows[0].theme_history);
+        } else {
+            res.json([]);
+        }
+    } catch (error) {
+        console.error('Error loading history:', error);
+        res.status(500).json({ error: 'Failed to load history' });
+    }
+});
+
+// Save theme history (super moderator only)
+app.post('/api/theme/history', authenticateUser, requireSuperModerator, async (req, res) => {
+    try {
+        const history = req.body;
+        
+        await pgPool.query(`
+            INSERT INTO site_settings (id, theme_history, updated_at)
+            VALUES (1, $1, NOW())
+            ON CONFLICT (id) DO UPDATE
+            SET theme_history = $1, updated_at = NOW()
+        `, [history]);
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error saving history:', error);
+        res.status(500).json({ error: 'Failed to save history' });
+    }
+});
+
+// Serve dynamic theme CSS
+app.get('/api/theme.css', async (req, res) => {
+    try {
+        // Check cache first
+        if (redisClient.isReady) {
+            const cached = await safeRedisOp(() => redisClient.get('theme:css'));
+            if (cached) {
+                res.type('text/css').send(cached);
+                return;
+            }
+        }
+        
+        const result = await pgPool.query(
+            'SELECT theme_data FROM site_settings WHERE id = 1'
+        );
+        
+        if (result.rows.length > 0 && result.rows[0].theme_data?.css) {
+            const css = result.rows[0].theme_data.css;
+            
+            // Cache for 1 hour
+            if (redisClient.isReady) {
+                await safeRedisOp(() => redisClient.setEx('theme:css', 3600, css));
+            }
+            
+            res.type('text/css').send(css);
+        } else {
+            res.type('text/css').send('/* No custom theme */');
+        }
+    } catch (error) {
+        console.error('Error serving theme CSS:', error);
+        res.status(500).send('/* Error loading theme */');
     }
 });
 

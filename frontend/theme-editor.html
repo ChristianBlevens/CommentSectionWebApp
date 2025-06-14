@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Theme Editor - Comment Section</title>
+    <link rel="stylesheet" href="css/main.css">
+    <style>
+        .theme-editor-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .editor-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-top: 30px;
+        }
+
+        .preview-section {
+            background: var(--color-backgrounds-secondary);
+            border-radius: 8px;
+            padding: 20px;
+            border: 1px solid var(--color-borders-light);
+        }
+
+        .preview-iframe {
+            width: 100%;
+            height: 600px;
+            border: 1px solid var(--color-borders-medium);
+            border-radius: 4px;
+            background: white;
+        }
+
+        .controls-section {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .color-group {
+            background: var(--color-backgrounds-main);
+            border: 1px solid var(--color-borders-light);
+            border-radius: 8px;
+            padding: 15px;
+        }
+
+        .color-group h3 {
+            margin: 0 0 15px 0;
+            color: var(--color-text-primary);
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .color-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--color-borders-light);
+        }
+
+        .color-item:last-child {
+            border-bottom: none;
+        }
+
+        .color-label {
+            font-size: 14px;
+            color: var(--color-text-secondary);
+            flex: 1;
+        }
+
+        .color-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .color-input {
+            width: 50px;
+            height: 35px;
+            border: 2px solid var(--color-borders-medium);
+            border-radius: 4px;
+            cursor: pointer;
+            padding: 0;
+            background: none;
+        }
+
+        .color-hex {
+            width: 90px;
+            padding: 6px 8px;
+            border: 1px solid var(--color-borders-medium);
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 13px;
+            color: var(--color-text-primary);
+            background: var(--color-backgrounds-main);
+        }
+
+        .pick-btn {
+            padding: 5px 10px;
+            background: var(--color-primary-main);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .pick-btn:hover {
+            background: var(--color-primary-hover);
+        }
+
+        .action-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn-primary, .btn-secondary {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+
+        .btn-primary {
+            background: var(--color-primary-main);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--color-primary-hover);
+        }
+
+        .btn-secondary {
+            background: var(--color-backgrounds-secondary);
+            color: var(--color-text-primary);
+            border: 1px solid var(--color-borders-medium);
+        }
+
+        .btn-secondary:hover {
+            background: var(--color-backgrounds-hover);
+        }
+
+        .btn-danger {
+            background: var(--color-status-error);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            filter: brightness(0.9);
+        }
+
+        .btn-full {
+            grid-column: 1 / -1;
+        }
+
+        .preset-section {
+            background: var(--color-backgrounds-main);
+            border: 1px solid var(--color-borders-light);
+            border-radius: 8px;
+            padding: 15px;
+        }
+
+        .preset-list {
+            display: grid;
+            gap: 8px;
+            margin-bottom: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .preset-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px;
+            background: var(--color-backgrounds-secondary);
+            border: 1px solid var(--color-borders-light);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .preset-item:hover {
+            background: var(--color-backgrounds-hover);
+            border-color: var(--color-borders-medium);
+        }
+
+        .preset-colors {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+        }
+
+        .preset-color-chip {
+            width: 20px;
+            height: 20px;
+            border-radius: 3px;
+            border: 1px solid var(--color-borders-medium);
+        }
+
+        .preset-name {
+            flex: 1;
+            font-size: 14px;
+            color: var(--color-text-primary);
+        }
+
+        .preset-actions {
+            display: flex;
+            gap: 5px;
+        }
+
+        .preset-input-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .preset-input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid var(--color-borders-medium);
+            border-radius: 4px;
+            font-size: 14px;
+            background: var(--color-backgrounds-main);
+            color: var(--color-text-primary);
+        }
+
+        .eyedropper-active {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            font-size: 14px;
+            z-index: 10000;
+            pointer-events: none;
+        }
+
+        .history-section {
+            background: var(--color-backgrounds-main);
+            border: 1px solid var(--color-borders-light);
+            border-radius: 8px;
+            padding: 15px;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        .history-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px;
+            margin-bottom: 5px;
+            background: var(--color-backgrounds-secondary);
+            border: 1px solid var(--color-borders-light);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .history-item:hover {
+            background: var(--color-backgrounds-hover);
+        }
+
+        .history-info {
+            flex: 1;
+        }
+
+        .history-name {
+            font-size: 14px;
+            color: var(--color-text-primary);
+            margin-bottom: 2px;
+        }
+
+        .history-time {
+            font-size: 12px;
+            color: var(--color-text-muted);
+        }
+
+        .undo-redo-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .undo-redo-buttons button {
+            flex: 1;
+        }
+
+        #colorPickerOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.1);
+            z-index: 9999;
+            display: none;
+            cursor: crosshair;
+        }
+
+        .color-preview-tooltip {
+            position: fixed;
+            background: white;
+            border: 2px solid #333;
+            border-radius: 4px;
+            padding: 8px 12px;
+            font-family: monospace;
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 10001;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .editor-layout {
+                grid-template-columns: 1fr;
+            }
+            
+            .preview-section {
+                order: 2;
+            }
+            
+            .controls-section {
+                order: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="theme-editor-container">
+        <h1>Theme Editor</h1>
+        <p class="text-muted">Customize the appearance of your comment section. Only super moderators can access this page.</p>
+
+        <div class="editor-layout">
+            <div class="preview-section">
+                <h2>Live Preview</h2>
+                <iframe 
+                    id="preview-frame" 
+                    src="iframe-test.html" 
+                    class="preview-iframe"
+                ></iframe>
+            </div>
+
+            <div class="controls-section">
+                <!-- Undo/Redo -->
+                <div class="undo-redo-buttons">
+                    <button id="undoBtn" class="btn-secondary" disabled>
+                        ↶ Undo
+                    </button>
+                    <button id="redoBtn" class="btn-secondary" disabled>
+                        ↷ Redo
+                    </button>
+                </div>
+
+                <!-- Primary Colors -->
+                <div class="color-group">
+                    <h3>Primary Colors</h3>
+                    <div class="color-item">
+                        <label class="color-label">Main Color</label>
+                        <div class="color-controls">
+                            <input type="color" class="color-input" id="primary-main" data-category="primary" data-key="main">
+                            <input type="text" class="color-hex" id="primary-main-hex" placeholder="#3b82f6">
+                            <button class="pick-btn" data-target="primary-main">Pick</button>
+                        </div>
+                    </div>
+                    <div class="color-item">
+                        <label class="color-label">Hover Color</label>
+                        <div class="color-controls">
+                            <input type="color" class="color-input" id="primary-hover" data-category="primary" data-key="hover">
+                            <input type="text" class="color-hex" id="primary-hover-hex" placeholder="#2563eb">
+                            <button class="pick-btn" data-target="primary-hover">Pick</button>
+                        </div>
+                    </div>
+                    <div class="color-item">
+                        <label class="color-label">Light Variant</label>
+                        <div class="color-controls">
+                            <input type="color" class="color-input" id="primary-light" data-category="primary" data-key="light">
+                            <input type="text" class="color-hex" id="primary-light-hex" placeholder="#dbeafe">
+                            <button class="pick-btn" data-target="primary-light">Pick</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Background Colors -->
+                <div class="color-group">
+                    <h3>Backgrounds</h3>
+                    <div class="color-item">
+                        <label class="color-label">Main Background</label>
+                        <div class="color-controls">
+                            <input type="color" class="color-input" id="backgrounds-main" data-category="backgrounds" data-key="main">
+                            <input type="text" class="color-hex" id="backgrounds-main-hex" placeholder="#ffffff">
+                            <button class="pick-btn" data-target="backgrounds-main">Pick</button>
+                        </div>
+                    </div>
+                    <div class="color-item">
+                        <label class="color-label">Secondary Background</label>
+                        <div class="color-controls">
+                            <input type="color" class="color-input" id="backgrounds-secondary" data-category="backgrounds" data-key="secondary">
+                            <input type="text" class="color-hex" id="backgrounds-secondary-hex" placeholder="#f3f4f6">
+                            <button class="pick-btn" data-target="backgrounds-secondary">Pick</button>
+                        </div>
+                    </div>
+                    <div class="color-item">
+                        <label class="color-label">Hover Background</label>
+                        <div class="color-controls">
+                            <input type="color" class="color-input" id="backgrounds-hover" data-category="backgrounds" data-key="hover">
+                            <input type="text" class="color-hex" id="backgrounds-hover-hex" placeholder="#f9fafb">
+                            <button class="pick-btn" data-target="backgrounds-hover">Pick</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Text Colors -->
+                <div class="color-group">
+                    <h3>Text Colors</h3>
+                    <div class="color-item">
+                        <label class="color-label">Primary Text</label>
+                        <div class="color-controls">
+                            <input type="color" class="color-input" id="text-primary" data-category="text" data-key="primary">
+                            <input type="text" class="color-hex" id="text-primary-hex" placeholder="#111827">
+                            <button class="pick-btn" data-target="text-primary">Pick</button>
+                        </div>
+                    </div>
+                    <div class="color-item">
+                        <label class="color-label">Secondary Text</label>
+                        <div class="color-controls">
+                            <input type="color" class="color-input" id="text-secondary" data-category="text" data-key="secondary">
+                            <input type="text" class="color-hex" id="text-secondary-hex" placeholder="#6b7280">
+                            <button class="pick-btn" data-target="text-secondary">Pick</button>
+                        </div>
+                    </div>
+                    <div class="color-item">
+                        <label class="color-label">Muted Text</label>
+                        <div class="color-controls">
+                            <input type="color" class="color-input" id="text-muted" data-category="text" data-key="muted">
+                            <input type="text" class="color-hex" id="text-muted-hex" placeholder="#9ca3af">
+                            <button class="pick-btn" data-target="text-muted">Pick</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Status Colors -->
+                <div class="color-group">
+                    <h3>Status Colors</h3>
+                    <div class="color-item">
+                        <label class="color-label">Success</label>
+                        <div class="color-controls">
+                            <input type="color" class="color-input" id="status-success" data-category="status" data-key="success">
+                            <input type="text" class="color-hex" id="status-success-hex" placeholder="#10b981">
+                            <button class="pick-btn" data-target="status-success">Pick</button>
+                        </div>
+                    </div>
+                    <div class="color-item">
+                        <label class="color-label">Warning</label>
+                        <div class="color-controls">
+                            <input type="color" class="color-input" id="status-warning" data-category="status" data-key="warning">
+                            <input type="text" class="color-hex" id="status-warning-hex" placeholder="#f59e0b">
+                            <button class="pick-btn" data-target="status-warning">Pick</button>
+                        </div>
+                    </div>
+                    <div class="color-item">
+                        <label class="color-label">Error</label>
+                        <div class="color-controls">
+                            <input type="color" class="color-input" id="status-error" data-category="status" data-key="error">
+                            <input type="text" class="color-hex" id="status-error-hex" placeholder="#ef4444">
+                            <button class="pick-btn" data-target="status-error">Pick</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Border Colors -->
+                <div class="color-group">
+                    <h3>Border Colors</h3>
+                    <div class="color-item">
+                        <label class="color-label">Light Border</label>
+                        <div class="color-controls">
+                            <input type="color" class="color-input" id="borders-light" data-category="borders" data-key="light">
+                            <input type="text" class="color-hex" id="borders-light-hex" placeholder="#e5e7eb">
+                            <button class="pick-btn" data-target="borders-light">Pick</button>
+                        </div>
+                    </div>
+                    <div class="color-item">
+                        <label class="color-label">Medium Border</label>
+                        <div class="color-controls">
+                            <input type="color" class="color-input" id="borders-medium" data-category="borders" data-key="medium">
+                            <input type="text" class="color-hex" id="borders-medium-hex" placeholder="#d1d5db">
+                            <button class="pick-btn" data-target="borders-medium">Pick</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Presets -->
+                <div class="preset-section">
+                    <h3>Theme Presets</h3>
+                    <div class="preset-list" id="presetList">
+                        <!-- Presets will be populated by JavaScript -->
+                    </div>
+                    <div class="preset-input-group">
+                        <input type="text" class="preset-input" id="presetNameInput" placeholder="Custom theme name">
+                        <button class="btn-primary" id="savePresetBtn">Save Current</button>
+                    </div>
+                </div>
+
+                <!-- History -->
+                <div class="history-section">
+                    <h3>Theme History</h3>
+                    <div id="historyList">
+                        <!-- History items will be populated by JavaScript -->
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="action-buttons">
+                    <button class="btn-primary btn-full" id="saveThemeBtn">
+                        💾 Save & Apply Theme
+                    </button>
+                    <button class="btn-secondary" id="exportBtn">
+                        📥 Export Theme
+                    </button>
+                    <button class="btn-secondary" id="importBtn">
+                        📤 Import Theme
+                    </button>
+                    <button class="btn-secondary btn-danger btn-full" id="resetBtn">
+                        ↺ Reset to Default
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden elements -->
+    <div id="colorPickerOverlay"></div>
+    <div class="color-preview-tooltip" id="colorPreviewTooltip"></div>
+    <div class="eyedropper-active" id="eyedropperIndicator" style="display: none;">
+        Click any element to pick its color (ESC to cancel)
+    </div>
+    <input type="file" id="importFileInput" accept=".json,.css" style="display: none;">
+
+    <script src="js/theme-editor.js"></script>
+</body>
+</html>

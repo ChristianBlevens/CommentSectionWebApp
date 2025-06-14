@@ -1,52 +1,54 @@
 /* =====================================================
-   COLOR CONFIGURATION SYSTEM - SIMPLIFIED
+   COLOR CONFIGURATION SYSTEM - THEME EDITOR COMPATIBLE
    ===================================================== */
 :root {
     /* Primary Colors */
-    --color-primary: #0079d3;
-    --color-primary-hover: #1484d6;
-    
-    /* Secondary Colors */
-    --color-secondary: #878a8c;
-    --color-secondary-hover: #636466;
-    
-    /* Semantic Colors */
-    --color-success: #10b981;
-    --color-success-hover: #059669;
-    
-    --color-warning: #d97706;
-    --color-warning-hover: #b45309;
-    
-    --color-danger: #ef4444;
-    --color-danger-hover: #dc2626;
-    
-    --color-info: #3b82f6;
-    --color-info-hover: #2563eb;
-    
-    /* Special Purpose Colors */
-    --color-report-bg: #fee2e2;
-    --color-report-border: #fecaca;
-    
-    --color-ban: #7f1d1d;
-    --color-ban-hover: #991b1b;
+    --color-primary-main: #3b82f6;
+    --color-primary-hover: #2563eb;
+    --color-primary-light: #dbeafe;
     
     /* Background Colors */
-    --color-bg-primary: #ffffff;
-    --color-bg-secondary: #f9fafb;
-    --color-bg-tertiary: #f3f4f6;
-    --color-bg-page: #f7fafc;
+    --color-backgrounds-main: #ffffff;
+    --color-backgrounds-secondary: #f3f4f6;
+    --color-backgrounds-hover: #f9fafb;
     
     /* Text Colors */
-    --color-text-primary: #1a1a1b;
+    --color-text-primary: #111827;
     --color-text-secondary: #6b7280;
-    --color-text-tertiary: #9ca3af;
+    --color-text-muted: #9ca3af;
     --color-text-inverse: #ffffff;
     
-    /* Border Colors */
-    --color-border-primary: #e5e7eb;
-    --color-border-secondary: #d1d5db;
+    /* Status Colors */
+    --color-status-success: #10b981;
+    --color-status-warning: #f59e0b;
+    --color-status-error: #ef4444;
     
-    /* Interactive Colors */
+    /* Border Colors */
+    --color-borders-light: #e5e7eb;
+    --color-borders-medium: #d1d5db;
+    
+    /* Legacy mappings for backward compatibility */
+    --color-primary: var(--color-primary-main);
+    --color-secondary: #878a8c;
+    --color-secondary-hover: #636466;
+    --color-success: var(--color-status-success);
+    --color-success-hover: #059669;
+    --color-warning: var(--color-status-warning);
+    --color-warning-hover: #b45309;
+    --color-danger: var(--color-status-error);
+    --color-danger-hover: #dc2626;
+    --color-info: var(--color-primary-main);
+    --color-info-hover: var(--color-primary-hover);
+    --color-report-bg: #fee2e2;
+    --color-report-border: #fecaca;
+    --color-ban: #7f1d1d;
+    --color-ban-hover: #991b1b;
+    --color-bg-primary: var(--color-backgrounds-main);
+    --color-bg-secondary: var(--color-backgrounds-secondary);
+    --color-bg-tertiary: var(--color-backgrounds-secondary);
+    --color-bg-page: #f7fafc;
+    --color-border-primary: var(--color-borders-light);
+    --color-border-secondary: var(--color-borders-medium);
     --color-like: #60a5fa;
     --color-dislike: #f87171;
     
