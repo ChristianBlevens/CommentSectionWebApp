@@ -17,7 +17,8 @@
         text: {
             primary: '#111827',
             secondary: '#6b7280',
-            muted: '#9ca3af'
+            muted: '#9ca3af',
+            inverse: '#ffffff'
         },
         status: {
             success: '#10b981',
@@ -32,9 +33,13 @@
 
     // Built-in presets
     const builtInPresets = {
+        default: {
+            name: 'Default Theme',
+            colors: JSON.parse(JSON.stringify(defaultColors))
+        },
         light: {
             name: 'Classic Light',
-            colors: { ...defaultColors }
+            colors: JSON.parse(JSON.stringify(defaultColors))
         },
         dark: {
             name: 'Midnight Dark',
@@ -52,7 +57,8 @@
                 text: {
                     primary: '#eef2ff',
                     secondary: '#c7d2fe',
-                    muted: '#a5b4fc'
+                    muted: '#a5b4fc',
+                    inverse: '#0f0f23'
                 },
                 status: {
                     success: '#4ade80',
@@ -81,7 +87,8 @@
                 text: {
                     primary: '#134e4a',
                     secondary: '#0f766e',
-                    muted: '#14b8a6'
+                    muted: '#14b8a6',
+                    inverse: '#ffffff'
                 },
                 status: {
                     success: '#10b981',
@@ -110,7 +117,8 @@
                 text: {
                     primary: '#78350f',
                     secondary: '#92400e',
-                    muted: '#b45309'
+                    muted: '#b45309',
+                    inverse: '#ffffff'
                 },
                 status: {
                     success: '#65a30d',
@@ -141,10 +149,14 @@
         }
 
         async init() {
+            console.log('Theme Editor initializing...');
+            
             // Load saved theme and data
             await this.loadSavedTheme();
             await this.loadCustomPresets();
             await this.loadThemeHistory();
+            
+            console.log('Current colors:', this.currentColors);
             
             // Initialize UI
             this.setupColorInputs();
@@ -160,6 +172,8 @@
             
             // Listen for keyboard shortcuts
             document.addEventListener('keydown', (e) => this.handleKeyboard(e));
+            
+            console.log('Theme Editor initialized');
         }
 
         setupColorInputs() {
@@ -667,7 +681,13 @@
 
         renderPresets() {
             const presetList = document.getElementById('presetList');
+            if (!presetList) {
+                console.error('Preset list element not found');
+                return;
+            }
             presetList.innerHTML = '';
+            
+            console.log('Rendering presets, built-in:', Object.keys(builtInPresets).length, 'custom:', Object.keys(this.customPresets).length);
             
             // Render built-in presets
             Object.entries(builtInPresets).forEach(([id, preset]) => {
@@ -883,13 +903,12 @@
                 await this.addToHistory('Saved Theme');
                 
                 // Get the API base URL from config or current origin
-                const apiBase = window.CONFIG?.backendUrl || window.location.origin;
                 
-                const response = await fetch(`${apiBase}/api/theme`, {
+                const response = await fetch('/api/theme', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        'Authorization': `Bearer ${localStorage.getItem('sessionToken')}`
                     },
                     body: JSON.stringify({
                         colors: this.currentColors,
@@ -1007,8 +1026,11 @@
 
         async loadSavedTheme() {
             try {
-                const apiBase = window.CONFIG?.backendUrl || window.location.origin;
-                const response = await fetch(`${apiBase}/api/theme`);
+                const response = await fetch('/api/theme', {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('sessionToken')}`
+                    }
+                });
                 if (response.ok) {
                     const data = await response.json();
                     if (data.colors) {
@@ -1040,10 +1062,9 @@
 
         async loadCustomPresets() {
             try {
-                const apiBase = window.CONFIG?.backendUrl || window.location.origin;
-                const response = await fetch(`${apiBase}/api/theme/presets`, {
+                const response = await fetch('/api/theme/presets', {
                     headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        'Authorization': `Bearer ${localStorage.getItem('sessionToken')}`
                     }
                 });
                 if (response.ok) {
@@ -1057,12 +1078,11 @@
 
         async saveCustomPresets() {
             try {
-                const apiBase = window.CONFIG?.backendUrl || window.location.origin;
-                const response = await fetch(`${apiBase}/api/theme/presets`, {
+                const response = await fetch('/api/theme/presets', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        'Authorization': `Bearer ${localStorage.getItem('sessionToken')}`
                     },
                     body: JSON.stringify(this.customPresets)
                 });
@@ -1077,10 +1097,9 @@
 
         async loadThemeHistory() {
             try {
-                const apiBase = window.CONFIG?.backendUrl || window.location.origin;
-                const response = await fetch(`${apiBase}/api/theme/history`, {
+                const response = await fetch('/api/theme/history', {
                     headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        'Authorization': `Bearer ${localStorage.getItem('sessionToken')}`
                     }
                 });
                 if (response.ok) {
@@ -1094,12 +1113,11 @@
 
         async saveThemeHistory() {
             try {
-                const apiBase = window.CONFIG?.backendUrl || window.location.origin;
-                const response = await fetch(`${apiBase}/api/theme/history`, {
+                const response = await fetch('/api/theme/history', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        'Authorization': `Bearer ${localStorage.getItem('sessionToken')}`
                     },
                     body: JSON.stringify(this.themeHistory)
                 });

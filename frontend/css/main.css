@@ -1811,16 +1811,15 @@ input:focus, textarea:focus {
     outline: none;
 }
 
+/* Remove default button background - buttons should use specific classes */
 button {
-    background-color: var(--color-primary-main);
-    color: var(--color-text-inverse);
+    background-color: transparent;
+    color: inherit;
     border: none;
     cursor: pointer;
 }
 
-button:hover {
-    background-color: var(--color-primary-hover);
-}
+/* Hover states should be defined by specific button classes */
 
 /* =====================================================
    PRINT STYLES
