@@ -39,7 +39,7 @@ async function initDatabase() {
     await pgPool.query(`
         CREATE TABLE IF NOT EXISTS notification_log (
             id SERIAL PRIMARY KEY,
-            user_id INTEGER REFERENCES users(id),
+            user_id VARCHAR(255) REFERENCES users(id),
             type VARCHAR(50),
             status VARCHAR(50),
             metadata JSONB,
