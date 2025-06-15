@@ -631,6 +631,11 @@ const initDatabase = async () => {
             CREATE INDEX IF NOT EXISTS idx_site_settings_custom_presets ON site_settings USING gin(custom_presets);
         `);
         
+        // Insert default row if it doesn't exist
+        await client.query(`
+            INSERT INTO site_settings (id) VALUES (1) ON CONFLICT DO NOTHING
+        `);
+        
         await client.query('COMMIT');
         console.log('Database schema initialized successfully');
         
@@ -2347,6 +2352,133 @@ app.get('/api/moderation-logs', authenticateUser, requireModerator, async (req, 
 // Theme Management Endpoints removed - theme editor functionality has been removed
 
 // Legacy endpoint removed - use /api/reports
+
+// Theme management endpoints
+
+// Get current theme
+app.get('/api/theme', authenticateUser, requireSuperModerator, async (req, res) => {
+    try {
+        const result = await pgPool.query(
+            'SELECT theme_data FROM site_settings WHERE id = $1',
+            [1]
+        );
+        
+        if (result.rows.length > 0 && result.rows[0].theme_data) {
+            res.json(result.rows[0].theme_data);
+        } else {
+            // Return default theme
+            res.json({ colors: getDefaultThemeColors() });
+        }
+    } catch (error) {
+        console.error('Error loading theme:', error);
+        res.status(500).json({ error: 'Failed to load theme' });
+    }
+});
+
+// Save theme
+app.post('/api/theme', authenticateUser, requireSuperModerator, async (req, res) => {
+    try {
+        const { colors } = req.body;
+        
+        // Validate colors structure
+        if (!validateThemeColors(colors)) {
+            return res.status(400).json({ error: 'Invalid theme data' });
+        }
+        
+        await pgPool.query(`
+            INSERT INTO site_settings (id, theme_data, updated_at)
+            VALUES ($1, $2, NOW())
+            ON CONFLICT (id) DO UPDATE
+            SET theme_data = $2, updated_at = NOW()
+        `, [1, { colors }]);
+        
+        // Clear any cached theme data
+        await safeRedisOp(() => redisClient.del('theme:current'));
+        await safeRedisOp(() => redisClient.del('theme:css'));
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error saving theme:', error);
+        res.status(500).json({ error: 'Failed to save theme' });
+    }
+});
+
+// Serve theme CSS for non-authenticated users
+app.get('/theme.css', async (req, res) => {
+    try {
+        // Try cache first
+        const cached = await safeRedisOp(() => redisClient.get('theme:css'));
+        if (cached) {
+            res.type('text/css').send(cached);
+            return;
+        }
+        
+        // Load from database
+        const result = await pgPool.query(
+            'SELECT theme_data FROM site_settings WHERE id = $1',
+            [1]
+        );
+        
+        let css = '';
+        if (result.rows.length > 0 && result.rows[0].theme_data?.colors) {
+            css = generateThemeCSS(result.rows[0].theme_data.colors);
+        } else {
+            css = generateThemeCSS(getDefaultThemeColors());
+        }
+        
+        // Cache for 1 hour
+        await safeRedisOp(() => redisClient.setex('theme:css', 3600, css));
+        
+        res.type('text/css').send(css);
+    } catch (error) {
+        console.error('Error serving theme CSS:', error);
+        res.status(500).send('/* Error loading theme */');
+    }
+});
+
+// Helper functions for theme management
+function getDefaultThemeColors() {
+    return {
+        primary: {
+            main: '#3b82f6',
+            hover: '#2563eb',
+            light: '#dbeafe'
+        },
+        backgrounds: {
+            main: '#ffffff',
+            secondary: '#f3f4f6',
+            hover: '#f9fafb'
+        },
+        text: {
+            primary: '#111827',
+            secondary: '#6b7280',
+            muted: '#9ca3af'
+        },
+        borders: {
+            light: '#e5e7eb',
+            medium: '#d1d5db'
+        }
+    };
+}
+
+function validateThemeColors(colors) {
+    // Basic validation of theme structure
+    const required = ['primary', 'backgrounds', 'text', 'borders'];
+    return required.every(key => colors[key] && typeof colors[key] === 'object');
+}
+
+function generateThemeCSS(colors) {
+    let css = ':root {\n';
+    
+    Object.entries(colors).forEach(([category, categoryColors]) => {
+        Object.entries(categoryColors).forEach(([key, value]) => {
+            css += `  --color-${category}-${key}: ${value};\n`;
+        });
+    });
+    
+    css += '}';
+    return css;
+}
 
 // Global error handling
 app.use((err, req, res, next) => {

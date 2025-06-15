@@ -173,6 +173,62 @@ function unifiedApp() {
         loadingLogs: false,
         logsLoaded: false,
         
+        // Theme editor state
+        themeColors: {
+            primary: {
+                main: '#3b82f6',
+                hover: '#2563eb',  
+                light: '#dbeafe'
+            },
+            backgrounds: {
+                main: '#ffffff',
+                secondary: '#f3f4f6',
+                hover: '#f9fafb'
+            },
+            text: {
+                primary: '#111827',
+                secondary: '#6b7280',
+                muted: '#9ca3af'
+            },
+            borders: {
+                light: '#e5e7eb',
+                medium: '#d1d5db'
+            }
+        },
+        themePresets: {
+            light: {
+                displayName: 'Light',
+                colors: {
+                    primary: { main: '#3b82f6', hover: '#2563eb', light: '#dbeafe' },
+                    backgrounds: { main: '#ffffff', secondary: '#f3f4f6', hover: '#f9fafb' },
+                    text: { primary: '#111827', secondary: '#6b7280', muted: '#9ca3af' },
+                    borders: { light: '#e5e7eb', medium: '#d1d5db' }
+                }
+            },
+            dark: {
+                displayName: 'Dark',
+                colors: {
+                    primary: { main: '#8b5cf6', hover: '#7c3aed', light: '#a78bfa' },
+                    backgrounds: { main: '#1f2937', secondary: '#111827', hover: '#374151' },
+                    text: { primary: '#f9fafb', secondary: '#d1d5db', muted: '#9ca3af' },
+                    borders: { light: '#374151', medium: '#4b5563' }
+                }
+            },
+            ocean: {
+                displayName: 'Ocean',
+                colors: {
+                    primary: { main: '#0891b2', hover: '#0e7490', light: '#67e8f9' },
+                    backgrounds: { main: '#f0fdfa', secondary: '#e6fffa', hover: '#ccfbf1' },
+                    text: { primary: '#134e4a', secondary: '#0f766e', muted: '#14b8a6' },
+                    borders: { light: '#5eead4', medium: '#2dd4bf' }
+                }
+            }
+        },
+        selectedPreset: 'light',
+        selectedColorTarget: null,
+        loadingTheme: false,
+        themeLoaded: false,
+        
         // Setup app on load
         async init() {
             // Store app reference globally
@@ -207,6 +263,11 @@ function unifiedApp() {
             // Setup markdown renderer
             if (window.initializeMarkdown) {
                 window.initializeMarkdown();
+            }
+            
+            // Initialize theme editor
+            if (this.user?.is_super_moderator) {
+                await this.initThemeEditor();
             }
         },
         
@@ -1504,6 +1565,186 @@ function unifiedApp() {
             });
             
             return rootComments;
+        },
+        
+        // Theme Editor Methods
+        
+        // Initialize theme editor
+        async initThemeEditor() {
+            if (this.user?.is_super_moderator) {
+                await this.loadTheme();
+                this.injectThemeStyles();
+            }
+        },
+        
+        // Load saved theme from backend
+        async loadTheme() {
+            this.loadingTheme = true;
+            try {
+                const response = await fetch(`${API_URL}/api/theme`, {
+                    headers: {
+                        'Authorization': `Bearer ${Auth.getToken()}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.colors) {
+                        this.themeColors = data.colors;
+                        this.injectThemeStyles();
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading theme:', error);
+            } finally {
+                this.loadingTheme = false;
+                this.themeLoaded = true;
+            }
+        },
+        
+        // Update a theme color
+        updateThemeColor(category, key, value) {
+            // Validate hex color
+            if (!/^#[0-9A-F]{6}$/i.test(value)) return;
+            
+            this.themeColors[category][key] = value;
+            this.injectThemeStyles();
+        },
+        
+        // Apply a preset theme
+        applyPreset(presetName) {
+            const preset = this.themePresets[presetName];
+            if (preset) {
+                this.themeColors = JSON.parse(JSON.stringify(preset.colors));
+                this.selectedPreset = presetName;
+                this.injectThemeStyles();
+            }
+        },
+        
+        // Inject theme styles into the page
+        injectThemeStyles() {
+            let styleEl = document.getElementById('custom-theme-styles');
+            if (!styleEl) {
+                styleEl = document.createElement('style');
+                styleEl.id = 'custom-theme-styles';
+                document.head.appendChild(styleEl);
+            }
+            
+            let css = ':root {\n';
+            
+            // Generate CSS variables from theme colors
+            Object.entries(this.themeColors).forEach(([category, colors]) => {
+                Object.entries(colors).forEach(([key, value]) => {
+                    css += `  --color-${category}-${key}: ${value};\n`;
+                });
+            });
+            
+            css += '}';
+            styleEl.textContent = css;
+        },
+        
+        // Save theme to backend
+        async saveTheme() {
+            this.loadingTheme = true;
+            try {
+                const response = await fetch(`${API_URL}/api/theme`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${Auth.getToken()}`
+                    },
+                    body: JSON.stringify({
+                        colors: this.themeColors
+                    })
+                });
+                
+                if (response.ok) {
+                    alert('Theme saved successfully!');
+                } else {
+                    throw new Error('Failed to save theme');
+                }
+            } catch (error) {
+                console.error('Error saving theme:', error);
+                alert('Failed to save theme');
+            } finally {
+                this.loadingTheme = false;
+            }
+        },
+        
+        // Reset theme to defaults
+        resetTheme() {
+            if (confirm('Reset all colors to default theme?')) {
+                this.applyPreset('light');
+            }
+        },
+        
+        // Export theme as JSON
+        exportTheme() {
+            const exportData = {
+                name: 'Custom Theme',
+                exportDate: new Date().toISOString(),
+                colors: this.themeColors
+            };
+            
+            const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `theme-${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        },
+        
+        // Import theme from file
+        importTheme() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    try {
+                        const text = await file.text();
+                        const data = JSON.parse(text);
+                        if (data.colors) {
+                            this.themeColors = data.colors;
+                            this.injectThemeStyles();
+                            alert('Theme imported successfully!');
+                        }
+                    } catch (error) {
+                        console.error('Import error:', error);
+                        alert('Failed to import theme');
+                    }
+                }
+            };
+            input.click();
+        },
+        
+        // Helper to format color labels
+        formatColorLabel(key) {
+            return key.replace(/([A-Z])/g, ' $1')
+                .replace(/^./, str => str.toUpperCase());
+        },
+        
+        // Pick color from screen using EyeDropper API
+        async pickColorFromScreen() {
+            if (!window.EyeDropper || !this.selectedColorTarget) return;
+            
+            try {
+                const eyeDropper = new window.EyeDropper();
+                const result = await eyeDropper.open();
+                const hexColor = result.sRGBHex;
+                
+                // Apply the picked color to the selected target
+                const { category, key } = this.selectedColorTarget;
+                this.updateThemeColor(category, key, hexColor);
+                
+                // Show success notification
+                alert(`Color ${hexColor} applied to ${this.formatColorLabel(key)}`);
+            } catch (e) {
+                // User canceled the eyedropper
+                console.log('EyeDropper canceled');
+            }
         }
     };
 }

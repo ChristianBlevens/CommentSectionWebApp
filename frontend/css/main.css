@@ -1822,6 +1822,84 @@ button {
 /* Hover states should be defined by specific button classes */
 
 /* =====================================================
+   THEME EDITOR STYLES
+   ===================================================== */
+.color-input {
+    width: 36px;
+    height: 36px;
+    border: 2px solid var(--color-borders-light);
+    border-radius: 4px;
+    cursor: pointer;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    padding: 0;
+    background: none;
+    transition: all 0.2s ease;
+}
+
+.color-input:hover {
+    border-color: var(--color-borders-medium);
+    transform: scale(1.05);
+}
+
+.color-input:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--color-primary-light);
+}
+
+/* Native color picker styling */
+input[type="color"].color-input::-webkit-color-swatch-wrapper {
+    padding: 2px;
+}
+
+input[type="color"].color-input::-webkit-color-swatch {
+    border: none;
+    border-radius: 2px;
+}
+
+input[type="color"].color-input::-moz-color-swatch {
+    border: none;
+    border-radius: 2px;
+}
+
+/* Theme preview section */
+.theme-preview-section {
+    background: var(--color-backgrounds-main);
+    border: 1px solid var(--color-borders-light);
+    transition: all 0.3s ease;
+}
+
+/* Update comment styles to use theme variables */
+.comment {
+    background: var(--color-backgrounds-secondary);
+    border: 1px solid var(--color-borders-light);
+    padding: 1rem;
+    border-radius: 0.5rem;
+    transition: all 0.2s ease;
+}
+
+.comment:hover {
+    background: var(--color-backgrounds-hover);
+    border-color: var(--color-borders-medium);
+}
+
+.comment-author {
+    color: var(--color-text-primary);
+    font-weight: 600;
+}
+
+.comment-meta {
+    color: var(--color-text-secondary);
+    font-size: 0.875rem;
+}
+
+.comment-content {
+    color: var(--color-text-primary);
+    margin: 0.5rem 0;
+}
+
+/* =====================================================
    PRINT STYLES
    ===================================================== */
 @media print {

@@ -7,6 +7,7 @@
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="css/main.css" rel="stylesheet">
+    <link href="/theme.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.12.0/dist/cdn.min.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/markdown-it/dist/markdown-it.min.js"></script>
 </head>
@@ -94,6 +95,12 @@
                                 :class="{'active': activeTab === 'logs'}"
                                 class="btn-base moderation-tab">
                             <i class="fas fa-history mr-2"></i>Logs
+                        </button>
+                        <button @click="activeTab = 'theme'; $nextTick(() => { if (user && user.is_super_moderator && !themeLoaded) { loadTheme() } })"
+                                :class="{'active': activeTab === 'theme'}"
+                                class="btn-base moderation-tab"
+                                x-show="user && user.is_super_moderator">
+                            <i class="fas fa-palette mr-2"></i>Theme
                         </button>
                     </nav>
                 </div>
@@ -599,6 +606,239 @@
                         </template>
                     </div>
                 </div>
+
+                <!-- Theme Tab -->
+                <div x-show="activeTab === 'theme'" class="space-y-6">
+                    <!-- Live Preview Section -->
+                    <div class="card p-4">
+                        <h3 class="text-lg font-semibold mb-4">Live Preview</h3>
+                        <div class="border border-light rounded-lg p-4" :style="'background-color: ' + themeColors.backgrounds.main">
+                            <!-- Sample comments for preview -->
+                            <div class="space-y-4">
+                                <div class="comment">
+                                    <div class="comment-header">
+                                        <span class="comment-author">Sample User</span>
+                                        <span class="comment-meta">2 hours ago</span>
+                                    </div>
+                                    <div class="comment-content">
+                                        This is a sample comment to preview theme changes.
+                                    </div>
+                                    <button class="btn-base btn-primary btn-sm">Reply</button>
+                                </div>
+                                <div class="comment">
+                                    <div class="comment-header">
+                                        <span class="comment-author">Another User</span>
+                                        <span class="comment-meta">1 hour ago</span>
+                                    </div>
+                                    <div class="comment-content">
+                                        Testing how the theme looks with multiple comments.
+                                    </div>
+                                    <div class="flex gap-2 mt-2">
+                                        <button class="btn-base btn-secondary btn-sm">Edit</button>
+                                        <button class="btn-base btn-danger btn-sm">Delete</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Eyedropper Tool -->
+                    <div class="card p-4">
+                        <h4 class="font-medium mb-3">Color Picker Tool</h4>
+                        <div x-show="window.EyeDropper" class="space-y-3">
+                            <div class="flex items-center gap-4">
+                                <button 
+                                    @click="pickColorFromScreen()"
+                                    class="btn-base btn-primary"
+                                    :disabled="!selectedColorTarget"
+                                >
+                                    <svg class="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"></path>
+                                    </svg>
+                                    Pick Color from Screen
+                                </button>
+                                <div x-show="!selectedColorTarget" class="text-sm text-muted">
+                                    Select a color field below first
+                                </div>
+                                <div x-show="selectedColorTarget" class="text-sm">
+                                    Picking for: <span class="font-medium" x-text="selectedColorTarget ? formatColorLabel(selectedColorTarget.category + ' ' + selectedColorTarget.key) : ''"></span>
+                                </div>
+                            </div>
+                            <p class="text-xs text-muted">
+                                Click any color preview box below to select it, then use the picker to grab colors from anywhere on your screen.
+                            </p>
+                        </div>
+                        <div x-show="!window.EyeDropper" class="text-sm text-muted">
+                            <p>Screen color picker is not available in your browser. Use the standard color inputs instead.</p>
+                            <p class="text-xs mt-1">Supported in: Chrome, Edge, Opera (version 95+)</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Color Controls -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Primary Colors -->
+                        <div class="card p-4">
+                            <h4 class="font-medium mb-3">Primary Colors</h4>
+                            <template x-for="(color, key) in themeColors.primary" :key="key">
+                                <div class="flex items-center justify-between mb-3">
+                                    <label class="text-sm text-secondary" x-text="formatColorLabel(key)"></label>
+                                    <div class="flex items-center gap-2">
+                                        <button
+                                            @click="selectedColorTarget = {category: 'primary', key: key}"
+                                            :class="{'ring-2 ring-primary': selectedColorTarget?.category === 'primary' && selectedColorTarget?.key === key}"
+                                            class="color-input"
+                                            :style="'background-color: ' + color"
+                                            :title="'Click to select, then use color picker'"
+                                        ></button>
+                                        <input 
+                                            type="color" 
+                                            :value="color"
+                                            @input="updateThemeColor('primary', key, $event.target.value)"
+                                            class="color-input cursor-pointer"
+                                        >
+                                        <input 
+                                            type="text" 
+                                            :value="color"
+                                            @input="updateThemeColor('primary', key, $event.target.value)"
+                                            class="w-20 px-2 py-1 text-xs border border-light rounded font-mono"
+                                            placeholder="#000000"
+                                        >
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                        
+                        <!-- Background Colors -->
+                        <div class="card p-4">
+                            <h4 class="font-medium mb-3">Background Colors</h4>
+                            <template x-for="(color, key) in themeColors.backgrounds" :key="key">
+                                <div class="flex items-center justify-between mb-3">
+                                    <label class="text-sm text-secondary" x-text="formatColorLabel(key)"></label>
+                                    <div class="flex items-center gap-2">
+                                        <button
+                                            @click="selectedColorTarget = {category: 'backgrounds', key: key}"
+                                            :class="{'ring-2 ring-primary': selectedColorTarget?.category === 'backgrounds' && selectedColorTarget?.key === key}"
+                                            class="color-input"
+                                            :style="'background-color: ' + color"
+                                            :title="'Click to select, then use color picker'"
+                                        ></button>
+                                        <input 
+                                            type="color" 
+                                            :value="color"
+                                            @input="updateThemeColor('backgrounds', key, $event.target.value)"
+                                            class="color-input cursor-pointer"
+                                        >
+                                        <input 
+                                            type="text" 
+                                            :value="color"
+                                            @input="updateThemeColor('backgrounds', key, $event.target.value)"
+                                            class="w-20 px-2 py-1 text-xs border border-light rounded font-mono"
+                                            placeholder="#000000"
+                                        >
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                        
+                        <!-- Text Colors -->
+                        <div class="card p-4">
+                            <h4 class="font-medium mb-3">Text Colors</h4>
+                            <template x-for="(color, key) in themeColors.text" :key="key">
+                                <div class="flex items-center justify-between mb-3">
+                                    <label class="text-sm text-secondary" x-text="formatColorLabel(key)"></label>
+                                    <div class="flex items-center gap-2">
+                                        <button
+                                            @click="selectedColorTarget = {category: 'text', key: key}"
+                                            :class="{'ring-2 ring-primary': selectedColorTarget?.category === 'text' && selectedColorTarget?.key === key}"
+                                            class="color-input"
+                                            :style="'background-color: ' + color"
+                                            :title="'Click to select, then use color picker'"
+                                        ></button>
+                                        <input 
+                                            type="color" 
+                                            :value="color"
+                                            @input="updateThemeColor('text', key, $event.target.value)"
+                                            class="color-input cursor-pointer"
+                                        >
+                                        <input 
+                                            type="text" 
+                                            :value="color"
+                                            @input="updateThemeColor('text', key, $event.target.value)"
+                                            class="w-20 px-2 py-1 text-xs border border-light rounded font-mono"
+                                            placeholder="#000000"
+                                        >
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                        
+                        <!-- Border Colors -->
+                        <div class="card p-4">
+                            <h4 class="font-medium mb-3">Border Colors</h4>
+                            <template x-for="(color, key) in themeColors.borders" :key="key">
+                                <div class="flex items-center justify-between mb-3">
+                                    <label class="text-sm text-secondary" x-text="formatColorLabel(key)"></label>
+                                    <div class="flex items-center gap-2">
+                                        <button
+                                            @click="selectedColorTarget = {category: 'borders', key: key}"
+                                            :class="{'ring-2 ring-primary': selectedColorTarget?.category === 'borders' && selectedColorTarget?.key === key}"
+                                            class="color-input"
+                                            :style="'background-color: ' + color"
+                                            :title="'Click to select, then use color picker'"
+                                        ></button>
+                                        <input 
+                                            type="color" 
+                                            :value="color"
+                                            @input="updateThemeColor('borders', key, $event.target.value)"
+                                            class="color-input cursor-pointer"
+                                        >
+                                        <input 
+                                            type="text" 
+                                            :value="color"
+                                            @input="updateThemeColor('borders', key, $event.target.value)"
+                                            class="w-20 px-2 py-1 text-xs border border-light rounded font-mono"
+                                            placeholder="#000000"
+                                        >
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                    
+                    <!-- Presets and Actions -->
+                    <div class="card p-4">
+                        <h4 class="font-medium mb-3">Theme Presets</h4>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
+                            <template x-for="(preset, name) in themePresets" :key="name">
+                                <button 
+                                    @click="applyPreset(name)"
+                                    :class="{'ring-2 ring-primary': selectedPreset === name}"
+                                    class="btn-base btn-secondary"
+                                >
+                                    <span x-text="preset.displayName"></span>
+                                </button>
+                            </template>
+                        </div>
+                        
+                        <!-- Action Buttons -->
+                        <div class="flex flex-wrap gap-2">
+                            <button @click="saveTheme" :disabled="loadingTheme" class="btn-base btn-primary">
+                                <span x-show="!loadingTheme">Save Theme</span>
+                                <span x-show="loadingTheme" class="flex items-center">
+                                    <svg class="animate-spin h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Saving...
+                                </span>
+                            </button>
+                            <button @click="resetTheme" class="btn-base btn-secondary">Reset to Default</button>
+                            <button @click="exportTheme" class="btn-base btn-secondary">Export</button>
+                            <button @click="importTheme" class="btn-base btn-secondary">Import</button>
+                        </div>
+                    </div>
+                </div>
+
                 </div>
             </div>
         </div>
