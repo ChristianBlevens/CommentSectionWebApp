@@ -135,6 +135,7 @@
 
     class ThemeEditor {
         constructor() {
+            // Ensure defaultColors is properly cloned
             this.currentColors = JSON.parse(JSON.stringify(defaultColors));
             this.customPresets = {};
             this.history = [];
@@ -145,7 +146,15 @@
             this.hasEyeDropperAPI = 'EyeDropper' in window;
             this.themeHistory = []; // Initialize to prevent TypeError
             
-            this.init();
+            console.log('ThemeEditor constructor - defaultColors:', defaultColors);
+            console.log('ThemeEditor constructor - currentColors:', this.currentColors);
+            
+            // Ensure DOM is ready before initializing
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', () => this.init());
+            } else {
+                this.init();
+            }
         }
 
         async init() {
@@ -177,14 +186,19 @@
         }
 
         setupColorInputs() {
+            console.log('Setting up color inputs with colors:', this.currentColors);
+            
             // Setup all color inputs
             document.querySelectorAll('.color-input').forEach(input => {
                 const category = input.dataset.category;
                 const key = input.dataset.key;
                 
+                console.log(`Setting up ${category}.${key}`);
+                
                 // Set initial values
                 if (this.currentColors[category] && this.currentColors[category][key]) {
                     const color = this.currentColors[category][key];
+                    console.log(`Setting ${category}.${key} to ${color}`);
                     input.value = color;
                     const hexInput = document.getElementById(`${category}-${key}-hex`);
                     if (hexInput) {
@@ -192,6 +206,12 @@
                     }
                 } else {
                     console.warn(`Missing color value for ${category}.${key}`);
+                    // Set a default black color to prevent the input from being invalid
+                    input.value = '#000000';
+                    const hexInput = document.getElementById(`${category}-${key}-hex`);
+                    if (hexInput) {
+                        hexInput.value = '#000000';
+                    }
                 }
                 
                 // Add change listener
@@ -1135,16 +1155,23 @@
     function initializeThemeEditor() {
         // Wait for config to be loaded
         if (window.CONFIG && window.CONFIG.backendUrl) {
-            new ThemeEditor();
+            console.log('Config loaded, initializing ThemeEditor');
+            window.themeEditor = new ThemeEditor();
         } else {
+            console.log('Waiting for config...');
             // Retry after a short delay
             setTimeout(initializeThemeEditor, 100);
         }
     }
     
+    // Ensure we wait for full DOM load
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initializeThemeEditor);
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('DOM loaded, checking config...');
+            initializeThemeEditor();
+        });
     } else {
+        console.log('DOM already loaded, checking config...');
         initializeThemeEditor();
     }
 })();
