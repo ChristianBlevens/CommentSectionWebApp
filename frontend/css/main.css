@@ -64,21 +64,6 @@
     /* Discord Brand Color */
     --color-discord: #5865F2;
     --color-discord-hover: #4752C4;
-    
-    /* Role Colors */
-    --color-role-mod: #2563eb;
-    --color-role-mod-bg: rgba(59, 130, 246, 0.1);
-    --color-role-super-mod: #7c3aed;
-    --color-role-super-mod-bg: rgba(147, 51, 234, 0.1);
-    --color-role-banned: #dc2626;
-    --color-role-banned-bg: rgba(239, 68, 68, 0.1);
-    
-    /* Interaction Colors */
-    --color-like-bg: rgba(96, 165, 250, 0.1);
-    --color-dislike-bg: rgba(248, 113, 113, 0.1);
-    
-    /* Focus Ring */
-    --color-focus-ring: rgba(59, 130, 246, 0.5);
 }
 
 /* =====================================================
@@ -163,19 +148,20 @@ button, a, select, [role="button"], [onclick], .clickable {
     tap-highlight-color: transparent;
 }
 
-/* Accessible focus styles */
+/* Remove ALL focus outlines */
 *:focus {
-    outline: none;
+    outline: none !important;
+    box-shadow: none !important;
 }
 
 *:focus-visible {
-    outline: 2px solid var(--color-focus-ring);
-    outline-offset: 2px;
+    outline: none !important;
+    box-shadow: none !important;
 }
 
-/* Custom focus styles for specific elements */
+/* Remove focus rings on buttons specifically */
+button:focus,
 button:focus-visible,
-a:focus-visible,
 a:focus,
 a:focus-visible,
 select:focus,
@@ -541,12 +527,12 @@ body {
 
 .comment-action.active-like {
     color: var(--color-like);
-    background-color: var(--color-like-bg);
+    background-color: rgba(96, 165, 250, 0.1);
 }
 
 .comment-action.active-dislike {
     color: var(--color-dislike);
-    background-color: var(--color-dislike-bg);
+    background-color: rgba(248, 113, 113, 0.1);
 }
 
 /* =====================================================
@@ -602,25 +588,14 @@ select::selection {
     background: transparent;
 }
 
-/* Consistent focus styles for interactive elements */
-button:focus-visible,
-a:focus-visible,
-.clickable:focus-visible,
-select:focus-visible,
-input:focus-visible,
-textarea:focus-visible,
-[onclick]:focus-visible {
-    outline: 2px solid var(--color-focus-ring);
+/* Remove focus outline text selection */
+button:focus,
+a:focus,
+.clickable:focus,
+select:focus,
+[onclick]:focus {
+    outline: 2px solid var(--color-primary);
     outline-offset: 2px;
-}
-
-/* Special focus styles for form inputs */
-input:focus,
-textarea:focus,
-select:focus {
-    outline: none;
-    border-color: var(--color-primary-main);
-    box-shadow: 0 0 0 3px var(--color-focus-ring);
 }
 
 /* Prevent text cursor on buttons */
@@ -644,103 +619,46 @@ a *,
 }
 
 /* =====================================================
-   UTILITY CLASSES
-   ===================================================== */
-
-/* Transition utilities */
-.transition-all { transition: all 0.2s ease; }
-.transition-colors { transition: background-color 0.2s, color 0.2s, border-color 0.2s; }
-.transition-transform { transition: transform 0.2s; }
-.transition-opacity { transition: opacity 0.2s; }
-.transition-shadow { transition: box-shadow 0.2s; }
-
-/* Hover effects */
-.hover-lift:hover { transform: translateY(-1px); }
-.hover-shadow:hover { box-shadow: 0 4px 12px var(--color-shadow-md); }
-.hover-scale:hover { transform: scale(1.05); }
-
-/* Animation utilities */
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes slideIn {
-    from { transform: translateX(-100%); }
-    to { transform: translateX(0); }
-}
-
-@keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
-}
-
-.animate-spin { animation: spin 0.8s linear infinite; }
-.animate-fadeIn { animation: fadeIn 0.3s ease-out; }
-.animate-slideIn { animation: slideIn 0.3s ease-out; }
-.animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
-
-/* =====================================================
    BASE CLASSES FOR CONSOLIDATION
    ===================================================== */
 
-/* Button composition system
-   Base: .btn
-   Variants: .btn-primary, .btn-secondary, etc.
-   Sizes: .btn-sm, .btn-lg
-   Special: .btn-icon, .btn-text */
-.btn {
+/* Base button class - shared by all buttons */
+.btn-base {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: var(--space-xs);
-    padding: var(--space-sm) var(--space-lg);
+    padding: clamp(0.5rem, 0.45rem + 0.25vw, 0.75rem) clamp(1rem, 0.9rem + 0.5vw, 1.5rem);
     min-height: var(--button-height);
     border-radius: var(--radius-md);
     font-size: var(--text-sm);
     font-weight: 500;
-    line-height: 1;
-    text-align: center;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
     text-decoration: none;
     white-space: nowrap;
-    vertical-align: middle;
-    cursor: pointer;
     user-select: none;
-    border: 1px solid transparent;
-    transition: all 0.2s;
-    position: relative;
-    overflow: hidden;
-    background-color: var(--color-backgrounds-secondary);
-    color: var(--color-text-primary);
-}
-
-/* Apply no-select utility */
-.btn,
-.dropdown-item {
-    -webkit-touch-callout: none;
     -webkit-user-select: none;
-    -khtml-user-select: none;
     -moz-user-select: none;
     -ms-user-select: none;
-    user-select: none;
+    background-color: transparent;
+    color: var(--color-text-secondary);
+    -webkit-touch-callout: none;
 }
 
-.btn:hover:not(:disabled) {
+.btn-base:hover:not(:disabled) {
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px var(--color-shadow-md);
+    box-shadow: 0 2px 8px var(--color-shadow-md);
 }
 
-.btn:disabled {
+.btn-base:disabled {
     cursor: not-allowed;
     opacity: 0.6;
 }
 
-/* Dropdown composition system */
-.dropdown {
+/* Base dropdown class */
+.dropdown-base {
     position: absolute;
     min-width: clamp(10rem, 15vw, 12rem);
     background-color: var(--color-backgrounds-main);
@@ -751,12 +669,12 @@ a *,
     display: none;
 }
 
-.dropdown.show {
+.dropdown-base.show {
     display: block;
 }
 
-/* Dropdown items */
-.dropdown-item {
+/* Base dropdown item class */
+.dropdown-item-base {
     display: flex;
     align-items: center;
     gap: var(--space-sm);
@@ -775,15 +693,15 @@ a *,
     -ms-user-select: none;
 }
 
-.dropdown-item:hover {
+.dropdown-item-base:hover {
     background-color: var(--color-backgrounds-secondary);
 }
 
-.dropdown-item:first-child {
+.dropdown-item-base:first-child {
     border-radius: calc(var(--radius-md) - 1px) calc(var(--radius-md) - 1px) 0 0;
 }
 
-.dropdown-item:last-child {
+.dropdown-item-base:last-child {
     border-radius: 0 0 calc(var(--radius-md) - 1px) calc(var(--radius-md) - 1px);
 }
 
@@ -803,7 +721,7 @@ a *,
 .textarea-base:focus {
     outline: none;
     border-color: var(--color-primary);
-    box-shadow: 0 0 0 3px var(--color-focus-ring);
+    box-shadow: 0 0 0 3px rgba(0, 121, 211, 0.1);
 }
 
 .textarea-base:disabled {
@@ -811,36 +729,9 @@ a *,
     color: var(--color-text-secondary);
     cursor: not-allowed;
 }
-/* Button size modifiers */
-.btn-sm {
-    padding: var(--space-xs) var(--space-sm);
-    font-size: var(--text-xs);
-    min-height: 2rem;
-}
-
-.btn-lg {
-    padding: var(--space-md) var(--space-xl);
-    font-size: var(--text-lg);
-    min-height: 3rem;
-}
-
-/* Button special types */
-.btn-icon {
-    padding: var(--space-sm);
-    min-width: var(--button-height);
-}
-
-.btn-text {
-    background: transparent;
-    border-color: transparent;
-    padding: var(--space-xs) var(--space-sm);
-    min-height: auto;
-}
-
-.btn-text:hover:not(:disabled) {
-    background-color: var(--color-backgrounds-hover);
-    transform: none;
-    box-shadow: none;
+/* Main button class - extends btn-base */
+.btn {
+    /* Inherits all from btn-base when both classes are used */
 }
 
 .btn-primary {
@@ -850,6 +741,14 @@ a *,
 
 .btn-primary:hover:not(:disabled) {
     background-color: var(--color-primary-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px var(--color-shadow-md);
+}
+
+.btn-primary:disabled {
+    background-color: var(--color-backgrounds-secondary);
+    cursor: not-allowed;
+    opacity: 0.6;
 }
 
 .btn-secondary {
@@ -858,7 +757,7 @@ a *,
     border: 1px solid var(--color-borders-light);
 }
 
-.btn-secondary:hover:not(:disabled) {
+.btn-secondary:hover {
     background-color: var(--color-backgrounds-hover);
     border-color: var(--color-borders-medium);
 }
@@ -868,7 +767,7 @@ a *,
     color: var(--color-text-inverse);
 }
 
-.btn-danger:hover:not(:disabled) {
+.btn-danger:hover {
     background-color: var(--color-danger-hover);
 }
 
@@ -877,7 +776,7 @@ a *,
     color: var(--color-text-inverse);
 }
 
-.btn-warning:hover:not(:disabled) {
+.btn-warning:hover {
     background-color: var(--color-warning-hover);
 }
 
@@ -886,7 +785,7 @@ a *,
     color: var(--color-text-inverse);
 }
 
-.btn-success:hover:not(:disabled) {
+.btn-success:hover {
     background-color: var(--color-success-hover);
 }
 
@@ -896,18 +795,25 @@ a *,
     color: var(--color-text-inverse);
 }
 
-.btn-discord:hover:not(:disabled) {
+.btn-discord:hover {
     background-color: var(--color-discord-hover);
 }
 
-/* Remove redundant sort-btn - use composition instead */
-/* Usage: class="btn btn-secondary sort-btn" */
+/* Sorting buttons - extends btn-base - Mobile First */
 .sort-btn {
-    flex: 1 1 auto;
-    min-width: 0;
+    border: 1px solid var(--color-borders-light);
+    background-color: var(--color-backgrounds-secondary);
+    flex: 1 1 auto; /* Allow shrinking and growing */
+    min-width: 0; /* Allow shrinking below content */
+    min-height: var(--touch-target-min);
+    padding: clamp(0.375rem, 0.75vw, 0.75rem) clamp(0.5rem, 1vw, 1rem);
+    font-size: clamp(0.75rem, 1.5vw, 1rem);
 }
 
-/* Sort button active state */
+.sort-btn:hover {
+    background-color: var(--color-backgrounds-secondary);
+    border-color: var(--color-borders-medium);
+}
 
 .sort-btn.active {
     background-color: var(--color-primary);
@@ -967,20 +873,46 @@ a *,
     overflow: visible; /* Changed from hidden to visible */
 }
 
-/* Remove redundant markdown-btn - use composition */
-/* Usage: class="btn btn-icon btn-sm" */
+/* Markdown toolbar buttons - extends btn-base */
 .markdown-btn {
-    width: clamp(2rem, 6vw, 2.5rem);
-    height: clamp(2rem, 6vw, 2.5rem);
-    flex: 0 1 auto;
+    padding: clamp(0.375rem, 1vw, 0.5rem);
+    background: var(--color-backgrounds-main);
+    border: 1px solid var(--color-borders-light);
+    min-width: 0; /* Remove min-width */
+    min-height: 0; /* Override btn-base min-height */
+    width: clamp(2rem, 6vw, 2.5rem); /* Responsive width */
+    height: clamp(2rem, 6vw, 2.5rem); /* Responsive height */
+    flex: 0 1 auto; /* Allow shrinking */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    overflow: visible;
+    position: relative;
+    z-index: 1;
 }
 
 .markdown-btn:hover {
+    background: var(--color-backgrounds-secondary);
+    border-color: var(--color-borders-medium);
     z-index: 10; /* Ensure hover state is above siblings */
 }
 
-/* Remove redundant comment-options-btn */
-/* Usage: class="btn btn-icon btn-sm" */
+/* Comment options button (three dots) - extends btn-base */
+.comment-options-btn {
+    padding: 0.375rem;
+    min-width: 0;
+    flex-shrink: 1;
+}
+
+.comment-options-btn i {
+    font-size: 1rem;
+    color: inherit;
+}
+
+.comment-options-btn:hover {
+    background-color: var(--color-backgrounds-secondary);
+    color: var(--color-text-primary);
+}
 
 /* Comment dropdown container */
 .comment-dropdown-container {
@@ -989,10 +921,16 @@ a *,
     z-index: 9999;
 }
 
-/* Dropdown positioning modifiers */
-.dropdown-right {
-    left: auto;
+/* Comment dropdown - extends dropdown-base */
+.comment-dropdown {
     right: 0;
+    top: 100%;
+    margin-top: var(--space-xs);
+}
+
+/* Comment dropdown items - extends dropdown-item-base */
+.comment-dropdown-item {
+    /* Inherits all from dropdown-item-base */
 }
 
 .comment-dropdown-item:last-child {
@@ -1024,13 +962,14 @@ a *,
     padding: var(--space-xs) 0;
 }
 
-/* Remove redundant ban-dropdown-item - use .dropdown-item */
+/* Ban dropdown items - extends dropdown-item-base */
+.ban-dropdown-item {
+    /* Inherits all from dropdown-item-base */
+}
 
-/* Dropdown divider */
-.dropdown-divider {
-    height: 0;
-    margin: var(--space-xs) 0;
+.ban-dropdown-divider {
     border-top: 1px solid var(--color-borders-light);
+    margin: var(--space-xs) 0;
 }
 
 .ban-dropdown-item.text-error {
@@ -1052,14 +991,29 @@ a *,
 /* =====================================================
    MENTION SYSTEM STYLES
    ===================================================== */
-/* Mention dropdown specific styles */
+/* Mention dropdown */
 .mention-dropdown {
+    position: absolute;
+    z-index: 10000;
+    background-color: var(--color-backgrounds-main);
+    border: 1px solid var(--color-borders-light);
+    border-radius: var(--radius-md);
+    box-shadow: 0 4px 12px var(--color-shadow-lg);
     max-height: 200px;
     overflow-y: auto;
     width: 250px;
 }
 
-/* Remove redundant mention-dropdown-item - use .dropdown-item */
+/* Mention dropdown items */
+.mention-dropdown-item {
+    display: flex;
+    align-items: center;
+    padding: var(--space-sm) var(--space-md);
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.mention-dropdown-item:hover,
 .mention-dropdown-item.selected {
     background-color: var(--color-backgrounds-secondary);
 }
@@ -1089,7 +1043,18 @@ a *,
     text-decoration: underline;
 }
 
-/* Remove redundant dropdown-menu and dropdown-item duplicates */
+/* Dropdown menu - extends dropdown-base */
+.dropdown-menu {
+    top: 100%;
+    left: 0;
+    margin-top: var(--space-xs);
+    z-index: 1000;
+}
+
+/* Dropdown items - extends dropdown-item-base */
+.dropdown-item {
+    /* Inherits all from dropdown-item-base */
+}
 
 .dropdown-item:last-child {
     border-radius: 0 0 calc(var(--radius-md) - 1px) calc(var(--radius-md) - 1px);
@@ -1301,34 +1266,59 @@ a *,
     gap: var(--space-sm);
 }
 
-/* Remove redundant report action buttons - use btn variants */
-/* Usage: class="btn btn-primary", "btn btn-danger", etc. */
-.btn-ban {
-    background-color: var(--color-ban);
+/* Report action buttons - extends btn-base */
+.report-action-btn {
     color: var(--color-text-inverse);
 }
 
-.btn-ban:hover:not(:disabled) {
+/* Report action button variants */
+.report-action-btn.view {
+    background-color: var(--color-primary-main);
+}
+
+.report-action-btn.view:hover {
+    background-color: var(--color-info-hover);
+}
+
+.report-action-btn.delete {
+    background-color: var(--color-status-error);
+}
+
+.report-action-btn.delete:hover {
+    background-color: var(--color-danger-hover);
+}
+
+.report-action-btn.ban {
+    background-color: var(--color-ban);
+}
+
+.report-action-btn.ban:hover {
     background-color: var(--color-ban-hover);
+}
+
+.report-action-btn.warn {
+    background-color: var(--color-warning);
+}
+
+.report-action-btn.warn:hover {
+    background-color: var(--color-warning-hover);
+}
+
+.report-action-btn.dismiss {
+    background-color: var(--color-backgrounds-secondary);
+}
+
+.report-action-btn.dismiss:hover {
+    background-color: var(--color-secondary-hover);
 }
 
 /* =====================================================
    MODERATION PANEL - MOBILE FIRST
    ===================================================== */
-/* Card composition */
-.card {
-    background-color: var(--color-backgrounds-main);
-    border: 1px solid var(--color-borders-light);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-sm);
-    overflow: hidden;
-}
-
-.card-padding {
-    padding: var(--space-md);
-}
-
 .moderation-panel {
+    background-color: var(--color-backgrounds-main);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 2px 8px var(--color-shadow-md);
     margin-bottom: var(--space-lg);
     container-type: inline-size;
 }
@@ -1343,18 +1333,23 @@ a *,
     scrollbar-color: var(--color-borders-light) transparent;
 }
 
-/* Tab system */
-.tab {
-    padding: var(--space-sm) var(--space-md);
+/* Moderation tab - extends btn-base - Mobile First */
+.moderation-tab {
+    padding: clamp(0.5rem, 1.5vw, 1rem) clamp(0.75rem, 2vw, 1.5rem);
     font-weight: 500;
+    font-size: clamp(0.75rem, 1.25vw, 1rem);
     background: none;
     border: none;
     border-bottom: 2px solid transparent;
     border-radius: 0;
-    cursor: pointer;
-    transition: all 0.2s;
+    min-height: var(--touch-target-min);
+    position: relative;
+    flex: 1 1 auto; /* Allow grow and shrink */
+    min-width: 0; /* Allow shrinking below content */
     white-space: nowrap;
-    color: var(--color-text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    /* Remove max-width constraint */
 }
 
 /* Container query for very small spaces */
@@ -1365,14 +1360,14 @@ a *,
     }
 }
 
-.tab:hover {
+.moderation-tab:hover {
     color: var(--color-text-primary);
     background-color: var(--color-backgrounds-secondary);
     transform: none;
     box-shadow: none;
 }
 
-.tab.active {
+.moderation-tab.active {
     color: var(--color-primary);
     border-bottom-color: var(--color-primary);
 }
@@ -1526,18 +1521,18 @@ a *,
 
 /* Role colors */
 .role-badge.role-mod {
-    background-color: var(--color-role-mod-bg);
-    color: var(--color-role-mod);
+    background-color: rgba(59, 130, 246, 0.1);
+    color: #2563eb;
 }
 
 .role-badge.role-super-mod {
-    background-color: var(--color-role-super-mod-bg);
-    color: var(--color-role-super-mod);
+    background-color: rgba(147, 51, 234, 0.1);
+    color: #7c3aed;
 }
 
 .role-badge.role-banned {
-    background-color: var(--color-role-banned-bg);
-    color: var(--color-role-banned);
+    background-color: rgba(239, 68, 68, 0.1);
+    color: #dc2626;
 }
 
 /* Icon sizing in badges */
@@ -1563,6 +1558,10 @@ a *,
     border-radius: var(--radius-full);
     border-top-color: var(--color-primary);
     animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
 }
 
 /* =====================================================
@@ -1619,29 +1618,24 @@ a *,
     gap: var(--space-md);
 }
 
-/* Notification base class */
-.notification {
-    padding: var(--space-md);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-lg);
+.notification-success {
+    background-color: var(--color-success);
     color: var(--color-text-inverse);
 }
 
-.notification-success {
-    background-color: var(--color-status-success);
-}
-
 .notification-warning {
-    background-color: var(--color-status-warning);
+    background-color: var(--color-warning);
+    color: var(--color-text-inverse);
 }
 
-.notification-danger,
-.notification-error {
+.notification-danger {
     background-color: var(--color-status-error);
+    color: var(--color-text-inverse);
 }
 
 .notification-info {
     background-color: var(--color-primary-main);
+    color: var(--color-text-inverse);
 }
 
 /* =====================================================
@@ -1821,7 +1815,26 @@ html {
     color: var(--color-text-secondary);
 }
 
-/* Remove duplicate notification classes */
+.notification-success {
+    background-color: var(--color-status-success);
+    color: var(--color-text-inverse);
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.notification-error {
+    background-color: var(--color-status-error);
+    color: var(--color-text-inverse);
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.notification-warning {
+    background-color: var(--color-status-warning);
+    color: var(--color-text-inverse);
+    border-radius: 8px;
+    padding: 1rem;
+}
 
 /* Override any remaining hardcoded colors */
 body {
@@ -2056,11 +2069,11 @@ input[type="color"].color-input::-moz-color-swatch {
 }
 
 .bubble circle {
-    filter: drop-shadow(0 2px 4px var(--color-shadow-sm));
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
 }
 
 .bubble circle:hover {
-    filter: drop-shadow(0 4px 8px var(--color-shadow-md));
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
 }
 
 .bubble-tooltip {
@@ -2097,103 +2110,3 @@ input[type="color"].color-input::-moz-color-swatch {
         min-height: 400px;
     }
 }
-
-/* =====================================================
-   UTILITY CLASSES TO REPLACE INLINE STYLES
-   ===================================================== */
-
-/* Mention dropdown positioning */
-.mention-dropdown {
-    position: absolute;
-    bottom: 100%;
-    margin-bottom: 4px;
-    z-index: 1000;
-}
-
-/* Search input sizing */
-.search-input {
-    min-width: 200px;
-    max-width: 300px;
-    width: 100%;
-}
-
-/* Theme preview background */
-.theme-preview {
-    background-color: var(--color-backgrounds-main);
-    transition: background-color 0.3s ease;
-}
-
-/* Reply dropdown positioning */
-.reply-dropdown {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    margin-top: 5px;
-    z-index: 999;
-}
-
-/* Reply form - initially hidden */
-.reply-form {
-    display: none;
-    margin-top: var(--spacing-base);
-    padding: var(--spacing-base);
-    background: var(--color-backgrounds-secondary);
-    border-radius: var(--radius-base);
-}
-
-/* =====================================================
-   SPACING UTILITIES USING CSS VARIABLES
-   ===================================================== */
-
-/* Padding utilities */
-.p-xs { padding: var(--space-xs); }
-.p-sm { padding: var(--space-sm); }
-.p-base { padding: var(--space-md); }
-.p-lg { padding: var(--space-lg); }
-.p-xl { padding: var(--space-xl); }
-
-.px-xs { padding-left: var(--space-xs); padding-right: var(--space-xs); }
-.px-sm { padding-left: var(--space-sm); padding-right: var(--space-sm); }
-.px-base { padding-left: var(--space-md); padding-right: var(--space-md); }
-.px-lg { padding-left: var(--space-lg); padding-right: var(--space-lg); }
-
-.py-xs { padding-top: var(--space-xs); padding-bottom: var(--space-xs); }
-.py-sm { padding-top: var(--space-sm); padding-bottom: var(--space-sm); }
-.py-base { padding-top: var(--space-md); padding-bottom: var(--space-md); }
-.py-lg { padding-top: var(--space-lg); padding-bottom: var(--space-lg); }
-
-/* Margin utilities */
-.m-xs { margin: var(--space-xs); }
-.m-sm { margin: var(--space-sm); }
-.m-base { margin: var(--space-md); }
-.m-lg { margin: var(--space-lg); }
-
-.mb-xs { margin-bottom: var(--space-xs); }
-.mb-sm { margin-bottom: var(--space-sm); }
-.mb-base { margin-bottom: var(--space-md); }
-.mb-lg { margin-bottom: var(--space-lg); }
-
-.mt-xs { margin-top: var(--space-xs); }
-.mt-sm { margin-top: var(--space-sm); }
-.mt-base { margin-top: var(--space-md); }
-.mt-lg { margin-top: var(--space-lg); }
-
-.mr-xs { margin-right: var(--space-xs); }
-.mr-sm { margin-right: var(--space-sm); }
-.mr-base { margin-right: var(--space-md); }
-
-.ml-xs { margin-left: var(--space-xs); }
-.ml-sm { margin-left: var(--space-sm); }
-.ml-base { margin-left: var(--space-md); }
-
-/* Gap utilities */
-.gap-xs { gap: var(--space-xs); }
-.gap-sm { gap: var(--space-sm); }
-.gap-base { gap: var(--space-md); }
-.gap-lg { gap: var(--space-lg); }
-
-/* Space utilities */
-.space-y-xs > * + * { margin-top: var(--space-xs); }
-.space-y-sm > * + * { margin-top: var(--space-sm); }
-.space-y-base > * + * { margin-top: var(--space-md); }
-.space-y-lg > * + * { margin-top: var(--space-lg); }

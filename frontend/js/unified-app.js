@@ -1,8 +1,9 @@
-// API_URL is already defined in utils.js
+// Set API base URL
+const API_URL = window.location.origin;
 
 // Shared utility functions
 function getRelativeTime(dateString) {
-    return DateHelper.formatRelativeTime(dateString);
+    return Utils.getRelativeTime(dateString);
 }
 
 function renderMarkdown(text) {
@@ -22,9 +23,7 @@ function insertMarkdown(textarea, before, after) {
 }
 
 function extractYouTubeId(url) {
-    const regex = /(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
-    const match = url.match(regex);
-    return match ? match[1] : null;
+    return Utils.getYoutubeId(url);
 }
 
 async function banUserWithDuration(userId, userName, duration) {
@@ -1216,7 +1215,8 @@ function unifiedApp() {
                                             <i class="fas fa-ellipsis-v"></i>
                                         </button>
                                         <div id="dropdown-${comment.id}" 
-                                             class="dropdown-base comment-dropdown reply-dropdown">
+                                             class="dropdown-base comment-dropdown"
+                                             style="top: 100%; left: 0; margin-top: 5px;">
                                             <button onclick="window.unifiedAppInstance.reportComment('${comment.id}')" 
                                                     class="dropdown-item-base comment-dropdown-item">
                                                 <i class="fas fa-flag"></i>
@@ -1236,7 +1236,7 @@ function unifiedApp() {
                         ` : ''}
                         
                         <!-- Reply form -->
-                        <div id="reply-form-${comment.id}" class="reply-form">
+                        <div id="reply-form-${comment.id}" style="display: none;" class="reply-form">
                             <textarea id="reply-textarea-${comment.id}" 
                                       placeholder="Write a reply..."
                                       class="textarea-base reply-textarea"></textarea>
