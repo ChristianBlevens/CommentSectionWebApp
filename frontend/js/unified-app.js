@@ -1,9 +1,8 @@
-// Set API base URL
-const API_URL = window.location.origin;
+// API_URL is already defined in utils.js
 
 // Shared utility functions
 function getRelativeTime(dateString) {
-    return Utils.getRelativeTime(dateString);
+    return DateHelper.formatRelativeTime(dateString);
 }
 
 function renderMarkdown(text) {
@@ -23,7 +22,9 @@ function insertMarkdown(textarea, before, after) {
 }
 
 function extractYouTubeId(url) {
-    return Utils.getYoutubeId(url);
+    const regex = /(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+    const match = url.match(regex);
+    return match ? match[1] : null;
 }
 
 async function banUserWithDuration(userId, userName, duration) {
