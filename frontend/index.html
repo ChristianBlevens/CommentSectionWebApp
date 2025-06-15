@@ -790,15 +790,12 @@
                             <button @click="resetTheme" class="btn-base btn-secondary">Reset to Default</button>
                             <button @click="exportTheme" class="btn-base btn-secondary">Export</button>
                             <button @click="importTheme" class="btn-base btn-secondary">Import</button>
-							<button 
+		                            <button 
                                 @click="undoLastChange" 
                                 :disabled="!lastColorChange"
-                                class="btn-base btn-secondary"
+                                class="btn-base btn btn-secondary"
                                 :class="{'opacity-50 cursor-not-allowed': !lastColorChange}">
-                                <svg class="w-4 h-4 mr-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path>
-                                </svg>
-                                Undo
+                                <i class="fas fa-undo mr-2"></i>Undo
                             </button>
                         </div>
                     </div>
