@@ -19,22 +19,10 @@ class AnalyticsCalculator {
         const query = `
             SELECT 
                 c.page_id,
-                COUNT(DISTINCT c.id) as comment_count,
-                MAX(p.page_name) as page_name,
-                MAX(p.page_url) as page_url
+                COUNT(DISTINCT c.id) as comment_count
             FROM comments c
-            LEFT JOIN (
-                SELECT DISTINCT ON (page_id) 
-                    page_id,
-                    content->>'title' as page_name,
-                    content->>'url' as page_url
-                FROM comments
-                WHERE content ? 'title'
-                ORDER BY page_id, created_at
-            ) p ON c.page_id = p.page_id
             WHERE c.created_at >= $1
                 AND c.created_at <= $2
-                AND c.deleted_at IS NULL
             GROUP BY c.page_id
             HAVING COUNT(DISTINCT c.id) > 0
             ORDER BY comment_count DESC
@@ -46,8 +34,8 @@ class AnalyticsCalculator {
         const data = {
             pages: result.rows.map(row => ({
                 pageId: row.page_id,
-                pageName: row.page_name || `Page ${row.page_id}`,
-                url: row.page_url || `/page/${row.page_id}`,
+                pageName: `Page ${row.page_id}`,
+                url: `#page-${row.page_id}`,
                 commentCount: parseInt(row.comment_count)
             })),
             period: {
@@ -244,22 +232,10 @@ class AnalyticsCalculator {
         const query = `
             SELECT 
                 c.page_id,
-                COUNT(DISTINCT c.id) as comment_count,
-                MAX(p.page_name) as page_name,
-                MAX(p.page_url) as page_url
+                COUNT(DISTINCT c.id) as comment_count
             FROM comments c
-            LEFT JOIN (
-                SELECT DISTINCT ON (page_id) 
-                    page_id,
-                    content->>'title' as page_name,
-                    content->>'url' as page_url
-                FROM comments
-                WHERE content ? 'title'
-                ORDER BY page_id, created_at
-            ) p ON c.page_id = p.page_id
             WHERE c.created_at >= $1
                 AND c.created_at <= $2
-                AND c.deleted_at IS NULL
             GROUP BY c.page_id
             HAVING COUNT(DISTINCT c.id) > 0
             ORDER BY comment_count DESC
@@ -271,8 +247,8 @@ class AnalyticsCalculator {
         const data = {
             pages: result.rows.map(row => ({
                 pageId: row.page_id,
-                pageName: row.page_name || `Page ${row.page_id}`,
-                url: row.page_url || `/page/${row.page_id}`,
+                pageName: `Page ${row.page_id}`,
+                url: `#page-${row.page_id}`,
                 commentCount: parseInt(row.comment_count)
             })),
             period: {

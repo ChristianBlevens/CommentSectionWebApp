@@ -1981,6 +1981,19 @@ input[type="color"].color-input::-moz-color-swatch {
     padding: var(--spacing-base);
 }
 
+.analytics-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-lg);
+}
+
+.analytics-title {
+    font-size: clamp(1.25rem, 2vw, 1.5rem);
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
 .controls-section {
     display: flex;
     gap: var(--spacing-base);
@@ -1995,6 +2008,33 @@ input[type="color"].color-input::-moz-color-swatch {
 .timeframe-selector {
     display: flex;
     gap: var(--spacing-sm);
+}
+
+.date-selector-container {
+    padding: var(--spacing-sm);
+    background: var(--color-background);
+    border: 1px solid var(--color-border-light);
+    border-radius: var(--radius-base);
+}
+
+.date-selector {
+    background: transparent;
+    border: none;
+    padding: var(--spacing-xs) var(--spacing-sm);
+}
+
+.loading-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-base);
+    padding: var(--spacing-xl);
+    min-height: 400px;
+}
+
+.loading-text {
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-base);
 }
 
 .bubble-chart-container {
