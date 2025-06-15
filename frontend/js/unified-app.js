@@ -1041,7 +1041,10 @@ function unifiedApp() {
                 this.mentionDropdown.searchTerm = mentionMatch[1];
                 this.mentionDropdown.mentionStart = mentionMatch.index + 1;
                 
-                if (this.mentionDropdown.searchTerm.length >= 2 || this.mentionDropdown.searchTerm.length === 0) {
+                if (this.mentionDropdown.searchTerm.length >= 2) {
+                    this.searchMentionUsers();
+                } else if (this.mentionDropdown.searchTerm.length === 0) {
+                    // Show all users when just "@" is typed
                     this.searchMentionUsers();
                 } else {
                     this.mentionDropdown.show = false;

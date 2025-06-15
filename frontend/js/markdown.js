@@ -26,6 +26,9 @@ const MarkdownProcessor = {
 
     // Add custom syntax support
     preprocessMarkdown(text) {
+        // Convert @username[userId] mentions to highlighted spans
+        text = text.replace(/@(\w+)\[(\d+)\]/g, '<span class="mention" data-user-id="$2">@$1</span>');
+        
         // Convert ||text|| to spoilers
         text = text.replace(/\|\|([^|]+)\|\|/g, '<span class="spoiler">$1</span>');
         

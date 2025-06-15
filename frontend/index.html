@@ -834,30 +834,38 @@
                     
                     <!-- Comment box -->
                     <div class="space-y-3">
-                        <!-- Mention dropdown (add this div) -->
-                        <div x-show="mentionDropdown.show" 
-                             x-transition
-                             class="absolute z-50 bg-white rounded-lg shadow-lg border border-light mt-1"
-                             style="min-width: 200px">
-                            <template x-for="(user, index) in mentionDropdown.users" :key="user.id">
-                                <div @click="insertMention(user)"
-                                     :class="{'bg-secondary': mentionDropdown.selectedIndex === index}"
-                                     class="flex items-center p-2 hover:bg-secondary cursor-pointer">
-                                    <img :src="user.picture || 'https://cdn.discordapp.com/embed/avatars/1.png'" 
-                                         class="w-8 h-8 rounded-full mr-2">
-                                    <span x-text="user.name" class="text-sm"></span>
+                        <!-- Textarea container with relative positioning for dropdown -->
+                        <div class="relative">
+                            <textarea x-model="newCommentText" 
+                                      @input="updatePreview(); handleCommentInput()"
+                                      @keydown="handleMentionKeydown($event)"
+                                      x-ref="commentTextarea"
+                                      :placeholder="user?.is_banned ? 'You are banned from commenting' : 'Write your comment... (Markdown supported)'"
+                                      :disabled="user?.is_banned"
+                                      class="textarea-base comment-textarea"
+                                      rows="3"></textarea>
+                            
+                            <!-- Mention dropdown positioned relative to textarea -->
+                            <div x-show="mentionDropdown.show" 
+                                 x-transition
+                                 @click.away="mentionDropdown.show = false"
+                                 class="mention-dropdown"
+                                 style="bottom: 100%; margin-bottom: 4px;">
+                                <template x-for="(user, index) in mentionDropdown.users" :key="user.id">
+                                    <div @click="insertMention(user)"
+                                         :class="{'selected': mentionDropdown.selectedIndex === index}"
+                                         class="mention-dropdown-item">
+                                        <img :src="user.picture || 'https://cdn.discordapp.com/embed/avatars/1.png'" 
+                                             alt="User avatar">
+                                        <span x-text="user.name"></span>
+                                    </div>
+                                </template>
+                                <div x-show="mentionDropdown.users.length === 0 && mentionDropdown.searchTerm !== ''" 
+                                     class="mention-dropdown-item">
+                                    <span class="text-muted">No users found</span>
                                 </div>
-                            </template>
+                            </div>
                         </div>
-                        
-                        <textarea x-model="newCommentText" 
-                                  @input="updatePreview(); handleCommentInput()"
-                                  @keydown="handleMentionKeydown($event)"
-                                  x-ref="commentTextarea"
-                                  :placeholder="user?.is_banned ? 'You are banned from commenting' : 'Write your comment... (Markdown supported)'"
-                                  :disabled="user?.is_banned"
-                                  class="textarea-base comment-textarea"
-                                  rows="3"></textarea>
                         
                         <!-- Preview -->
                         <div x-show="newCommentText" class="mt-3">

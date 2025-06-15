@@ -2235,22 +2235,36 @@ app.post('/api/users/warnings/acknowledge', authenticateUser, async (req, res) =
 
 // Search users for mentions
 app.get('/api/users/search', authenticateUser, async (req, res) => {
-    const { q, limit = 5 } = req.query;
+    const { q = '', limit = 5 } = req.query;
     
-    if (!q || q.length < 2) {
+    // Allow empty query to show all users, or require at least 2 characters
+    if (q && q.length < 2) {
         return res.json({ users: [] });
     }
     
-    const result = await pgPool.query(
-        `SELECT id, name, picture 
-         FROM users 
-         WHERE LOWER(name) LIKE LOWER($1)
-         AND is_banned = false
-         ORDER BY name
-         LIMIT $2`,
-        [`${q}%`, parseInt(limit)]
-    );
+    let query;
+    let params;
     
+    if (q) {
+        // Search by name prefix
+        query = `SELECT id, name, picture 
+                 FROM users 
+                 WHERE LOWER(name) LIKE LOWER($1)
+                 AND is_banned = false
+                 ORDER BY name
+                 LIMIT $2`;
+        params = [`${q}%`, parseInt(limit)];
+    } else {
+        // Show all users when no query
+        query = `SELECT id, name, picture 
+                 FROM users 
+                 WHERE is_banned = false
+                 ORDER BY name
+                 LIMIT $1`;
+        params = [parseInt(limit)];
+    }
+    
+    const result = await pgPool.query(query, params);
     res.json({ users: result.rows });
 });
 
