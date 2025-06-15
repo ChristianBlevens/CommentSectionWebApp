@@ -196,6 +196,7 @@ body {
 .comment-section {
     /* Base padding for all content */
     padding: 0;
+    background-color: var(--color-backgrounds-main);
 }
 
 /* Comment Form Styling */
@@ -752,11 +753,13 @@ a *,
 
 .btn-secondary {
     background-color: var(--color-backgrounds-secondary);
-    color: var(--color-text-inverse);
+    color: var(--color-text-primary);
+    border: 1px solid var(--color-borders-light);
 }
 
 .btn-secondary:hover {
-    background-color: var(--color-secondary-hover);
+    background-color: var(--color-backgrounds-hover);
+    border-color: var(--color-borders-medium);
 }
 
 .btn-danger {

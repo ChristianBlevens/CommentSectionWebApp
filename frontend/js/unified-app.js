@@ -228,6 +228,7 @@ function unifiedApp() {
         selectedColorTarget: null,
         loadingTheme: false,
         themeLoaded: false,
+        lastColorChange: null, // For undo functionality
         
         // Setup app on load
         async init() {
@@ -1607,6 +1608,14 @@ function unifiedApp() {
             // Validate hex color
             if (!/^#[0-9A-F]{6}$/i.test(value)) return;
             
+            // Store the last change for undo
+            this.lastColorChange = {
+                category: category,
+                key: key,
+                oldValue: this.themeColors[category][key],
+                newValue: value
+            };
+            
             this.themeColors[category][key] = value;
             this.injectThemeStyles();
         },
@@ -1727,24 +1736,38 @@ function unifiedApp() {
         },
         
         // Pick color from screen using EyeDropper API
-        async pickColorFromScreen() {
-            if (!window.EyeDropper || !this.selectedColorTarget) return;
+        async pickColorFromScreen(category, key) {
+            if (!window.EyeDropper) return;
             
             try {
                 const eyeDropper = new window.EyeDropper();
                 const result = await eyeDropper.open();
                 const hexColor = result.sRGBHex;
                 
-                // Apply the picked color to the selected target
-                const { category, key } = this.selectedColorTarget;
+                // Apply the picked color
                 this.updateThemeColor(category, key, hexColor);
-                
-                // Show success notification
-                alert(`Color ${hexColor} applied to ${this.formatColorLabel(key)}`);
             } catch (e) {
                 // User canceled the eyedropper
                 console.log('EyeDropper canceled');
             }
+        },
+        
+        // Undo last color change
+        undoLastChange() {
+            if (!this.lastColorChange) return;
+            
+            const { category, key, oldValue, newValue } = this.lastColorChange;
+            
+            // Swap old and new values
+            this.themeColors[category][key] = oldValue;
+            this.lastColorChange = {
+                category: category,
+                key: key,
+                oldValue: newValue,
+                newValue: oldValue
+            };
+            
+            this.injectThemeStyles();
         }
     };
 }
