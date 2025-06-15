@@ -752,7 +752,7 @@
                         </div>
                     </div>
                     
-                    <!-- Presets and Actions -->
+                    <!-- Presets -->
                     <div class="card p-4">
                         <h4 class="font-medium mb-3">Theme Presets</h4>
                         <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
@@ -766,8 +766,10 @@
                                 </button>
                             </template>
                         </div>
-                        
-                        <!-- Action Buttons -->
+                    </div>
+					
+					<!-- Actions -->
+                    <div class="card p-4">
                         <div class="flex flex-wrap gap-2">
                             <button @click="saveTheme" :disabled="loadingTheme" class="btn-base btn-primary">
                                 <span x-show="!loadingTheme">Save Theme</span>
