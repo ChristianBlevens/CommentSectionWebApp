@@ -239,6 +239,13 @@ function unifiedApp() {
         themeLoaded: false,
         lastColorChange: null, // For undo functionality
         
+        // Analytics state
+        analyticsTab: false,
+        bubbleChartData: null,
+        analyticsTimeframe: 'day',
+        analyticsDateIndex: 0,
+        analyticsLoading: false,
+        
         // Setup app on load
         async init() {
             // Store app reference globally
@@ -1055,16 +1062,28 @@ function unifiedApp() {
         },
         
         async searchMentionUsers() {
-            const response = await fetch(
-                `${API_URL}/api/users/search?q=${encodeURIComponent(this.mentionDropdown.searchTerm)}&limit=5`,
-                { headers: getAuthHeaders() }
-            );
-            
-            if (response.ok) {
-                const data = await response.json();
-                this.mentionDropdown.users = data.users || [];
-                this.mentionDropdown.show = this.mentionDropdown.users.length > 0;
-                this.mentionDropdown.selectedIndex = -1;
+            try {
+                const response = await fetch(
+                    `${API_URL}/api/users/search?q=${encodeURIComponent(this.mentionDropdown.searchTerm)}&limit=5`,
+                    { headers: getAuthHeaders() }
+                );
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    this.mentionDropdown.users = data.users || [];
+                    this.mentionDropdown.show = this.mentionDropdown.users.length > 0;
+                    this.mentionDropdown.selectedIndex = -1;
+                } else {
+                    console.error('User search failed:', response.status, response.statusText);
+                    if (response.status === 401) {
+                        // Session expired
+                        await handleAuthError(response);
+                    }
+                    this.mentionDropdown.show = false;
+                }
+            } catch (error) {
+                console.error('User search error:', error);
+                this.mentionDropdown.show = false;
             }
         },
         
@@ -1851,6 +1870,169 @@ function unifiedApp() {
             };
             
             this.injectThemeStyles();
+        },
+        
+        // Analytics methods
+        async loadAnalyticsData() {
+            this.analyticsLoading = true;
+            try {
+                const params = new URLSearchParams({
+                    period: this.analyticsTimeframe,
+                    index: this.analyticsDateIndex
+                });
+                
+                const response = await fetch(`${API_URL}/api/analytics/activity-data?${params}`, {
+                    headers: getAuthHeaders()
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    this.bubbleChartData = data;
+                    this.$nextTick(() => {
+                        this.renderBubbleChart();
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading analytics:', error);
+                this.showNotification('Failed to load analytics data', 'error');
+            } finally {
+                this.analyticsLoading = false;
+            }
+        },
+        
+        renderBubbleChart() {
+            const container = document.getElementById('bubble-chart-container');
+            if (!container || !this.bubbleChartData) return;
+            
+            // Clear existing chart
+            d3.select(container).selectAll('*').remove();
+            
+            const width = container.clientWidth;
+            const height = 600;
+            const padding = 2;
+            
+            const svg = d3.select(container)
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height)
+                .attr('id', 'bubble-chart-svg');
+            
+            const data = this.bubbleChartData.pages || [];
+            const maxCount = d3.max(data, d => d.commentCount) || 1;
+            
+            const radiusScale = d3.scaleSqrt()
+                .domain([0, maxCount])
+                .range([5, 50]);
+            
+            const colorScale = d3.scaleThreshold()
+                .domain([0.1, 0.3, 0.5, 0.8].map(d => d * maxCount))
+                .range(['var(--color-primary)', 'var(--color-success)', 'var(--color-warning)', 'var(--color-danger)', 'var(--color-danger)']);
+            
+            const simulation = d3.forceSimulation(data.map(d => ({
+                ...d,
+                radius: radiusScale(d.commentCount),
+                x: width / 2,
+                y: height / 2
+            })))
+                .force('charge', d3.forceManyBody().strength(5))
+                .force('center', d3.forceCenter(width / 2, height / 2))
+                .force('collision', d3.forceCollide().radius(d => d.radius + padding));
+            
+            const bubbles = svg.selectAll('.bubble')
+                .data(data)
+                .enter()
+                .append('g')
+                .attr('class', 'bubble');
+            
+            bubbles.append('circle')
+                .attr('r', d => radiusScale(d.commentCount))
+                .style('fill', d => colorScale(d.commentCount))
+                .style('stroke', 'var(--color-background)')
+                .style('stroke-width', '2px')
+                .style('cursor', 'pointer')
+                .style('transition', 'all 0.2s ease')
+                .on('mouseenter', function(event, d) {
+                    d3.select(this)
+                        .transition()
+                        .duration(200)
+                        .attr('r', radiusScale(d.commentCount) * 1.2);
+                    
+                    // Show tooltip
+                    const tooltip = d3.select('body').append('div')
+                        .attr('class', 'bubble-tooltip')
+                        .style('opacity', 0);
+                    
+                    tooltip.transition()
+                        .duration(200)
+                        .style('opacity', .9);
+                    
+                    tooltip.html(`
+                        <strong>${d.pageName}</strong><br/>
+                        Comments: ${d.commentCount}<br/>
+                        <small>Click to view</small>
+                    `)
+                        .style('left', (event.pageX + 10) + 'px')
+                        .style('top', (event.pageY - 28) + 'px');
+                })
+                .on('mouseleave', function(event, d) {
+                    d3.select(this)
+                        .transition()
+                        .duration(200)
+                        .attr('r', radiusScale(d.commentCount));
+                    
+                    d3.selectAll('.bubble-tooltip').remove();
+                })
+                .on('click', (event, d) => {
+                    window.open(d.url, '_blank');
+                });
+            
+            bubbles.append('text')
+                .attr('text-anchor', 'middle')
+                .attr('dy', '.3em')
+                .style('fill', 'var(--color-background)')
+                .style('font-size', '12px')
+                .style('font-weight', 'bold')
+                .style('pointer-events', 'none')
+                .text(d => d.commentCount);
+            
+            simulation.on('tick', () => {
+                bubbles.attr('transform', d => `translate(${d.x},${d.y})`);
+            });
+        },
+        
+        exportBubbleChart() {
+            const svgElement = document.getElementById('bubble-chart-svg');
+            if (!svgElement) return;
+            
+            const svgString = new XMLSerializer().serializeToString(svgElement);
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            canvas.width = svgElement.clientWidth;
+            canvas.height = svgElement.clientHeight;
+            
+            const img = new Image();
+            const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            
+            img.onload = () => {
+                ctx.fillStyle = 'white';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0);
+                
+                canvas.toBlob((blob) => {
+                    const a = document.createElement('a');
+                    const url = URL.createObjectURL(blob);
+                    a.href = url;
+                    a.download = `comment-activity-${new Date().toISOString().split('T')[0]}.png`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                });
+                
+                URL.revokeObjectURL(url);
+            };
+            
+            img.src = url;
         }
     };
 }

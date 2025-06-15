@@ -105,5 +105,10 @@ const Auth = {
                 callback(user, event.data);
             }
         });
+    },
+    
+    // Get current session token
+    getToken() {
+        return localStorage.getItem('sessionToken');
     }
 };

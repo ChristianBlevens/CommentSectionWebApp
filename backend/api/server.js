@@ -652,6 +652,29 @@ const initDatabase = async () => {
             INSERT INTO site_settings (id) VALUES (1) ON CONFLICT DO NOTHING
         `);
         
+        // Create analytics cache table
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS analytics_cache (
+                id SERIAL PRIMARY KEY,
+                period_type VARCHAR(10) NOT NULL,
+                period_date DATE NOT NULL,
+                data JSONB NOT NULL,
+                generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(period_type, period_date)
+            )
+        `);
+        
+        // Create indexes for analytics cache
+        await client.query(`
+            CREATE INDEX IF NOT EXISTS idx_analytics_cache_lookup 
+            ON analytics_cache(period_type, period_date)
+        `);
+        
+        await client.query(`
+            CREATE INDEX IF NOT EXISTS idx_analytics_cache_date 
+            ON analytics_cache(period_date)
+        `);
+        
         await client.query('COMMIT');
         console.log('Database schema initialized successfully');
         
@@ -2237,35 +2260,42 @@ app.post('/api/users/warnings/acknowledge', authenticateUser, async (req, res) =
 app.get('/api/users/search', authenticateUser, async (req, res) => {
     const { q = '', limit = 5 } = req.query;
     
-    // Allow empty query to show all users, or require at least 2 characters
-    if (q && q.length < 2) {
-        return res.json({ users: [] });
+    console.log('User search request:', {
+        user: req.user?.name,
+        userId: req.user?.id,
+        query: q,
+        limit: limit
+    });
+    
+    try {
+        let query;
+        let params;
+        
+        if (q.length >= 2) {
+            // Search by name prefix if query is 2+ characters
+            query = `SELECT id, name, picture 
+                     FROM users 
+                     WHERE LOWER(name) LIKE LOWER($1)
+                     AND is_banned = false
+                     ORDER BY name
+                     LIMIT $2`;
+            params = [`${q}%`, parseInt(limit)];
+        } else {
+            // Show all users when no query or less than 2 characters
+            query = `SELECT id, name, picture 
+                     FROM users 
+                     WHERE is_banned = false
+                     ORDER BY name
+                     LIMIT $1`;
+            params = [parseInt(limit)];
+        }
+        
+        const result = await pgPool.query(query, params);
+        res.json({ users: result.rows });
+    } catch (error) {
+        console.error('User search error:', error);
+        res.status(500).json({ error: 'Failed to search users' });
     }
-    
-    let query;
-    let params;
-    
-    if (q) {
-        // Search by name prefix
-        query = `SELECT id, name, picture 
-                 FROM users 
-                 WHERE LOWER(name) LIKE LOWER($1)
-                 AND is_banned = false
-                 ORDER BY name
-                 LIMIT $2`;
-        params = [`${q}%`, parseInt(limit)];
-    } else {
-        // Show all users when no query
-        query = `SELECT id, name, picture 
-                 FROM users 
-                 WHERE is_banned = false
-                 ORDER BY name
-                 LIMIT $1`;
-        params = [parseInt(limit)];
-    }
-    
-    const result = await pgPool.query(query, params);
-    res.json({ users: result.rows });
 });
 
 // Change moderator status
@@ -2568,6 +2598,62 @@ app.use((err, req, res, next) => {
     });
 });
 
+// Analytics endpoint - moderator only
+app.get('/api/analytics/activity-data', authenticateUser, requireModerator, async (req, res) => {
+    try {
+        const { period = 'day', index = 0 } = req.query;
+        const idx = parseInt(index);
+        
+        // Calculate the date based on period and index
+        let targetDate;
+        if (period === 'day') {
+            targetDate = new Date();
+            targetDate.setDate(targetDate.getDate() - (idx + 1)); // -1 for yesterday, -2 for 2 days ago, etc.
+        } else if (period === 'week') {
+            // Get the most recent Sunday, then go back idx weeks
+            targetDate = new Date();
+            const currentDay = targetDate.getDay();
+            targetDate.setDate(targetDate.getDate() - currentDay - (idx * 7));
+        } else if (period === 'month') {
+            // Get the first day of the month, idx months ago
+            targetDate = new Date();
+            targetDate.setMonth(targetDate.getMonth() - idx);
+            targetDate.setDate(1);
+        }
+        
+        // Get pre-calculated data from database
+        const result = await pgPool.query(
+            `SELECT data, generated_at 
+             FROM analytics_cache 
+             WHERE period_type = $1 
+               AND period_date = $2
+             ORDER BY generated_at DESC
+             LIMIT 1`,
+            [period, targetDate.toISOString().split('T')[0]]
+        );
+        
+        if (result.rows.length === 0) {
+            return res.json({
+                success: true,
+                pages: [],
+                generatedAt: new Date(),
+                message: 'No data available yet'
+            });
+        }
+        
+        const { data, generated_at } = result.rows[0];
+        
+        res.json({
+            success: true,
+            ...data,
+            generatedAt: generated_at
+        });
+    } catch (error) {
+        console.error('Error fetching analytics data:', error);
+        res.status(500).json({ error: 'Failed to fetch analytics data' });
+    }
+});
+
 app.use((req, res) => {
     res.status(404).json({ error: 'Endpoint not found' });
 });
@@ -2586,4 +2672,9 @@ const server = app.listen(port, () => {
     console.log(`Comment API server running on port ${port}`);
     console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`Database host: ${process.env.DB_HOST || 'localhost'}`);
+    
+    // Start analytics job
+    const { startAnalyticsJob } = require('./jobs/analytics-calculator');
+    startAnalyticsJob(pgPool);
+    console.log('Analytics job scheduler started');
 });

@@ -10,6 +10,7 @@
     <link href="/theme.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.12.0/dist/cdn.min.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/markdown-it/dist/markdown-it.min.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
 </head>
 <body class="page-container">
     <div x-data="unifiedApp()" x-init="init()" class="container mx-auto px-4 max-w-6xl">
@@ -101,6 +102,11 @@
                                 class="btn-base moderation-tab"
                                 x-show="user && user.is_super_moderator">
                             <i class="fas fa-palette mr-2"></i>Theme
+                        </button>
+                        <button @click="activeTab = 'analytics'; analyticsTab = true; loadAnalyticsData()" 
+                                :class="{'active': activeTab === 'analytics'}"
+                                class="btn-base moderation-tab">
+                            <i class="fas fa-chart-line mr-2"></i>Analytics
                         </button>
                     </nav>
                 </div>
@@ -619,7 +625,7 @@
                                     <label class="text-sm text-secondary" x-text="formatColorLabel(key)"></label>
                                     <div class="flex items-center gap-2">
                                         <button
-                                            x-show="window.EyeDropper"
+                                            x-show="typeof window.EyeDropper !== 'undefined'"
                                             @click="pickColorFromScreen('primary', key)"
                                             class="p-2 rounded transition-colors hover:bg-opacity-10 hover:bg-black"
                                             :title="'Pick color from screen'"
@@ -654,7 +660,7 @@
                                     <label class="text-sm text-secondary" x-text="formatColorLabel(key)"></label>
                                     <div class="flex items-center gap-2">
                                         <button
-                                            x-show="window.EyeDropper"
+                                            x-show="typeof window.EyeDropper !== 'undefined'"
                                             @click="pickColorFromScreen('backgrounds', key)"
                                             class="p-2 rounded transition-colors hover:bg-opacity-10 hover:bg-black"
                                             :title="'Pick color from screen'"
@@ -689,7 +695,7 @@
                                     <label class="text-sm text-secondary" x-text="formatColorLabel(key)"></label>
                                     <div class="flex items-center gap-2">
                                         <button
-                                            x-show="window.EyeDropper"
+                                            x-show="typeof window.EyeDropper !== 'undefined'"
                                             @click="pickColorFromScreen('text', key)"
                                             class="p-2 rounded transition-colors hover:bg-opacity-10 hover:bg-black"
                                             :title="'Pick color from screen'"
@@ -724,7 +730,7 @@
                                     <label class="text-sm text-secondary" x-text="formatColorLabel(key)"></label>
                                     <div class="flex items-center gap-2">
                                         <button
-                                            x-show="window.EyeDropper"
+                                            x-show="typeof window.EyeDropper !== 'undefined'"
                                             @click="pickColorFromScreen('borders', key)"
                                             class="p-2 rounded transition-colors hover:bg-opacity-10 hover:bg-black"
                                             :title="'Pick color from screen'"
@@ -795,6 +801,60 @@
                                 Undo
                             </button>
                         </div>
+                    </div>
+                </div>
+
+                <!-- Analytics Panel -->
+                <div x-show="activeTab === 'analytics'" class="analytics-panel">
+                    <div class="controls-section">
+                        <div class="timeframe-selector">
+                            <button @click="analyticsTimeframe = 'day'; analyticsDateIndex = 0; loadAnalyticsData()" 
+                                    :class="{'btn-primary': analyticsTimeframe === 'day', 'btn-secondary': analyticsTimeframe !== 'day'}"
+                                    class="btn btn-base">
+                                Daily
+                            </button>
+                            <button @click="analyticsTimeframe = 'week'; analyticsDateIndex = 0; loadAnalyticsData()" 
+                                    :class="{'btn-primary': analyticsTimeframe === 'week', 'btn-secondary': analyticsTimeframe !== 'week'}"
+                                    class="btn btn-base">
+                                Weekly
+                            </button>
+                            <button @click="analyticsTimeframe = 'month'; analyticsDateIndex = 0; loadAnalyticsData()" 
+                                    :class="{'btn-primary': analyticsTimeframe === 'month', 'btn-secondary': analyticsTimeframe !== 'month'}"
+                                    class="btn btn-base">
+                                Monthly
+                            </button>
+                        </div>
+                        
+                        <select @change="loadAnalyticsData()" x-model="analyticsDateIndex" class="form-select">
+                            <template x-if="analyticsTimeframe === 'day'">
+                                <template x-for="i in 24" :key="i">
+                                    <option :value="i-1" x-text="i === 1 ? 'Yesterday' : i === 2 ? '2 days ago' : `${i} days ago`"></option>
+                                </template>
+                            </template>
+                            <template x-if="analyticsTimeframe === 'week'">
+                                <template x-for="i in 4" :key="i">
+                                    <option :value="i-1" x-text="i === 1 ? 'Last week' : `${i} weeks ago`"></option>
+                                </template>
+                            </template>
+                            <template x-if="analyticsTimeframe === 'month'">
+                                <template x-for="i in 3" :key="i">
+                                    <option :value="i-1" x-text="`${i} month${i > 1 ? 's' : ''} ago`"></option>
+                                </template>
+                            </template>
+                        </select>
+                        
+                        <button @click="exportBubbleChart()" class="btn btn-base btn-secondary">
+                            Export as PNG
+                        </button>
+                    </div>
+                    
+                    <div x-show="analyticsLoading" class="loading-spinner">Loading analytics...</div>
+                    
+                    <div id="bubble-chart-container" class="bubble-chart-container" x-show="!analyticsLoading"></div>
+                    
+                    <div class="chart-info" x-show="bubbleChartData && !analyticsLoading">
+                        <span>Showing top 50 pages by comment activity</span>
+                        <span x-text="bubbleChartData?.generatedAt ? `Data from: ${new Date(bubbleChartData.generatedAt).toLocaleString()}` : ''"></span>
                     </div>
                 </div>
 
