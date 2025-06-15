@@ -1,0 +1,35 @@
+FROM node:18-alpine
+
+# Add postgres tools for health checks
+RUN apk add --no-cache postgresql-client
+
+# Set working directory
+WORKDIR /usr/src/app
+
+# Copy dependency list
+COPY backend/discord-bot/package*.json ./
+
+# Install packages (production only)
+RUN npm install --omit=dev
+
+# Copy bot code
+COPY backend/discord-bot/notification-bot.js .
+
+# Create app user for security
+RUN addgroup -g 1001 -S nodejs
+RUN adduser -S nodejs -u 1001
+
+# Set proper file permissions
+RUN chown -R nodejs:nodejs /usr/src/app
+
+USER nodejs
+
+# Open bot port
+EXPOSE 3002
+
+# Container health monitoring
+HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3002/health', (r) => r.statusCode === 200 ? process.exit(0) : process.exit(1))"
+
+# Launch Discord bot
+CMD ["node", "notification-bot.js"]

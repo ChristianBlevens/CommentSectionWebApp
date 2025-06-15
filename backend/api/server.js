@@ -82,6 +82,22 @@ redisClient.connect().catch(err => {
     console.error('Redis connection failed:', err);
 });
 
+// Parse mentions from comment content
+function parseMentions(content) {
+    const mentions = [];
+    const mentionRegex = /@(\w+)\[(\d+)\]/g;
+    let match;
+    
+    while ((match = mentionRegex.exec(content)) !== null) {
+        mentions.push({
+            username: match[1],
+            userId: parseInt(match[2])
+        });
+    }
+    
+    return mentions;
+}
+
 // Check if user is moderator to bypass rate limits
 const checkModeratorForRateLimit = async (req, res, next) => {
     const authHeader = req.headers.authorization;
@@ -1189,6 +1205,34 @@ app.post('/api/comments', authenticateUser, async (req, res) => {
         
         await client.query('COMMIT');
         
+        // Process mentions
+        const mentions = parseMentions(content);
+        if (mentions.length > 0) {
+            const redisPublisher = redis.createClient({
+                url: process.env.REDIS_URL || 'redis://localhost:6379'
+            });
+            await redisPublisher.connect();
+            
+            for (const mention of mentions.slice(0, 5)) {
+                const user = await client.query(
+                    'SELECT id, name FROM users WHERE id = $1 AND is_banned = false',
+                    [mention.userId]
+                );
+                
+                if (user.rows.length > 0) {
+                    await redisPublisher.publish('comment:mentions', JSON.stringify({
+                        mentionedUserId: mention.userId,
+                        commentId: comment.id,
+                        pageId,
+                        authorName: req.user.name,
+                        preview: content
+                    }));
+                }
+            }
+            
+            await redisPublisher.quit();
+        }
+        
         // Clear cache
         await safeRedisOp(() => redisClient.del(`comments:${pageId}`));
         
@@ -2187,6 +2231,27 @@ app.post('/api/users/warnings/acknowledge', authenticateUser, async (req, res) =
         console.error('Acknowledge warnings error:', error);
         res.status(500).json({ error: 'Failed to acknowledge warnings' });
     }
+});
+
+// Search users for mentions
+app.get('/api/users/search', authenticateUser, async (req, res) => {
+    const { q, limit = 5 } = req.query;
+    
+    if (!q || q.length < 2) {
+        return res.json({ users: [] });
+    }
+    
+    const result = await pgPool.query(
+        `SELECT id, name, picture 
+         FROM users 
+         WHERE LOWER(name) LIKE LOWER($1)
+         AND is_banned = false
+         ORDER BY name
+         LIMIT $2`,
+        [`${q}%`, parseInt(limit)]
+    );
+    
+    res.json({ users: result.rows });
 });
 
 // Change moderator status

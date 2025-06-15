@@ -834,8 +834,26 @@
                     
                     <!-- Comment box -->
                     <div class="space-y-3">
+                        <!-- Mention dropdown (add this div) -->
+                        <div x-show="mentionDropdown.show" 
+                             x-transition
+                             class="absolute z-50 bg-white rounded-lg shadow-lg border border-light mt-1"
+                             style="min-width: 200px">
+                            <template x-for="(user, index) in mentionDropdown.users" :key="user.id">
+                                <div @click="insertMention(user)"
+                                     :class="{'bg-secondary': mentionDropdown.selectedIndex === index}"
+                                     class="flex items-center p-2 hover:bg-secondary cursor-pointer">
+                                    <img :src="user.picture || 'https://cdn.discordapp.com/embed/avatars/1.png'" 
+                                         class="w-8 h-8 rounded-full mr-2">
+                                    <span x-text="user.name" class="text-sm"></span>
+                                </div>
+                            </template>
+                        </div>
+                        
                         <textarea x-model="newCommentText" 
-                                  @input="updatePreview()"
+                                  @input="updatePreview(); handleCommentInput()"
+                                  @keydown="handleMentionKeydown($event)"
+                                  x-ref="commentTextarea"
                                   :placeholder="user?.is_banned ? 'You are banned from commenting' : 'Write your comment... (Markdown supported)'"
                                   :disabled="user?.is_banned"
                                   class="textarea-base comment-textarea"

@@ -131,6 +131,15 @@ function unifiedApp() {
         searchMode: 'and', // 'and', 'or', 'not'
         forceRerender: false,
         
+        // Mention dropdown state
+        mentionDropdown: {
+            show: false,
+            users: [],
+            selectedIndex: -1,
+            searchTerm: '',
+            mentionStart: 0
+        },
+        
         // Moderator dashboard state
         activeTab: 'comments',
         
@@ -1020,6 +1029,77 @@ function unifiedApp() {
         // Helper methods
         updatePreview() {
             this.commentPreview = renderMarkdown(this.newCommentText);
+        },
+        
+        handleCommentInput() {
+            const textarea = this.$refs.commentTextarea;
+            const { value, selectionStart } = textarea;
+            const textBeforeCursor = value.substring(0, selectionStart);
+            const mentionMatch = textBeforeCursor.match(/@(\w*)$/);
+            
+            if (mentionMatch) {
+                this.mentionDropdown.searchTerm = mentionMatch[1];
+                this.mentionDropdown.mentionStart = mentionMatch.index + 1;
+                
+                if (this.mentionDropdown.searchTerm.length >= 2 || this.mentionDropdown.searchTerm.length === 0) {
+                    this.searchMentionUsers();
+                } else {
+                    this.mentionDropdown.show = false;
+                }
+            } else {
+                this.mentionDropdown.show = false;
+            }
+        },
+        
+        async searchMentionUsers() {
+            const response = await fetch(
+                `${API_URL}/api/users/search?q=${encodeURIComponent(this.mentionDropdown.searchTerm)}&limit=5`,
+                { headers: getAuthHeaders() }
+            );
+            
+            if (response.ok) {
+                const data = await response.json();
+                this.mentionDropdown.users = data.users || [];
+                this.mentionDropdown.show = this.mentionDropdown.users.length > 0;
+                this.mentionDropdown.selectedIndex = -1;
+            }
+        },
+        
+        insertMention(user) {
+            const textarea = this.$refs.commentTextarea;
+            const before = this.newCommentText.substring(0, this.mentionDropdown.mentionStart - 1);
+            const after = this.newCommentText.substring(textarea.selectionStart);
+            
+            this.newCommentText = before + `@${user.name}[${user.id}] ` + after;
+            this.updatePreview();
+            this.mentionDropdown.show = false;
+            
+            this.$nextTick(() => {
+                const newPosition = this.mentionDropdown.mentionStart - 1 + `@${user.name}[${user.id}] `.length;
+                textarea.setSelectionRange(newPosition, newPosition);
+                textarea.focus();
+            });
+        },
+        
+        handleMentionKeydown(event) {
+            if (!this.mentionDropdown.show) return;
+            
+            const { key } = event;
+            if (key === 'ArrowDown') {
+                event.preventDefault();
+                this.mentionDropdown.selectedIndex = Math.min(
+                    this.mentionDropdown.selectedIndex + 1, 
+                    this.mentionDropdown.users.length - 1
+                );
+            } else if (key === 'ArrowUp') {
+                event.preventDefault();
+                this.mentionDropdown.selectedIndex = Math.max(this.mentionDropdown.selectedIndex - 1, -1);
+            } else if (key === 'Enter' && this.mentionDropdown.selectedIndex >= 0) {
+                event.preventDefault();
+                this.insertMention(this.mentionDropdown.users[this.mentionDropdown.selectedIndex]);
+            } else if (key === 'Escape') {
+                this.mentionDropdown.show = false;
+            }
         },
         
         getRelativeTime(dateString) {
