@@ -346,16 +346,22 @@
         }
 
         updateColor(category, key, value, skipHistory = false) {
+            console.log(`updateColor called: ${category}.${key} = ${value}`);
+            
             // Validate color
             if (!/^#[0-9A-F]{6}$/i.test(value)) {
+                console.warn(`Invalid color format: ${value}`);
                 return;
             }
             
             // Check if the color actually changed
             const oldValue = this.currentColors[category]?.[key];
             if (oldValue === value) {
+                console.log('Color unchanged, skipping update');
                 return; // No change, don't update history
             }
+            
+            console.log(`Updating color from ${oldValue} to ${value}`);
             
             // Save to history before changing
             if (!skipHistory) {
@@ -369,8 +375,11 @@
             this.currentColors[category][key] = value;
             
             // Update UI
-            document.getElementById(`${category}-${key}`).value = value;
-            document.getElementById(`${category}-${key}-hex`).value = value;
+            const colorInput = document.getElementById(`${category}-${key}`);
+            const hexInput = document.getElementById(`${category}-${key}-hex`);
+            
+            if (colorInput) colorInput.value = value;
+            if (hexInput) hexInput.value = value;
             
             // Generate smart defaults for primary color
             if (!skipHistory && category === 'primary' && key === 'main') {
@@ -466,22 +475,40 @@
 
         injectStyles() {
             const iframe = document.getElementById('preview-frame');
-            const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-            
-            // Remove existing custom style
-            const existingStyle = iframeDoc.getElementById('custom-theme');
-            if (existingStyle) {
-                existingStyle.remove();
+            if (!iframe) {
+                console.error('Preview iframe not found');
+                return;
             }
             
-            // Create CSS from colors
-            const css = this.generateCSS();
-            
-            // Inject new style
-            const style = iframeDoc.createElement('style');
-            style.id = 'custom-theme';
-            style.textContent = css;
-            iframeDoc.head.appendChild(style);
+            try {
+                const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                
+                // Check if iframe is loaded
+                if (!iframeDoc || !iframeDoc.head) {
+                    console.log('Iframe not ready, waiting...');
+                    iframe.addEventListener('load', () => this.injectStyles());
+                    return;
+                }
+                
+                // Remove existing custom style
+                const existingStyle = iframeDoc.getElementById('custom-theme');
+                if (existingStyle) {
+                    existingStyle.remove();
+                }
+                
+                // Create CSS from colors
+                const css = this.generateCSS();
+                
+                // Inject new style
+                const style = iframeDoc.createElement('style');
+                style.id = 'custom-theme';
+                style.textContent = css;
+                iframeDoc.head.appendChild(style);
+                
+                console.log('Injected theme CSS into iframe');
+            } catch (error) {
+                console.error('Error injecting styles:', error);
+            }
         }
 
         generateCSS() {
@@ -1154,7 +1181,7 @@
     // Initialize theme editor when DOM is ready and config is loaded
     function initializeThemeEditor() {
         // Wait for config to be loaded
-        if (window.CONFIG && window.CONFIG.backendUrl) {
+        if (window.CONFIG) {
             console.log('Config loaded, initializing ThemeEditor');
             window.themeEditor = new ThemeEditor();
         } else {
