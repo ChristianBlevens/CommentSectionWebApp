@@ -2079,8 +2079,9 @@ input[type="color"].color-input::-moz-color-swatch {
 .bubble-tooltip {
     position: absolute;
     padding: var(--spacing-sm);
-    background: var(--color-surface-dark);
-    color: var(--color-text-inverse);
+    background: var(--color-text-primary);
+    color: var(--color-backgrounds-main);
+    border: 1px solid var(--color-borders-light);
     border-radius: var(--radius-sm);
     font-size: var(--font-size-sm);
     pointer-events: none;

@@ -2610,15 +2610,17 @@ app.get('/api/analytics/activity-data', authenticateUser, requireModerator, asyn
             targetDate = new Date();
             targetDate.setDate(targetDate.getDate() - (idx + 1)); // -1 for yesterday, -2 for 2 days ago, etc.
         } else if (period === 'week') {
-            // Get the most recent Sunday, then go back idx weeks
+            // Rolling 7-day periods, go back idx weeks
             targetDate = new Date();
-            const currentDay = targetDate.getDay();
-            targetDate.setDate(targetDate.getDate() - currentDay - (idx * 7));
+            targetDate.setDate(targetDate.getDate() - 1 - (idx * 7)); // Yesterday minus idx weeks
         } else if (period === 'month') {
-            // Get the first day of the month, idx months ago
+            // Rolling 30-day periods, go back idx months
             targetDate = new Date();
-            targetDate.setMonth(targetDate.getMonth() - idx);
-            targetDate.setDate(1);
+            targetDate.setDate(targetDate.getDate() - 1 - (idx * 30)); // Yesterday minus idx * 30 days
+        } else if (period === 'quarter') {
+            // Rolling 90-day period (only index 0 supported)
+            targetDate = new Date();
+            targetDate.setDate(targetDate.getDate() - 1); // Yesterday
         }
         
         // Get pre-calculated data from database

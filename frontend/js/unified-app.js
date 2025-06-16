@@ -1888,8 +1888,12 @@ function unifiedApp() {
                 const data = await response.json();
                 if (data.success) {
                     this.bubbleChartData = data;
+                    // Ensure the analytics panel is visible before rendering
                     this.$nextTick(() => {
-                        this.renderBubbleChart();
+                        // Additional delay to ensure DOM is ready
+                        setTimeout(() => {
+                            this.renderBubbleChart();
+                        }, 50);
                     });
                 }
             } catch (error) {
@@ -1907,9 +1911,16 @@ function unifiedApp() {
             // Clear existing chart
             d3.select(container).selectAll('*').remove();
             
-            const width = container.clientWidth;
+            // Ensure container has dimensions
+            const width = container.clientWidth || container.offsetWidth || 800;
             const height = 600;
             const padding = 2;
+            
+            // If container has no width, wait and retry
+            if (width === 0) {
+                setTimeout(() => this.renderBubbleChart(), 100);
+                return;
+            }
             
             const svg = d3.select(container)
                 .append('svg')
@@ -1918,6 +1929,13 @@ function unifiedApp() {
                 .attr('id', 'bubble-chart-svg');
             
             const data = this.bubbleChartData.pages || [];
+            
+            // Check if we have valid data
+            if (data.length === 0) {
+                container.innerHTML = '<div class="text-center text-secondary p-4">No data available for this period</div>';
+                return;
+            }
+            
             const maxCount = d3.max(data, d => d.commentCount) || 1;
             
             const radiusScale = d3.scaleSqrt()

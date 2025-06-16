@@ -53,29 +53,29 @@ class AnalyticsCalculator {
             DO UPDATE SET data = $2, generated_at = NOW()
         `, [yesterday.toISOString().split('T')[0], data]);
         
-        // Clean up old daily data (keep 30 days)
-        await this.cleanupOldData('day', 30);
+        // Clean up old daily data (keep 90 days for quarterly calculations)
+        await this.cleanupOldData('day', 90);
         
         console.log('Daily analytics calculation complete');
     }
     
     async calculateWeeklyData() {
-        console.log('Starting weekly analytics calculation...');
+        console.log('Starting rolling 7-day analytics calculation...');
         
-        // Calculate for the last completed week (ending last Sunday)
-        const lastSunday = new Date();
-        lastSunday.setDate(lastSunday.getDate() - lastSunday.getDay());
-        lastSunday.setHours(23, 59, 59, 999);
+        // Calculate for the last 7 days (rolling window)
+        const endDate = new Date();
+        endDate.setDate(endDate.getDate() - 1); // Yesterday
+        endDate.setHours(23, 59, 59, 999);
         
-        const weekStart = new Date(lastSunday);
-        weekStart.setDate(weekStart.getDate() - 6);
-        weekStart.setHours(0, 0, 0, 0);
+        const startDate = new Date(endDate);
+        startDate.setDate(startDate.getDate() - 6); // 7 days ago
+        startDate.setHours(0, 0, 0, 0);
         
-        // Get daily data for this week
-        const dailyData = await this.getDailyDataForPeriod(weekStart, lastSunday);
+        // Get daily data for the rolling 7-day period
+        const dailyData = await this.getDailyDataForPeriod(startDate, endDate);
         
         if (dailyData.length === 0) {
-            console.log('No daily data available for the last week');
+            console.log('No daily data available for the rolling 7-day period');
             return;
         }
         
@@ -105,42 +105,46 @@ class AnalyticsCalculator {
         const data = {
             pages: aggregatedPages,
             period: {
-                start: weekStart.toISOString(),
-                end: lastSunday.toISOString()
+                start: startDate.toISOString(),
+                end: endDate.toISOString()
             },
-            weekEnding: lastSunday.toISOString().split('T')[0],
+            rollingDays: 7,
+            endDate: endDate.toISOString().split('T')[0],
             totalComments: aggregatedPages.reduce((sum, page) => sum + page.commentCount, 0),
             aggregatedFrom: dailyData.length + ' daily records'
         };
         
-        // Store with week ending date as key
+        // Store with end date as key
         await this.pool.query(`
             INSERT INTO analytics_cache (period_type, period_date, data, generated_at)
             VALUES ('week', $1, $2, NOW())
             ON CONFLICT (period_type, period_date) 
             DO UPDATE SET data = $2, generated_at = NOW()
-        `, [lastSunday.toISOString().split('T')[0], data]);
+        `, [endDate.toISOString().split('T')[0], data]);
         
-        // Clean up old weekly data (keep 5 weeks)
-        await this.cleanupOldData('week', 35);
+        // Clean up old weekly data (keep 30 days of rolling data)
+        await this.cleanupOldData('week', 30);
         
         console.log('Weekly analytics calculation complete');
     }
     
     async calculateMonthlyData() {
-        console.log('Starting monthly analytics calculation...');
+        console.log('Starting rolling 30-day analytics calculation...');
         
-        // Calculate for the last completed month
-        const now = new Date();
-        const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        const monthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
-        monthEnd.setHours(23, 59, 59, 999);
+        // Calculate for the last 30 days (rolling window)
+        const endDate = new Date();
+        endDate.setDate(endDate.getDate() - 1); // Yesterday
+        endDate.setHours(23, 59, 59, 999);
         
-        // Get daily data for this month
-        const dailyData = await this.getDailyDataForPeriod(lastMonth, monthEnd);
+        const startDate = new Date(endDate);
+        startDate.setDate(startDate.getDate() - 29); // 30 days ago
+        startDate.setHours(0, 0, 0, 0);
+        
+        // Get daily data for the rolling 30-day period
+        const dailyData = await this.getDailyDataForPeriod(startDate, endDate);
         
         if (dailyData.length === 0) {
-            console.log('No daily data available for the last month');
+            console.log('No daily data available for the rolling 30-day period');
             return;
         }
         
@@ -170,26 +174,96 @@ class AnalyticsCalculator {
         const data = {
             pages: aggregatedPages,
             period: {
-                start: lastMonth.toISOString(),
-                end: monthEnd.toISOString()
+                start: startDate.toISOString(),
+                end: endDate.toISOString()
             },
-            month: lastMonth.toLocaleDateString('en-US', { year: 'numeric', month: 'long' }),
+            rollingDays: 30,
+            endDate: endDate.toISOString().split('T')[0],
             totalComments: aggregatedPages.reduce((sum, page) => sum + page.commentCount, 0),
             aggregatedFrom: dailyData.length + ' daily records'
         };
         
-        // Store with month's first day as key
+        // Store with end date as key
         await this.pool.query(`
             INSERT INTO analytics_cache (period_type, period_date, data, generated_at)
             VALUES ('month', $1, $2, NOW())
             ON CONFLICT (period_type, period_date) 
             DO UPDATE SET data = $2, generated_at = NOW()
-        `, [lastMonth.toISOString().split('T')[0], data]);
+        `, [endDate.toISOString().split('T')[0], data]);
         
-        // Clean up old monthly data (keep 4 months)
-        await this.cleanupOldData('month', 120);
+        // Clean up old monthly data (keep 90 days of rolling data)
+        await this.cleanupOldData('month', 90);
         
         console.log('Monthly analytics calculation complete');
+    }
+    
+    async calculateQuarterlyData() {
+        console.log('Starting rolling 90-day analytics calculation...');
+        
+        // Calculate for the last 90 days (rolling window)
+        const endDate = new Date();
+        endDate.setDate(endDate.getDate() - 1); // Yesterday
+        endDate.setHours(23, 59, 59, 999);
+        
+        const startDate = new Date(endDate);
+        startDate.setDate(startDate.getDate() - 89); // 90 days ago
+        startDate.setHours(0, 0, 0, 0);
+        
+        // Get daily data for the rolling 90-day period
+        const dailyData = await this.getDailyDataForPeriod(startDate, endDate);
+        
+        if (dailyData.length === 0) {
+            console.log('No daily data available for the rolling 90-day period');
+            return;
+        }
+        
+        // Aggregate the daily data
+        const pageMap = new Map();
+        
+        dailyData.forEach(day => {
+            if (day.data && day.data.pages) {
+                day.data.pages.forEach(page => {
+                    const existing = pageMap.get(page.pageId) || {
+                        pageId: page.pageId,
+                        pageName: page.pageName,
+                        url: page.url,
+                        commentCount: 0
+                    };
+                    existing.commentCount += page.commentCount;
+                    pageMap.set(page.pageId, existing);
+                });
+            }
+        });
+        
+        // Convert to array and sort by comment count
+        const aggregatedPages = Array.from(pageMap.values())
+            .sort((a, b) => b.commentCount - a.commentCount)
+            .slice(0, 50);
+        
+        const data = {
+            pages: aggregatedPages,
+            period: {
+                start: startDate.toISOString(),
+                end: endDate.toISOString()
+            },
+            rollingDays: 90,
+            endDate: endDate.toISOString().split('T')[0],
+            totalComments: aggregatedPages.reduce((sum, page) => sum + page.commentCount, 0),
+            aggregatedFrom: dailyData.length + ' daily records'
+        };
+        
+        // Store with end date as key
+        await this.pool.query(`
+            INSERT INTO analytics_cache (period_type, period_date, data, generated_at)
+            VALUES ('quarter', $1, $2, NOW())
+            ON CONFLICT (period_type, period_date) 
+            DO UPDATE SET data = $2, generated_at = NOW()
+        `, [endDate.toISOString().split('T')[0], data]);
+        
+        // Clean up old quarterly data (keep 180 days of rolling data)
+        await this.cleanupOldData('quarter', 180);
+        
+        console.log('Quarterly analytics calculation complete');
     }
     
     async getDailyDataForPeriod(startDate, endDate) {
@@ -270,20 +344,17 @@ class AnalyticsCalculator {
     async populateHistoricalData() {
         console.log('Populating historical data...');
         
-        // Calculate daily data for the past 30 days
-        for (let i = 1; i <= 30; i++) {
+        // Calculate daily data for the past 90 days
+        for (let i = 1; i <= 90; i++) {
             const date = new Date();
             date.setDate(date.getDate() - i);
             await this.calculateDailyDataForDate(date);
         }
         
-        // Calculate weekly data for completed weeks
+        // Calculate all rolling period data
         await this.calculateWeeklyData();
-        
-        // Calculate monthly data if we have a complete month
-        if (new Date().getDate() > 1) {
-            await this.calculateMonthlyData();
-        }
+        await this.calculateMonthlyData();
+        await this.calculateQuarterlyData();
         
         console.log('Historical data population complete');
     }
@@ -308,14 +379,19 @@ const startAnalyticsJob = (pool) => {
         await calculator.calculateDailyData();
     });
     
-    // Schedule weekly calculation every Monday at 3 AM
-    cron.schedule('0 3 * * 1', async () => {
+    // Schedule rolling 7-day calculation daily at 3 AM
+    cron.schedule('0 3 * * *', async () => {
         await calculator.calculateWeeklyData();
     });
     
-    // Schedule monthly calculation on the 1st at 4 AM
-    cron.schedule('0 4 1 * *', async () => {
+    // Schedule rolling 30-day calculation daily at 4 AM
+    cron.schedule('0 4 * * *', async () => {
         await calculator.calculateMonthlyData();
+    });
+    
+    // Schedule rolling 90-day calculation daily at 5 AM
+    cron.schedule('0 5 * * *', async () => {
+        await calculator.calculateQuarterlyData();
     });
 };
 

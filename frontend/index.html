@@ -827,6 +827,11 @@
                                     class="btn btn-base">
                                 Monthly
                             </button>
+                            <button @click="analyticsTimeframe = 'quarter'; analyticsDateIndex = 0; loadAnalyticsData()" 
+                                    :class="{'btn-primary': analyticsTimeframe === 'quarter', 'btn-secondary': analyticsTimeframe !== 'quarter'}"
+                                    class="btn btn-base">
+                                90 Days
+                            </button>
                         </div>
                         
                         <div class="date-selector-container">
@@ -837,14 +842,17 @@
                                     </template>
                                 </template>
                                 <template x-if="analyticsTimeframe === 'week'">
-                                    <template x-for="i in 4" :key="i">
-                                        <option :value="i-1" x-text="i === 1 ? 'Last week' : `${i} weeks ago`"></option>
+                                    <template x-for="i in 12" :key="i">
+                                        <option :value="i-1" x-text="i === 1 ? 'Last 7 days' : `${i} weeks ago`"></option>
                                     </template>
                                 </template>
                                 <template x-if="analyticsTimeframe === 'month'">
                                     <template x-for="i in 3" :key="i">
-                                        <option :value="i-1" x-text="`${i} month${i > 1 ? 's' : ''} ago`"></option>
+                                        <option :value="i-1" x-text="i === 1 ? 'Last 30 days' : `${i * 30} days ago`"></option>
                                     </template>
+                                </template>
+                                <template x-if="analyticsTimeframe === 'quarter'">
+                                    <option value="0">Last 90 days</option>
                                 </template>
                             </select>
                         </div>
