@@ -2604,22 +2604,33 @@ app.get('/api/analytics/activity-data', authenticateUser, requireModerator, asyn
         const { period = 'day', index = 0 } = req.query;
         const idx = parseInt(index);
         
+        // First, get the most recent date from the database
+        const recentResult = await pgPool.query(
+            `SELECT MAX(period_date) as max_date FROM analytics_cache WHERE period_type = $1`,
+            [period]
+        );
+        
+        const referenceDate = recentResult.rows[0]?.max_date 
+            ? new Date(recentResult.rows[0].max_date) 
+            : new Date();
+        
+        // Add one day to reference date since data is for "yesterday"
+        referenceDate.setDate(referenceDate.getDate() + 1);
+        
+        console.log(`Reference date for ${period}: ${referenceDate.toISOString()}`);
+        
         // Calculate the date based on period and index
-        let targetDate;
+        let targetDate = new Date(referenceDate);
         if (period === 'day') {
-            targetDate = new Date();
             targetDate.setDate(targetDate.getDate() - (idx + 1)); // -1 for yesterday, -2 for 2 days ago, etc.
         } else if (period === 'week') {
             // Rolling 7-day periods, go back idx weeks
-            targetDate = new Date();
             targetDate.setDate(targetDate.getDate() - 1 - (idx * 7)); // Yesterday minus idx weeks
         } else if (period === 'month') {
             // Rolling 30-day periods, go back idx months
-            targetDate = new Date();
             targetDate.setDate(targetDate.getDate() - 1 - (idx * 30)); // Yesterday minus idx * 30 days
         } else if (period === 'quarter') {
             // Rolling 90-day period (only index 0 supported)
-            targetDate = new Date();
             targetDate.setDate(targetDate.getDate() - 1); // Yesterday
         }
         
@@ -2703,14 +2714,24 @@ app.get('/api/analytics/period-summary', authenticateUser, requireModerator, asy
         const allDates = [];
         const dataMap = new Map();
         
+        // If we have data, use the most recent date as reference
+        let endDate;
+        if (result.rows.length > 0) {
+            // Find the most recent date in the data
+            const dates = result.rows.map(row => new Date(row.period_date));
+            endDate = new Date(Math.max(...dates));
+            console.log('Most recent data date:', endDate.toISOString());
+        } else {
+            // No data, use yesterday
+            endDate = new Date();
+            endDate.setDate(endDate.getDate() - 1);
+        }
+        
         // Create map of existing data
         result.rows.forEach(row => {
+            console.log('Database row:', row.period_date, row.data?.totalComments);
             dataMap.set(row.period_date, row.data?.totalComments || 0);
         });
-        
-        // Generate all dates in range
-        const endDate = new Date();
-        endDate.setDate(endDate.getDate() - 1); // Yesterday
         
         for (let i = 0; i < limit; i++) {
             const currentDate = new Date(endDate);
@@ -2724,9 +2745,11 @@ app.get('/api/analytics/period-summary', authenticateUser, requireModerator, asy
             }
             
             const dateStr = currentDate.toISOString().split('T')[0];
+            const totalComments = dataMap.get(dateStr) || 0;
+            console.log(`Generated date: ${dateStr}, Comments from map: ${totalComments}`);
             allDates.push({
                 date: dateStr,
-                totalComments: dataMap.get(dateStr) || 0,
+                totalComments: totalComments,
                 periodType: period
             });
         }

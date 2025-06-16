@@ -1944,38 +1944,57 @@ function unifiedApp() {
         },
         
         async loadAnalyticsForDate(date) {
-            // Calculate index based on date
-            const today = new Date();
-            const targetDate = new Date(date);
-            const daysDiff = Math.floor((today - targetDate) / (1000 * 60 * 60 * 24));
-            
-            let index = 0;
-            if (this.analyticsTimeframe === 'day') {
-                index = daysDiff - 1;
-            } else if (this.analyticsTimeframe === 'week') {
-                index = Math.floor(daysDiff / 7);
-            } else if (this.analyticsTimeframe === 'month') {
-                index = Math.floor(daysDiff / 30);
-            }
-            
-            const params = new URLSearchParams({
-                period: this.analyticsTimeframe,
-                index: Math.max(0, index)
-            });
-            
-            const response = await fetch(`${API_URL}/api/analytics/activity-data?${params}`, {
-                headers: getAuthHeaders()
-            });
-            
-            const data = await response.json();
-            if (data.success) {
-                this.bubbleChartData = data;
-                this.selectedPeriodDate = date;
-                this.$nextTick(() => {
-                    setTimeout(() => {
-                        this.renderBubbleChart();
-                    }, 50);
+            try {
+                console.log('loadAnalyticsForDate called with date:', date);
+                
+                // Calculate index based on date
+                // Use the most recent date from periodSummaryData as reference
+                const referenceDate = this.periodSummaryData && this.periodSummaryData.length > 0 
+                    ? new Date(this.periodSummaryData[this.periodSummaryData.length - 1].date)
+                    : new Date();
+                referenceDate.setDate(referenceDate.getDate() + 1); // Add one day since we want "yesterday" to be index 0
+                
+                const targetDate = new Date(date);
+                const daysDiff = Math.floor((referenceDate - targetDate) / (1000 * 60 * 60 * 24));
+                
+                let index = 0;
+                if (this.analyticsTimeframe === 'day') {
+                    index = daysDiff - 1;
+                } else if (this.analyticsTimeframe === 'week') {
+                    index = Math.floor(daysDiff / 7);
+                } else if (this.analyticsTimeframe === 'month') {
+                    index = Math.floor(daysDiff / 30);
+                }
+                
+                console.log(`Loading data for date: ${date}, calculated index: ${index}`);
+                
+                const params = new URLSearchParams({
+                    period: this.analyticsTimeframe,
+                    index: Math.max(0, index)
                 });
+                
+                console.log('Fetching analytics with params:', params.toString());
+                
+                const response = await fetch(`${API_URL}/api/analytics/activity-data?${params}`, {
+                    headers: getAuthHeaders()
+                });
+                
+                const data = await response.json();
+                console.log('Analytics data received:', data);
+                
+                if (data.success) {
+                    this.bubbleChartData = data;
+                    this.selectedPeriodDate = date;
+                    this.$nextTick(() => {
+                        setTimeout(() => {
+                            this.renderBubbleChart();
+                        }, 50);
+                    });
+                } else {
+                    console.error('Failed to load analytics data:', data.error);
+                }
+            } catch (error) {
+                console.error('Error in loadAnalyticsForDate:', error);
             }
         },
         
@@ -2127,8 +2146,7 @@ function unifiedApp() {
             const svg = d3.select(container)
                 .append('svg')
                 .attr('width', width + margin.left + margin.right)
-                .attr('height', height + margin.top + margin.bottom)
-                .style('border', '1px solid red'); // Debug border
+                .attr('height', height + margin.top + margin.bottom);
             
             const g = svg.append('g')
                 .attr('transform', `translate(${margin.left},${margin.top})`);
@@ -2178,6 +2196,9 @@ function unifiedApp() {
                 console.log(`Date: ${d.date}, Comments: ${d.totalComments}, Y: ${yScale(d.totalComments)}, Height: ${height - yScale(d.totalComments)}`);
             });
             
+            // Store reference to component instance
+            const self = this;
+            
             // Bars
             const bars = g.selectAll('.bar')
                 .data(reversedData)
@@ -2195,12 +2216,13 @@ function unifiedApp() {
                     return height - yScale(d.totalComments);
                 })
                 .style('cursor', d => d.totalComments > 0 ? 'pointer' : 'default')
-                .on('click', (event, d) => {
+                .on('click', function(event, d) {
                     if (d.totalComments > 0) {
-                        this.loadAnalyticsForDate(d.date);
+                        console.log('Bar clicked for date:', d.date);
+                        self.loadAnalyticsForDate(d.date);
                         // Update selected state
                         d3.selectAll('.bar').classed('selected', false);
-                        d3.select(event.currentTarget).classed('selected', true);
+                        d3.select(this).classed('selected', true);
                     }
                 })
                 .on('mouseenter', function(event, d) {
