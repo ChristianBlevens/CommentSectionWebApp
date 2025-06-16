@@ -2116,16 +2116,16 @@ input[type="color"].color-input::-moz-color-swatch {
 .bar-chart-container .bar {
     cursor: pointer;
     transition: opacity 0.2s ease, fill 0.2s ease;
-    fill: var(--color-borders-medium);
+    fill: var(--color-primary);
+    opacity: 0.3;
 }
 
 .bar-chart-container .bar:hover {
-    fill: var(--color-primary);
-    opacity: 0.8;
+    opacity: 0.6;
 }
 
 .bar-chart-container .bar.selected {
-    fill: var(--color-primary);
+    opacity: 1;
 }
 
 .bar-chart-container .axis {

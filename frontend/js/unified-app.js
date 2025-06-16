@@ -2127,7 +2127,8 @@ function unifiedApp() {
             const svg = d3.select(container)
                 .append('svg')
                 .attr('width', width + margin.left + margin.right)
-                .attr('height', height + margin.top + margin.bottom);
+                .attr('height', height + margin.top + margin.bottom)
+                .style('border', '1px solid red'); // Debug border
             
             const g = svg.append('g')
                 .attr('transform', `translate(${margin.left},${margin.top})`);
@@ -2171,6 +2172,12 @@ function unifiedApp() {
             // Remove domain line
             xAxis.select('.domain').remove();
             
+            // Debug bar data
+            console.log('Drawing bars with data:', reversedData);
+            reversedData.forEach(d => {
+                console.log(`Date: ${d.date}, Comments: ${d.totalComments}, Y: ${yScale(d.totalComments)}, Height: ${height - yScale(d.totalComments)}`);
+            });
+            
             // Bars
             const bars = g.selectAll('.bar')
                 .data(reversedData)
@@ -2179,8 +2186,14 @@ function unifiedApp() {
                 .attr('class', d => `bar ${d.date === this.selectedPeriodDate ? 'selected' : ''}`)
                 .attr('x', d => xScale(d.date))
                 .attr('width', xScale.bandwidth())
-                .attr('y', d => d.totalComments === 0 ? height : yScale(d.totalComments))
-                .attr('height', d => d.totalComments === 0 ? 0 : height - yScale(d.totalComments))
+                .attr('y', d => {
+                    if (d.totalComments === 0) return height - 2; // Minimum 2px height
+                    return yScale(d.totalComments);
+                })
+                .attr('height', d => {
+                    if (d.totalComments === 0) return 2; // Minimum 2px height
+                    return height - yScale(d.totalComments);
+                })
                 .style('cursor', d => d.totalComments > 0 ? 'pointer' : 'default')
                 .on('click', (event, d) => {
                     if (d.totalComments > 0) {
