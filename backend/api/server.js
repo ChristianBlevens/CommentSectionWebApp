@@ -2737,6 +2737,25 @@ app.get('/api/analytics/period-summary', authenticateUser, requireModerator, asy
     }
 });
 
+// Temporary endpoint to manually trigger analytics recalculation
+app.post('/api/analytics/recalculate', authenticateUser, requireModerator, async (req, res) => {
+    try {
+        const { AnalyticsCalculator } = require('./jobs/analytics-calculator');
+        const calculator = new AnalyticsCalculator(pgPool);
+        
+        // Clear existing data
+        await pgPool.query('DELETE FROM analytics_cache');
+        
+        // Repopulate
+        await calculator.populateHistoricalData();
+        
+        res.json({ success: true, message: 'Analytics recalculation started' });
+    } catch (error) {
+        console.error('Error recalculating analytics:', error);
+        res.status(500).json({ error: 'Failed to recalculate analytics' });
+    }
+});
+
 app.use((req, res) => {
     res.status(404).json({ error: 'Endpoint not found' });
 });
@@ -2751,10 +2770,31 @@ process.on('SIGTERM', async () => {
 });
 
 // Launch API server
-const server = app.listen(port, () => {
+const server = app.listen(port, async () => {
     console.log(`Comment API server running on port ${port}`);
     console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`Database host: ${process.env.DB_HOST || 'localhost'}`);
+    
+    // Check if analytics data needs to be initialized
+    try {
+        const result = await pgPool.query('SELECT COUNT(*) FROM analytics_cache');
+        const count = parseInt(result.rows[0].count);
+        
+        if (count === 0) {
+            console.log('No analytics data found. Running initial analytics calculation...');
+            const { AnalyticsCalculator } = require('./jobs/analytics-calculator');
+            const calculator = new AnalyticsCalculator(pgPool);
+            
+            // Run initial population in the background
+            calculator.populateHistoricalData()
+                .then(() => console.log('Initial analytics calculation complete'))
+                .catch(err => console.error('Error during initial analytics calculation:', err));
+        } else {
+            console.log(`Found ${count} analytics cache entries`);
+        }
+    } catch (error) {
+        console.error('Error checking analytics data:', error);
+    }
     
     // Start analytics job
     const { startAnalyticsJob } = require('./jobs/analytics-calculator');

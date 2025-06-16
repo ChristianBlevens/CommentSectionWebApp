@@ -16,6 +16,7 @@ class AnalyticsCalculator {
         const endDate = new Date(yesterday);
         endDate.setHours(23, 59, 59, 999);
         
+        // Query for top 50 pages
         const query = `
             SELECT 
                 c.page_id,
@@ -31,6 +32,17 @@ class AnalyticsCalculator {
         
         const result = await this.pool.query(query, [yesterday, endDate]);
         
+        // Query for total comments across ALL pages
+        const totalQuery = `
+            SELECT COUNT(DISTINCT c.id) as total_count
+            FROM comments c
+            WHERE c.created_at >= $1
+                AND c.created_at <= $2
+        `;
+        
+        const totalResult = await this.pool.query(totalQuery, [yesterday, endDate]);
+        const totalComments = parseInt(totalResult.rows[0].total_count) || 0;
+        
         const pages = result.rows.map(row => ({
             pageId: row.page_id,
             pageName: `Page ${row.page_id}`,
@@ -45,7 +57,7 @@ class AnalyticsCalculator {
                 end: endDate.toISOString()
             },
             date: yesterday.toISOString().split('T')[0],
-            totalComments: pages.reduce((sum, page) => sum + page.commentCount, 0)
+            totalComments: totalComments
         };
         
         // Store with absolute date as key for easier management
@@ -105,6 +117,14 @@ class AnalyticsCalculator {
             .sort((a, b) => b.commentCount - a.commentCount)
             .slice(0, 50);
         
+        // Calculate total comments from all daily data (not just top 50)
+        let totalComments = 0;
+        dailyData.forEach(day => {
+            if (day.data && day.data.totalComments) {
+                totalComments += day.data.totalComments;
+            }
+        });
+        
         const data = {
             pages: aggregatedPages,
             period: {
@@ -113,7 +133,7 @@ class AnalyticsCalculator {
             },
             rollingDays: 7,
             endDate: endDate.toISOString().split('T')[0],
-            totalComments: aggregatedPages.reduce((sum, page) => sum + page.commentCount, 0),
+            totalComments: totalComments,
             aggregatedFrom: dailyData.length + ' daily records'
         };
         
@@ -174,6 +194,14 @@ class AnalyticsCalculator {
             .sort((a, b) => b.commentCount - a.commentCount)
             .slice(0, 50);
         
+        // Calculate total comments from all daily data (not just top 50)
+        let totalComments = 0;
+        dailyData.forEach(day => {
+            if (day.data && day.data.totalComments) {
+                totalComments += day.data.totalComments;
+            }
+        });
+        
         const data = {
             pages: aggregatedPages,
             period: {
@@ -182,7 +210,7 @@ class AnalyticsCalculator {
             },
             rollingDays: 30,
             endDate: endDate.toISOString().split('T')[0],
-            totalComments: aggregatedPages.reduce((sum, page) => sum + page.commentCount, 0),
+            totalComments: totalComments,
             aggregatedFrom: dailyData.length + ' daily records'
         };
         
@@ -243,6 +271,14 @@ class AnalyticsCalculator {
             .sort((a, b) => b.commentCount - a.commentCount)
             .slice(0, 50);
         
+        // Calculate total comments from all daily data (not just top 50)
+        let totalComments = 0;
+        dailyData.forEach(day => {
+            if (day.data && day.data.totalComments) {
+                totalComments += day.data.totalComments;
+            }
+        });
+        
         const data = {
             pages: aggregatedPages,
             period: {
@@ -251,7 +287,7 @@ class AnalyticsCalculator {
             },
             rollingDays: 90,
             endDate: endDate.toISOString().split('T')[0],
-            totalComments: aggregatedPages.reduce((sum, page) => sum + page.commentCount, 0),
+            totalComments: totalComments,
             aggregatedFrom: dailyData.length + ' daily records'
         };
         
@@ -306,6 +342,7 @@ class AnalyticsCalculator {
         const endDate = new Date(date);
         endDate.setHours(23, 59, 59, 999);
         
+        // Query for top 50 pages
         const query = `
             SELECT 
                 c.page_id,
@@ -321,6 +358,17 @@ class AnalyticsCalculator {
         
         const result = await this.pool.query(query, [startDate, endDate]);
         
+        // Query for total comments across ALL pages
+        const totalQuery = `
+            SELECT COUNT(DISTINCT c.id) as total_count
+            FROM comments c
+            WHERE c.created_at >= $1
+                AND c.created_at <= $2
+        `;
+        
+        const totalResult = await this.pool.query(totalQuery, [startDate, endDate]);
+        const totalComments = parseInt(totalResult.rows[0].total_count) || 0;
+        
         const pages = result.rows.map(row => ({
             pageId: row.page_id,
             pageName: `Page ${row.page_id}`,
@@ -335,7 +383,7 @@ class AnalyticsCalculator {
                 end: endDate.toISOString()
             },
             date: startDate.toISOString().split('T')[0],
-            totalComments: pages.reduce((sum, page) => sum + page.commentCount, 0)
+            totalComments: totalComments
         };
         
         await this.pool.query(`
@@ -401,4 +449,4 @@ const startAnalyticsJob = (pool) => {
     });
 };
 
-module.exports = { startAnalyticsJob };
+module.exports = { startAnalyticsJob, AnalyticsCalculator };
