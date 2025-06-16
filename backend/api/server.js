@@ -2729,8 +2729,12 @@ app.get('/api/analytics/period-summary', authenticateUser, requireModerator, asy
         
         // Create map of existing data
         result.rows.forEach(row => {
-            console.log('Database row:', row.period_date, row.data?.totalComments);
-            dataMap.set(row.period_date, row.data?.totalComments || 0);
+            console.log('Database row:', row.period_date, 'Data type:', typeof row.data, 'Data:', JSON.stringify(row.data).substring(0, 100));
+            // Ensure data is parsed if it's a string
+            const data = typeof row.data === 'string' ? JSON.parse(row.data) : row.data;
+            const totalComments = data?.totalComments || 0;
+            console.log('Parsed totalComments:', totalComments);
+            dataMap.set(row.period_date, totalComments);
         });
         
         for (let i = 0; i < limit; i++) {

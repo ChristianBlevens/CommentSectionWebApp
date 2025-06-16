@@ -1925,21 +1925,33 @@ function unifiedApp() {
             const count = this.analyticsTimeframe === 'day' ? 24 : 
                          this.analyticsTimeframe === 'week' ? 12 : 3;
             
+            console.log(`Loading period summary for ${this.analyticsTimeframe}, count: ${count}`);
             
             const response = await fetch(`${API_URL}/api/analytics/period-summary?period=${this.analyticsTimeframe}&count=${count}`, {
                 headers: getAuthHeaders()
             });
             
             const data = await response.json();
+            console.log('Period summary response:', data);
             
             if (data.success) {
                 this.periodSummaryData = data.data;
+                console.log('Period summary data set:', this.periodSummaryData);
+                
+                // Log first few entries to see the structure
+                if (this.periodSummaryData && this.periodSummaryData.length > 0) {
+                    console.log('First entry:', this.periodSummaryData[0]);
+                    console.log('Last entry:', this.periodSummaryData[this.periodSummaryData.length - 1]);
+                }
+                
                 this.$nextTick(() => {
                     // Ensure DOM is ready and visible
                     setTimeout(() => {
                         this.renderBarChart();
                     }, 100);
                 });
+            } else {
+                console.error('Failed to load period summary:', data.error);
             }
         },
         
@@ -2115,8 +2127,14 @@ function unifiedApp() {
         },
         
         renderBarChart() {
+            console.log('=== renderBarChart called ===');
+            console.log('Period summary data:', this.periodSummaryData);
+            
             const container = document.getElementById('bar-chart-container');
-            if (!container) return;
+            if (!container) {
+                console.log('Bar chart container not found');
+                return;
+            }
             
             // Clear existing chart
             d3.select(container).selectAll('*').remove();
@@ -2151,8 +2169,8 @@ function unifiedApp() {
             const g = svg.append('g')
                 .attr('transform', `translate(${margin.left},${margin.top})`);
             
-            // Reverse data for right-to-left (new to old)
-            const reversedData = [...this.periodSummaryData].reverse();
+            // Keep data in original order (oldest to newest)
+            const reversedData = [...this.periodSummaryData];
             
             // Scales
             const xScale = d3.scaleBand()
@@ -2216,13 +2234,22 @@ function unifiedApp() {
                     return height - yScale(d.totalComments);
                 })
                 .style('cursor', d => d.totalComments > 0 ? 'pointer' : 'default')
+                .style('pointer-events', 'all')  // Ensure clicks are enabled
                 .on('click', function(event, d) {
+                    console.log('Bar click event triggered');
+                    console.log('Data:', d);
+                    console.log('Total comments:', d.totalComments);
+                    console.log('self reference:', self);
+                    
                     if (d.totalComments > 0) {
                         console.log('Bar clicked for date:', d.date);
+                        console.log('Calling loadAnalyticsForDate...');
                         self.loadAnalyticsForDate(d.date);
                         // Update selected state
                         d3.selectAll('.bar').classed('selected', false);
                         d3.select(this).classed('selected', true);
+                    } else {
+                        console.log('Bar has 0 comments, not loading data');
                     }
                 })
                 .on('mouseenter', function(event, d) {
