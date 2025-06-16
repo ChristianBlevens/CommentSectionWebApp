@@ -1925,14 +1925,12 @@ function unifiedApp() {
             const count = this.analyticsTimeframe === 'day' ? 24 : 
                          this.analyticsTimeframe === 'week' ? 12 : 3;
             
-            console.log(`Loading period summary: ${this.analyticsTimeframe}, count: ${count}`);
             
             const response = await fetch(`${API_URL}/api/analytics/period-summary?period=${this.analyticsTimeframe}&count=${count}`, {
                 headers: getAuthHeaders()
             });
             
             const data = await response.json();
-            console.log('Period summary response:', data);
             
             if (data.success) {
                 this.periodSummaryData = data.data;
@@ -2098,18 +2096,12 @@ function unifiedApp() {
         },
         
         renderBarChart() {
-            console.log('renderBarChart called');
             const container = document.getElementById('bar-chart-container');
-            console.log('Bar chart container:', container);
-            if (!container) {
-                console.log('No bar chart container found');
-                return;
-            }
+            if (!container) return;
             
             // Clear existing chart
             d3.select(container).selectAll('*').remove();
             
-            console.log('Period summary data:', this.periodSummaryData);
             
             // If no data, show empty state
             if (!this.periodSummaryData || this.periodSummaryData.length === 0) {
@@ -2128,9 +2120,9 @@ function unifiedApp() {
                 return;
             }
             
-            const margin = { top: 5, right: 10, bottom: 25, left: 10 };
+            const margin = { top: 10, right: 10, bottom: 25, left: 10 };
             const width = container.clientWidth - margin.left - margin.right;
-            const height = 60 - margin.top - margin.bottom;
+            const height = 50 - margin.top - margin.bottom;
             
             const svg = d3.select(container)
                 .append('svg')
