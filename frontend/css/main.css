@@ -1344,12 +1344,11 @@ a *,
     border-radius: 0;
     min-height: var(--touch-target-min);
     position: relative;
-    flex: 1 1 auto; /* Allow grow and shrink */
+    flex: 1 1 0; /* Equal width for all tabs */
     min-width: 0; /* Allow shrinking below content */
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    /* Remove max-width constraint */
 }
 
 /* Container query for very small spaces */
@@ -2008,14 +2007,7 @@ input[type="color"].color-input::-moz-color-swatch {
     border-radius: var(--radius-base);
 }
 
-.timeframe-selector {
-    display: flex;
-    gap: var(--spacing-sm);
-}
-
-.timeframe-selector .btn {
-    min-width: 80px;
-}
+/* Removed - now using moderation-tab styles */
 
 .date-selector-container {
     padding: var(--spacing-sm);
@@ -2060,12 +2052,25 @@ input[type="color"].color-input::-moz-color-swatch {
     font-size: var(--font-size-base);
 }
 
+/* Analytics navigation tabs */
+.controls-section nav.flex {
+    display: flex;
+    width: 100%;
+}
+
+.controls-section nav.flex .moderation-tab {
+    flex: 1 1 0; /* Equal width distribution */
+}
+
 .bubble-chart-container {
     background: var(--color-background);
     border-radius: var(--radius-base);
     padding: var(--spacing-base);
-    min-height: 600px;
+    min-height: 400px;
+    max-height: 70vh;
+    width: 100%;
     overflow: hidden;
+    position: relative;
 }
 
 .bubble circle {
@@ -2145,11 +2150,31 @@ input[type="color"].color-input::-moz-color-swatch {
         align-items: stretch;
     }
     
-    .timeframe-selector {
-        justify-content: space-between;
-    }
     
     .bubble-chart-container {
-        min-height: 400px;
+        min-height: 300px;
+        max-height: 60vh;
+        padding: var(--spacing-sm);
+    }
+    
+    .bar-chart-container {
+        height: 50px;
+    }
+    
+    .bar-chart-container .axis {
+        font-size: 8px;
+    }
+    
+    /* Reduce font size in moderation tabs on small screens */
+    .moderation-tab {
+        font-size: var(--text-sm);
+        padding: var(--spacing-xs) var(--spacing-sm);
+    }
+    
+    /* Hide icons in tab buttons on very small screens */
+    @media (max-width: 480px) {
+        .moderation-tab i {
+            display: none;
+        }
     }
 }

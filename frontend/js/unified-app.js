@@ -288,6 +288,23 @@ function unifiedApp() {
             if (this.user?.is_super_moderator) {
                 await this.initThemeEditor();
             }
+            
+            // Add resize handler for responsive charts
+            let resizeTimeout;
+            window.addEventListener('resize', () => {
+                clearTimeout(resizeTimeout);
+                resizeTimeout = setTimeout(() => {
+                    if (this.activeTab === 'analytics' && !this.analyticsLoading) {
+                        // Redraw charts on resize
+                        if (this.bubbleChartData) {
+                            this.renderBubbleChart();
+                        }
+                        if (this.periodSummaryData && this.analyticsTimeframe !== 'quarter') {
+                            this.renderBarChart();
+                        }
+                    }
+                }, 250); // Debounce resize events
+            });
         },
         
         // Fetch unread warnings
@@ -2035,9 +2052,10 @@ function unifiedApp() {
             // Clear existing chart
             d3.select(container).selectAll('*').remove();
             
-            // Ensure container has dimensions
-            const width = container.clientWidth || container.offsetWidth || 800;
-            const height = 600;
+            // Make responsive dimensions
+            const containerRect = container.getBoundingClientRect();
+            const width = containerRect.width || container.clientWidth || window.innerWidth * 0.9;
+            const height = Math.min(600, window.innerHeight * 0.5); // 50% of viewport height, max 600px
             const padding = 2;
             
             // If container has no width, wait and retry
@@ -2048,8 +2066,10 @@ function unifiedApp() {
             
             const svg = d3.select(container)
                 .append('svg')
-                .attr('width', width)
-                .attr('height', height)
+                .attr('width', '100%')
+                .attr('height', '100%')
+                .attr('viewBox', `0 0 ${width} ${height}`)
+                .attr('preserveAspectRatio', 'xMidYMid meet')
                 .attr('id', 'bubble-chart-svg');
             
             const data = this.bubbleChartData.pages || [];
@@ -2176,13 +2196,18 @@ function unifiedApp() {
             }
             
             const margin = { top: 5, right: 10, bottom: 25, left: 10 };
-            const width = container.clientWidth - margin.left - margin.right;
-            const height = 60 - margin.top - margin.bottom;
+            const containerRect = container.getBoundingClientRect();
+            const totalWidth = containerRect.width || container.clientWidth || window.innerWidth * 0.9;
+            const totalHeight = 60;
+            const width = totalWidth - margin.left - margin.right;
+            const height = totalHeight - margin.top - margin.bottom;
             
             const svg = d3.select(container)
                 .append('svg')
-                .attr('width', width + margin.left + margin.right)
-                .attr('height', height + margin.top + margin.bottom);
+                .attr('width', '100%')
+                .attr('height', totalHeight)
+                .attr('viewBox', `0 0 ${totalWidth} ${totalHeight}`)
+                .attr('preserveAspectRatio', 'xMidYMid meet');
             
             const g = svg.append('g')
                 .attr('transform', `translate(${margin.left},${margin.top})`);
