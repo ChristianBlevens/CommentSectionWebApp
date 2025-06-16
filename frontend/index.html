@@ -871,13 +871,13 @@
                     
                     <div id="bubble-chart-container" class="bubble-chart-container" x-show="!analyticsLoading"></div>
                     
+                    <!-- Minimal Bar Chart Navigation -->
+                    <div x-show="analyticsTimeframe !== 'quarter' && !analyticsLoading" id="bar-chart-container" class="bar-chart-container"></div>
+                    
                     <div class="chart-info" x-show="bubbleChartData && !analyticsLoading">
                         <span>Showing top 50 pages by comment activity</span>
                         <span x-text="bubbleChartData?.generatedAt ? `Data from: ${new Date(bubbleChartData.generatedAt).toLocaleString()}` : ''"></span>
                     </div>
-                    
-                    <!-- Minimal Bar Chart Navigation -->
-                    <div x-show="analyticsTimeframe !== 'quarter' && !analyticsLoading" id="bar-chart-container" class="bar-chart-container"></div>
                 </div>
 
                 </div>

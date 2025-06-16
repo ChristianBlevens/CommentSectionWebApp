@@ -2120,9 +2120,9 @@ function unifiedApp() {
                 return;
             }
             
-            const margin = { top: 10, right: 10, bottom: 25, left: 10 };
+            const margin = { top: 5, right: 10, bottom: 25, left: 10 };
             const width = container.clientWidth - margin.left - margin.right;
-            const height = 50 - margin.top - margin.bottom;
+            const height = 60 - margin.top - margin.bottom;
             
             const svg = d3.select(container)
                 .append('svg')
@@ -2143,6 +2143,8 @@ function unifiedApp() {
             
             // Normalize heights to always reach max
             const maxComments = d3.max(this.periodSummaryData, d => d.totalComments) || 1;
+            console.log('Max comments in period summary:', maxComments);
+            console.log('Sample data:', this.periodSummaryData.slice(0, 3));
             const yScale = d3.scaleLinear()
                 .domain([0, maxComments])
                 .range([height, 0]);
@@ -2169,28 +2171,7 @@ function unifiedApp() {
             // Remove domain line
             xAxis.select('.domain').remove();
             
-            // Background bars for click targets (invisible but clickable)
-            g.selectAll('.bar-bg')
-                .data(reversedData)
-                .enter()
-                .append('rect')
-                .attr('class', 'bar-bg')
-                .attr('x', d => xScale(d.date))
-                .attr('width', xScale.bandwidth())
-                .attr('y', 0)
-                .attr('height', height)
-                .style('fill', 'transparent')
-                .style('cursor', 'pointer')
-                .on('click', (event, d) => {
-                    if (d.totalComments > 0) {
-                        this.loadAnalyticsForDate(d.date);
-                        // Update selected state
-                        d3.selectAll('.bar').classed('selected', false);
-                        d3.select(event.currentTarget.nextSibling).classed('selected', true);
-                    }
-                });
-            
-            // Visible bars
+            // Bars
             const bars = g.selectAll('.bar')
                 .data(reversedData)
                 .enter()
@@ -2200,7 +2181,15 @@ function unifiedApp() {
                 .attr('width', xScale.bandwidth())
                 .attr('y', d => d.totalComments === 0 ? height : yScale(d.totalComments))
                 .attr('height', d => d.totalComments === 0 ? 0 : height - yScale(d.totalComments))
-                .style('pointer-events', 'none') // Click events handled by background bars
+                .style('cursor', d => d.totalComments > 0 ? 'pointer' : 'default')
+                .on('click', (event, d) => {
+                    if (d.totalComments > 0) {
+                        this.loadAnalyticsForDate(d.date);
+                        // Update selected state
+                        d3.selectAll('.bar').classed('selected', false);
+                        d3.select(event.currentTarget).classed('selected', true);
+                    }
+                })
                 .on('mouseenter', function(event, d) {
                     if (d.totalComments > 0) {
                         // Simple tooltip
