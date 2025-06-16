@@ -2212,13 +2212,19 @@ function unifiedApp() {
                 .call(d3.axisBottom(xScale)
                     .tickValues(reversedData.filter((d, i) => i % tickInterval === 0).map(d => d.date))
                     .tickFormat(d => {
-                        const date = new Date(d);
+                        const endDate = new Date(d);
                         if (this.analyticsTimeframe === 'day') {
-                            return date.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' });
+                            return endDate.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' });
                         } else if (this.analyticsTimeframe === 'week') {
-                            return date.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' });
+                            // Show range for 7-day period
+                            const startDate = new Date(endDate);
+                            startDate.setDate(startDate.getDate() - 6);
+                            return `${startDate.getMonth() + 1}/${startDate.getDate()}-${endDate.getMonth() + 1}/${endDate.getDate()}`;
                         } else {
-                            return date.toLocaleDateString('en-US', { month: 'short' });
+                            // Show range for 30-day period
+                            const startDate = new Date(endDate);
+                            startDate.setDate(startDate.getDate() - 29);
+                            return `${startDate.getMonth() + 1}/${startDate.getDate()}-${endDate.getMonth() + 1}/${endDate.getDate()}`;
                         }
                     })
                     .tickSize(3));
@@ -2277,8 +2283,21 @@ function unifiedApp() {
                             .duration(200)
                             .style('opacity', .9);
                         
-                    const date = new Date(d.date);
-                    const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                    const endDate = new Date(d.date);
+                    let dateStr;
+                    
+                    if (self.analyticsTimeframe === 'day') {
+                        dateStr = endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                    } else if (self.analyticsTimeframe === 'week') {
+                        const startDate = new Date(endDate);
+                        startDate.setDate(startDate.getDate() - 6);
+                        dateStr = `${startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+                    } else {
+                        const startDate = new Date(endDate);
+                        startDate.setDate(startDate.getDate() - 29);
+                        dateStr = `${startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+                    }
+                    
                     tooltip.html(`${dateStr}<br/>${d.totalComments} comments`)
                         .style('left', (event.pageX + 10) + 'px')
                         .style('top', (event.pageY - 40) + 'px');

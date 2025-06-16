@@ -405,12 +405,142 @@ class AnalyticsCalculator {
             await this.calculateDailyDataForDate(date);
         }
         
-        // Calculate all rolling period data
-        await this.calculateWeeklyData();
-        await this.calculateMonthlyData();
+        // Calculate weekly data for the past 12 weeks
+        // Weekly data is stored with the END date of the 7-day period
+        for (let i = 0; i < 12; i++) {
+            const endDate = new Date();
+            endDate.setDate(endDate.getDate() - 1 - (i * 7)); // Yesterday minus weeks
+            endDate.setHours(23, 59, 59, 999);
+            
+            const startDate = new Date(endDate);
+            startDate.setDate(startDate.getDate() - 6);
+            startDate.setHours(0, 0, 0, 0);
+            
+            await this.calculateSpecificWeeklyData(startDate, endDate);
+        }
+        
+        // Calculate monthly data for the past 3 months
+        // Monthly data is stored with the END date of the 30-day period
+        for (let i = 0; i < 3; i++) {
+            const endDate = new Date();
+            endDate.setDate(endDate.getDate() - 1 - (i * 30)); // Yesterday minus months
+            endDate.setHours(23, 59, 59, 999);
+            
+            const startDate = new Date(endDate);
+            startDate.setDate(startDate.getDate() - 29);
+            startDate.setHours(0, 0, 0, 0);
+            
+            await this.calculateSpecificMonthlyData(startDate, endDate);
+        }
+        
+        // Calculate quarterly data
         await this.calculateQuarterlyData();
         
         console.log('Historical data population complete');
+    }
+    
+    // Helper method to calculate weekly data for specific date range
+    async calculateSpecificWeeklyData(startDate, endDate) {
+        const dailyData = await this.getDailyDataForPeriod(startDate, endDate);
+        
+        const pageMap = new Map();
+        
+        dailyData.forEach(day => {
+            if (day.data && day.data.pages) {
+                day.data.pages.forEach(page => {
+                    const existing = pageMap.get(page.pageId) || {
+                        pageId: page.pageId,
+                        pageName: page.pageName,
+                        url: page.url,
+                        commentCount: 0
+                    };
+                    existing.commentCount += page.commentCount;
+                    pageMap.set(page.pageId, existing);
+                });
+            }
+        });
+        
+        const aggregatedPages = Array.from(pageMap.values())
+            .sort((a, b) => b.commentCount - a.commentCount)
+            .slice(0, 50);
+        
+        let totalComments = 0;
+        dailyData.forEach(day => {
+            if (day.data && day.data.totalComments) {
+                totalComments += day.data.totalComments;
+            }
+        });
+        
+        const data = {
+            pages: aggregatedPages,
+            period: {
+                start: startDate.toISOString(),
+                end: endDate.toISOString()
+            },
+            rollingDays: 7,
+            endDate: endDate.toISOString().split('T')[0],
+            totalComments: totalComments,
+            aggregatedFrom: dailyData.length + ' daily records'
+        };
+        
+        await this.pool.query(`
+            INSERT INTO analytics_cache (period_type, period_date, data, generated_at)
+            VALUES ('week', $1, $2, NOW())
+            ON CONFLICT (period_type, period_date) 
+            DO UPDATE SET data = $2, generated_at = NOW()
+        `, [endDate.toISOString().split('T')[0], data]);
+    }
+    
+    // Helper method to calculate monthly data for specific date range
+    async calculateSpecificMonthlyData(startDate, endDate) {
+        const dailyData = await this.getDailyDataForPeriod(startDate, endDate);
+        
+        const pageMap = new Map();
+        
+        dailyData.forEach(day => {
+            if (day.data && day.data.pages) {
+                day.data.pages.forEach(page => {
+                    const existing = pageMap.get(page.pageId) || {
+                        pageId: page.pageId,
+                        pageName: page.pageName,
+                        url: page.url,
+                        commentCount: 0
+                    };
+                    existing.commentCount += page.commentCount;
+                    pageMap.set(page.pageId, existing);
+                });
+            }
+        });
+        
+        const aggregatedPages = Array.from(pageMap.values())
+            .sort((a, b) => b.commentCount - a.commentCount)
+            .slice(0, 50);
+        
+        let totalComments = 0;
+        dailyData.forEach(day => {
+            if (day.data && day.data.totalComments) {
+                totalComments += day.data.totalComments;
+            }
+        });
+        
+        const data = {
+            pages: aggregatedPages,
+            period: {
+                start: startDate.toISOString(),
+                end: endDate.toISOString()
+            },
+            rollingDays: 30,
+            endDate: endDate.toISOString().split('T')[0],
+            totalComments: totalComments,
+            aggregatedFrom: dailyData.length + ' daily records'
+        };
+        
+        await this.pool.query(`
+            INSERT INTO analytics_cache (period_type, period_date, data, generated_at)
+            VALUES ('month', $1, $2, NOW())
+            ON CONFLICT (period_type, period_date) 
+            DO UPDATE SET data = $2, generated_at = NOW()
+        `, [endDate.toISOString().split('T')[0], data]);
     }
 }
 
@@ -435,12 +565,34 @@ const startAnalyticsJob = (pool) => {
     
     // Schedule rolling 7-day calculation daily at 3 AM
     cron.schedule('0 3 * * *', async () => {
-        await calculator.calculateWeeklyData();
+        // Calculate weekly data for the current period and any missing ones
+        for (let i = 0; i < 12; i++) {
+            const endDate = new Date();
+            endDate.setDate(endDate.getDate() - 1 - (i * 7));
+            endDate.setHours(23, 59, 59, 999);
+            
+            const startDate = new Date(endDate);
+            startDate.setDate(startDate.getDate() - 6);
+            startDate.setHours(0, 0, 0, 0);
+            
+            await calculator.calculateSpecificWeeklyData(startDate, endDate);
+        }
     });
     
     // Schedule rolling 30-day calculation daily at 4 AM
     cron.schedule('0 4 * * *', async () => {
-        await calculator.calculateMonthlyData();
+        // Calculate monthly data for the current period and any missing ones
+        for (let i = 0; i < 3; i++) {
+            const endDate = new Date();
+            endDate.setDate(endDate.getDate() - 1 - (i * 30));
+            endDate.setHours(23, 59, 59, 999);
+            
+            const startDate = new Date(endDate);
+            startDate.setDate(startDate.getDate() - 29);
+            startDate.setHours(0, 0, 0, 0);
+            
+            await calculator.calculateSpecificMonthlyData(startDate, endDate);
+        }
     });
     
     // Schedule rolling 90-day calculation daily at 5 AM

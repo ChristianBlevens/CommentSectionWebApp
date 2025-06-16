@@ -2707,22 +2707,49 @@ app.get('/api/analytics/period-summary', authenticateUser, requireModerator, asy
         
         const result = await pgPool.query(query);
         
-        // Convert the data directly from DB without generating new dates
-        const summaryData = result.rows.map(row => {
-            console.log('Database row:', row.period_date, 'Data type:', typeof row.data);
-            
-            // Ensure data is parsed if it's a string
+        // Create a map of existing data
+        const dataMap = new Map();
+        result.rows.forEach(row => {
             const data = typeof row.data === 'string' ? JSON.parse(row.data) : row.data;
             const totalComments = data?.totalComments || 0;
+            console.log(`Existing data: ${row.period_date} = ${totalComments} comments`);
+            dataMap.set(row.period_date, totalComments);
+        });
+        
+        // Generate all dates needed, filling gaps with 0
+        const summaryData = [];
+        const today = new Date();
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        yesterday.setHours(0, 0, 0, 0);
+        
+        console.log(`Generating ${limit} ${period} entries ending on ${yesterday.toISOString().split('T')[0]}`);
+        
+        for (let i = limit - 1; i >= 0; i--) {
+            const currentDate = new Date(yesterday);
             
-            console.log(`Date: ${row.period_date}, totalComments: ${totalComments}`);
+            if (period === 'day') {
+                // For daily: go back from yesterday
+                currentDate.setDate(currentDate.getDate() - i);
+            } else if (period === 'week') {
+                // For weekly: rolling 7-day periods ending on each day
+                currentDate.setDate(currentDate.getDate() - (i * 7));
+            } else if (period === 'month') {
+                // For monthly: rolling 30-day periods ending on each day
+                currentDate.setDate(currentDate.getDate() - (i * 30));
+            }
             
-            return {
-                date: row.period_date,
+            const dateStr = currentDate.toISOString().split('T')[0];
+            const totalComments = dataMap.get(dateStr) || 0;
+            
+            console.log(`${period} ${i}: ${dateStr} - ${totalComments} comments`);
+            
+            summaryData.push({
+                date: dateStr,
                 totalComments: totalComments,
                 periodType: period
-            };
-        }).reverse(); // Reverse to get chronological order (oldest first)
+            });
+        }
         
         console.log(`Returning ${summaryData.length} entries for period ${period}`);
         
