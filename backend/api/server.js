@@ -2699,11 +2699,39 @@ app.get('/api/analytics/period-summary', authenticateUser, requireModerator, asy
         
         const result = await pgPool.query(query);
         
-        const summaryData = result.rows.map(row => ({
-            date: row.period_date,
-            totalComments: row.data?.totalComments || 0,
-            periodType: period
-        })).reverse(); // Reverse to get chronological order
+        // Fill in missing dates with 0 comments
+        const allDates = [];
+        const dataMap = new Map();
+        
+        // Create map of existing data
+        result.rows.forEach(row => {
+            dataMap.set(row.period_date, row.data?.totalComments || 0);
+        });
+        
+        // Generate all dates in range
+        const endDate = new Date();
+        endDate.setDate(endDate.getDate() - 1); // Yesterday
+        
+        for (let i = 0; i < limit; i++) {
+            const currentDate = new Date(endDate);
+            
+            if (period === 'day') {
+                currentDate.setDate(currentDate.getDate() - i);
+            } else if (period === 'week') {
+                currentDate.setDate(currentDate.getDate() - (i * 7));
+            } else if (period === 'month') {
+                currentDate.setDate(currentDate.getDate() - (i * 30));
+            }
+            
+            const dateStr = currentDate.toISOString().split('T')[0];
+            allDates.push({
+                date: dateStr,
+                totalComments: dataMap.get(dateStr) || 0,
+                periodType: period
+            });
+        }
+        
+        const summaryData = allDates.reverse(); // Reverse to get chronological order
         
         res.json({
             success: true,

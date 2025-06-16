@@ -1906,6 +1906,11 @@ function unifiedApp() {
                     const targetDate = this.selectedPeriodDate || (this.periodSummaryData && this.periodSummaryData[this.periodSummaryData.length - 1]?.date);
                     if (targetDate) {
                         await this.loadAnalyticsForDate(targetDate);
+                    } else {
+                        // No data available yet, render empty bar chart
+                        this.$nextTick(() => {
+                            this.renderBarChart();
+                        });
                     }
                 }
             } catch (error) {
@@ -1920,15 +1925,22 @@ function unifiedApp() {
             const count = this.analyticsTimeframe === 'day' ? 24 : 
                          this.analyticsTimeframe === 'week' ? 12 : 3;
             
+            console.log(`Loading period summary: ${this.analyticsTimeframe}, count: ${count}`);
+            
             const response = await fetch(`${API_URL}/api/analytics/period-summary?period=${this.analyticsTimeframe}&count=${count}`, {
                 headers: getAuthHeaders()
             });
             
             const data = await response.json();
+            console.log('Period summary response:', data);
+            
             if (data.success) {
                 this.periodSummaryData = data.data;
                 this.$nextTick(() => {
-                    this.renderBarChart();
+                    // Ensure DOM is ready and visible
+                    setTimeout(() => {
+                        this.renderBarChart();
+                    }, 100);
                 });
             }
         },
@@ -2086,11 +2098,35 @@ function unifiedApp() {
         },
         
         renderBarChart() {
+            console.log('renderBarChart called');
             const container = document.getElementById('bar-chart-container');
-            if (!container || !this.periodSummaryData || this.periodSummaryData.length === 0) return;
+            console.log('Bar chart container:', container);
+            if (!container) {
+                console.log('No bar chart container found');
+                return;
+            }
             
             // Clear existing chart
             d3.select(container).selectAll('*').remove();
+            
+            console.log('Period summary data:', this.periodSummaryData);
+            
+            // If no data, show empty state
+            if (!this.periodSummaryData || this.periodSummaryData.length === 0) {
+                const svg = d3.select(container)
+                    .append('svg')
+                    .attr('width', container.clientWidth)
+                    .attr('height', 60);
+                
+                svg.append('text')
+                    .attr('x', container.clientWidth / 2)
+                    .attr('y', 30)
+                    .attr('text-anchor', 'middle')
+                    .style('font-size', '12px')
+                    .style('fill', 'var(--color-text-muted)')
+                    .text('Loading data...');
+                return;
+            }
             
             const margin = { top: 5, right: 10, bottom: 25, left: 10 };
             const width = container.clientWidth - margin.left - margin.right;
@@ -2141,7 +2177,28 @@ function unifiedApp() {
             // Remove domain line
             xAxis.select('.domain').remove();
             
-            // Bars
+            // Background bars for click targets (invisible but clickable)
+            g.selectAll('.bar-bg')
+                .data(reversedData)
+                .enter()
+                .append('rect')
+                .attr('class', 'bar-bg')
+                .attr('x', d => xScale(d.date))
+                .attr('width', xScale.bandwidth())
+                .attr('y', 0)
+                .attr('height', height)
+                .style('fill', 'transparent')
+                .style('cursor', 'pointer')
+                .on('click', (event, d) => {
+                    if (d.totalComments > 0) {
+                        this.loadAnalyticsForDate(d.date);
+                        // Update selected state
+                        d3.selectAll('.bar').classed('selected', false);
+                        d3.select(event.currentTarget.nextSibling).classed('selected', true);
+                    }
+                });
+            
+            // Visible bars
             const bars = g.selectAll('.bar')
                 .data(reversedData)
                 .enter()
@@ -2149,29 +2206,26 @@ function unifiedApp() {
                 .attr('class', d => `bar ${d.date === this.selectedPeriodDate ? 'selected' : ''}`)
                 .attr('x', d => xScale(d.date))
                 .attr('width', xScale.bandwidth())
-                .attr('y', d => yScale(d.totalComments))
-                .attr('height', d => height - yScale(d.totalComments))
-                .on('click', (event, d) => {
-                    this.loadAnalyticsForDate(d.date);
-                    // Update selected state
-                    d3.selectAll('.bar').classed('selected', false);
-                    d3.select(event.target).classed('selected', true);
-                })
+                .attr('y', d => d.totalComments === 0 ? height : yScale(d.totalComments))
+                .attr('height', d => d.totalComments === 0 ? 0 : height - yScale(d.totalComments))
+                .style('pointer-events', 'none') // Click events handled by background bars
                 .on('mouseenter', function(event, d) {
-                    // Simple tooltip
-                    const tooltip = d3.select('body').append('div')
-                        .attr('class', 'bubble-tooltip')
-                        .style('opacity', 0);
-                    
-                    tooltip.transition()
-                        .duration(200)
-                        .style('opacity', .9);
-                    
-                    const date = new Date(d.date);
-                    const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-                    tooltip.html(`${dateStr}<br/>${d.totalComments} comments`)
-                        .style('left', (event.pageX + 10) + 'px')
-                        .style('top', (event.pageY - 40) + 'px');
+                    if (d.totalComments > 0) {
+                        // Simple tooltip
+                        const tooltip = d3.select('body').append('div')
+                            .attr('class', 'bubble-tooltip')
+                            .style('opacity', 0);
+                        
+                        tooltip.transition()
+                            .duration(200)
+                            .style('opacity', .9);
+                        
+                        const date = new Date(d.date);
+                        const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                        tooltip.html(`${dateStr}<br/>${d.totalComments} comments`)
+                            .style('left', (event.pageX + 10) + 'px')
+                            .style('top', (event.pageY - 40) + 'px');
+                    }
                 })
                 .on('mouseleave', function() {
                     d3.selectAll('.bubble-tooltip').remove();
