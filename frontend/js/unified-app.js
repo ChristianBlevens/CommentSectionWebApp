@@ -2092,9 +2092,9 @@ function unifiedApp() {
             // Clear existing chart
             d3.select(container).selectAll('*').remove();
             
-            const margin = { top: 20, right: 20, bottom: 60, left: 50 };
+            const margin = { top: 5, right: 10, bottom: 25, left: 10 };
             const width = container.clientWidth - margin.left - margin.right;
-            const height = 200 - margin.top - margin.bottom;
+            const height = 60 - margin.top - margin.bottom;
             
             const svg = d3.select(container)
                 .append('svg')
@@ -2104,58 +2104,46 @@ function unifiedApp() {
             const g = svg.append('g')
                 .attr('transform', `translate(${margin.left},${margin.top})`);
             
+            // Reverse data for right-to-left (new to old)
+            const reversedData = [...this.periodSummaryData].reverse();
+            
             // Scales
             const xScale = d3.scaleBand()
-                .domain(this.periodSummaryData.map(d => d.date))
+                .domain(reversedData.map(d => d.date))
                 .range([0, width])
-                .padding(0.1);
+                .padding(0.2);
             
+            // Normalize heights to always reach max
+            const maxComments = d3.max(this.periodSummaryData, d => d.totalComments) || 1;
             const yScale = d3.scaleLinear()
-                .domain([0, d3.max(this.periodSummaryData, d => d.totalComments)])
-                .nice()
+                .domain([0, maxComments])
                 .range([height, 0]);
             
-            // X axis
+            // X axis with minimal ticks
+            const tickInterval = Math.ceil(reversedData.length / 8); // Show ~8 labels max
             const xAxis = g.append('g')
                 .attr('transform', `translate(0,${height})`)
                 .attr('class', 'axis')
                 .call(d3.axisBottom(xScale)
+                    .tickValues(reversedData.filter((d, i) => i % tickInterval === 0).map(d => d.date))
                     .tickFormat(d => {
                         const date = new Date(d);
                         if (this.analyticsTimeframe === 'day') {
-                            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                            return date.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' });
                         } else if (this.analyticsTimeframe === 'week') {
-                            return `Week of ${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+                            return date.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' });
                         } else {
-                            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                            return date.toLocaleDateString('en-US', { month: 'short' });
                         }
-                    }));
+                    })
+                    .tickSize(3));
             
-            // Rotate x-axis labels for better readability
-            xAxis.selectAll('text')
-                .style('text-anchor', 'end')
-                .attr('dx', '-.8em')
-                .attr('dy', '.15em')
-                .attr('transform', 'rotate(-45)');
-            
-            // Y axis
-            g.append('g')
-                .attr('class', 'axis')
-                .call(d3.axisLeft(yScale).ticks(5));
-            
-            // Y axis label
-            g.append('text')
-                .attr('class', 'axis-label')
-                .attr('transform', 'rotate(-90)')
-                .attr('y', 0 - margin.left)
-                .attr('x', 0 - (height / 2))
-                .attr('dy', '1em')
-                .style('text-anchor', 'middle')
-                .text('Total Comments');
+            // Remove domain line
+            xAxis.select('.domain').remove();
             
             // Bars
             const bars = g.selectAll('.bar')
-                .data(this.periodSummaryData)
+                .data(reversedData)
                 .enter()
                 .append('rect')
                 .attr('class', d => `bar ${d.date === this.selectedPeriodDate ? 'selected' : ''}`)
@@ -2163,7 +2151,6 @@ function unifiedApp() {
                 .attr('width', xScale.bandwidth())
                 .attr('y', d => yScale(d.totalComments))
                 .attr('height', d => height - yScale(d.totalComments))
-                .attr('fill', 'var(--color-primary)')
                 .on('click', (event, d) => {
                     this.loadAnalyticsForDate(d.date);
                     // Update selected state
@@ -2171,7 +2158,7 @@ function unifiedApp() {
                     d3.select(event.target).classed('selected', true);
                 })
                 .on('mouseenter', function(event, d) {
-                    // Tooltip
+                    // Simple tooltip
                     const tooltip = d3.select('body').append('div')
                         .attr('class', 'bubble-tooltip')
                         .style('opacity', 0);
@@ -2180,21 +2167,15 @@ function unifiedApp() {
                         .duration(200)
                         .style('opacity', .9);
                     
-                    tooltip.html(`Total Comments: ${d.totalComments}`)
+                    const date = new Date(d.date);
+                    const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                    tooltip.html(`${dateStr}<br/>${d.totalComments} comments`)
                         .style('left', (event.pageX + 10) + 'px')
-                        .style('top', (event.pageY - 28) + 'px');
+                        .style('top', (event.pageY - 40) + 'px');
                 })
                 .on('mouseleave', function() {
                     d3.selectAll('.bubble-tooltip').remove();
                 });
-            
-            // Animate bars on load
-            bars.attr('y', height)
-                .attr('height', 0)
-                .transition()
-                .duration(500)
-                .attr('y', d => yScale(d.totalComments))
-                .attr('height', d => height - yScale(d.totalComments));
         },
         
         exportBubbleChart() {

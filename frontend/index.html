@@ -840,17 +840,14 @@
                         <span class="loading-text">Loading analytics...</span>
                     </div>
                     
+                    <!-- Minimal Bar Chart Navigation -->
+                    <div x-show="analyticsTimeframe !== 'quarter' && !analyticsLoading" id="bar-chart-container" class="bar-chart-container"></div>
+                    
                     <div id="bubble-chart-container" class="bubble-chart-container" x-show="!analyticsLoading"></div>
                     
                     <div class="chart-info" x-show="bubbleChartData && !analyticsLoading">
                         <span>Showing top 50 pages by comment activity</span>
                         <span x-text="bubbleChartData?.generatedAt ? `Data from: ${new Date(bubbleChartData.generatedAt).toLocaleString()}` : ''"></span>
-                    </div>
-                    
-                    <!-- Bar Chart for Time Period Selection -->
-                    <div x-show="analyticsTimeframe !== 'quarter' && !analyticsLoading" class="bar-chart-section mt-4">
-                        <h4 class="text-lg font-medium mb-3">Total Comments by Period</h4>
-                        <div id="bar-chart-container" class="bar-chart-container"></div>
                     </div>
                 </div>
 
