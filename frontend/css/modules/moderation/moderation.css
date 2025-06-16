@@ -1,0 +1,315 @@
+/* Moderation module styles */
+
+/* Moderation panel container */
+.moderation-panel {
+  background-color: var(--color-backgrounds-main);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  margin-bottom: var(--space-lg);
+  container-type: inline-size;
+}
+
+/* Tab navigation */
+.moderation-tabs {
+  display: flex;
+  border-bottom: 2px solid var(--color-borders-light);
+  padding: 0 var(--space-lg);
+  gap: var(--space-xs);
+  flex-wrap: wrap;
+}
+
+.moderation-tab {
+  padding: var(--space-md) var(--space-lg);
+  background-color: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  white-space: nowrap;
+}
+
+.moderation-tab:hover {
+  color: var(--color-text-primary);
+  background-color: var(--color-backgrounds-secondary);
+}
+
+.moderation-tab.active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+}
+
+/* Tab content */
+.moderation-content {
+  padding: var(--space-lg);
+}
+
+/* Reports section */
+.reports-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.reports-filters {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-md);
+}
+
+.reports-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+/* Users management */
+.users-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.users-search {
+  display: flex;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.users-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--space-md);
+}
+
+.user-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  background-color: var(--color-backgrounds-secondary);
+  border-radius: var(--radius-md);
+  transition: all 0.2s;
+}
+
+.user-card:hover {
+  background-color: var(--color-backgrounds-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.user-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-full);
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.user-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.user-name {
+  font-weight: 600;
+  color: var(--color-text-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.user-email {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-actions {
+  display: flex;
+  gap: var(--space-xs);
+}
+
+/* Moderation logs */
+.logs-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.logs-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.logs-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+/* Ban modal */
+.ban-modal {
+  max-width: 500px;
+}
+
+.ban-reason-input {
+  min-height: 100px;
+  margin-bottom: var(--space-md);
+}
+
+.ban-duration-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.ban-duration-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm);
+  border: 1px solid var(--color-borders-light);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.ban-duration-option:hover {
+  background-color: var(--color-backgrounds-secondary);
+}
+
+.ban-duration-option.selected {
+  background-color: var(--color-primary-light);
+  border-color: var(--color-primary);
+}
+
+/* Warning modal */
+.warning-modal {
+  max-width: 500px;
+}
+
+.warning-message-input {
+  min-height: 100px;
+  margin-bottom: var(--space-md);
+}
+
+/* Statistics cards */
+.moderation-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+
+.stat-card {
+  background-color: var(--color-backgrounds-secondary);
+  padding: var(--space-md);
+  border-radius: var(--radius-md);
+  text-align: center;
+}
+
+.stat-value {
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-xs);
+}
+
+.stat-label {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Status indicators */
+.status-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: var(--text-sm);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.status-dot.online {
+  background-color: var(--color-status-success);
+}
+
+.status-dot.banned {
+  background-color: var(--color-status-error);
+}
+
+.status-dot.suspended {
+  background-color: var(--color-status-warning);
+}
+
+/* Responsive design */
+@container (max-width: 768px) {
+  .moderation-tabs {
+    padding: 0 var(--space-md);
+    gap: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .moderation-tab {
+    padding: var(--space-sm) var(--space-md);
+    font-size: var(--text-sm);
+  }
+  
+  .moderation-content {
+    padding: var(--space-md);
+  }
+  
+  .users-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .logs-filters {
+    grid-template-columns: 1fr;
+  }
+  
+  .moderation-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Loading states */
+.moderation-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-2xl);
+  color: var(--color-text-secondary);
+}
+
+.moderation-empty {
+  text-align: center;
+  padding: var(--space-2xl);
+  color: var(--color-text-secondary);
+}
+
+.moderation-empty-icon {
+  font-size: 3rem;
+  margin-bottom: var(--space-md);
+  opacity: 0.5;
+}
+
+.moderation-empty-text {
+  font-size: var(--text-lg);
+}

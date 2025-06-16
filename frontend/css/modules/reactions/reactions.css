@@ -1,0 +1,113 @@
+/* Reactions module styles */
+
+/* Reactions container */
+.reactions-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+}
+
+/* Reaction button */
+.reaction-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  background-color: var(--color-backgrounds-secondary);
+  border: 1px solid var(--color-borders-light);
+  border-radius: var(--radius-full);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  user-select: none;
+}
+
+.reaction-btn:hover {
+  background-color: var(--color-backgrounds-hover);
+  border-color: var(--color-borders-medium);
+}
+
+/* Active reaction */
+.reaction-btn.active {
+  background-color: var(--color-primary-light);
+  border-color: var(--color-primary-main);
+  color: var(--color-primary-main);
+}
+
+.reaction-btn.active:hover {
+  background-color: var(--color-primary-light);
+  border-color: var(--color-primary-hover);
+}
+
+/* Has reactions state */
+.reaction-btn.has-reactions {
+  background-color: var(--color-backgrounds-hover);
+}
+
+/* Reaction emoji */
+.reaction-emoji {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+/* Reaction count */
+.reaction-count {
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.reaction-btn.active .reaction-count {
+  color: var(--color-primary-main);
+}
+
+/* Disabled state */
+.reaction-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Loading state */
+.reaction-btn.loading {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.reaction-btn.loading .reaction-emoji {
+  animation: pulse 1s ease-in-out infinite;
+}
+
+/* Reaction summary (for compact view) */
+.reaction-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+
+.reaction-summary-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+/* Animations */
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .reaction-btn {
+    padding: var(--space-1);
+    font-size: 0.75rem;
+  }
+  
+  .reaction-emoji {
+    font-size: 0.875rem;
+  }
+}

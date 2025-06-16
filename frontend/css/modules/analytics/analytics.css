@@ -1,0 +1,325 @@
+/* Analytics module styles */
+
+/* Analytics panel */
+.analytics-panel {
+  padding: var(--space-lg);
+  background-color: var(--color-backgrounds-main);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+}
+
+/* Controls section */
+.analytics-controls {
+  display: flex;
+  gap: var(--space-lg);
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  margin-bottom: var(--space-xl);
+  padding: var(--space-lg);
+  background: var(--color-backgrounds-secondary);
+  border-radius: var(--radius-md);
+}
+
+.analytics-filters {
+  display: flex;
+  gap: var(--space-md);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.analytics-actions {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+/* Date range selector */
+.date-range-selector {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-backgrounds-main);
+  border: 1px solid var(--color-borders-light);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.date-range-selector:hover {
+  background: var(--color-backgrounds-hover);
+  border-color: var(--color-borders-medium);
+}
+
+.date-range-selector i {
+  color: var(--color-text-secondary);
+}
+
+.date-range-text {
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+/* Chart container */
+.chart-container {
+  background: var(--color-backgrounds-main);
+  border: 1px solid var(--color-borders-light);
+  border-radius: var(--radius-md);
+  padding: var(--space-lg);
+  margin-bottom: var(--space-lg);
+  min-height: 400px;
+  position: relative;
+}
+
+.chart-loading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  color: var(--color-text-secondary);
+}
+
+.chart-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 400px;
+  color: var(--color-text-secondary);
+}
+
+.chart-empty-icon {
+  font-size: 3rem;
+  margin-bottom: var(--space-md);
+  opacity: 0.5;
+}
+
+/* Bubble chart specific */
+.bubble-chart {
+  width: 100%;
+  height: 100%;
+}
+
+.bubble-chart svg {
+  width: 100%;
+  height: 100%;
+}
+
+.bubble-chart .axis {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.bubble-chart .axis-label {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  fill: var(--color-text-primary);
+}
+
+.bubble-chart .bubble {
+  fill: var(--color-primary);
+  fill-opacity: 0.6;
+  stroke: var(--color-primary);
+  stroke-width: 1;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.bubble-chart .bubble:hover {
+  fill-opacity: 0.8;
+  stroke-width: 2;
+}
+
+/* Chart tooltip */
+.chart-tooltip {
+  position: absolute;
+  background: rgba(0, 0, 0, 0.9);
+  color: white;
+  padding: var(--space-sm);
+  border-radius: var(--radius-sm);
+  pointer-events: none;
+  font-size: var(--text-sm);
+  z-index: var(--z-tooltip);
+  white-space: nowrap;
+}
+
+.chart-tooltip-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.chart-tooltip-label {
+  color: #ccc;
+}
+
+.chart-tooltip-value {
+  font-weight: 600;
+}
+
+/* Metrics grid */
+.analytics-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+
+.metric-card {
+  background: var(--color-backgrounds-secondary);
+  padding: var(--space-lg);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-borders-light);
+  transition: all 0.2s;
+}
+
+.metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+}
+
+.metric-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-sm);
+}
+
+.metric-title {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.metric-icon {
+  color: var(--color-text-muted);
+}
+
+.metric-value {
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-xs);
+}
+
+.metric-change {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+.metric-change.positive {
+  color: var(--color-status-success);
+}
+
+.metric-change.negative {
+  color: var(--color-status-error);
+}
+
+.metric-change i {
+  font-size: 0.875em;
+}
+
+/* Export modal */
+.export-modal {
+  max-width: 400px;
+}
+
+.export-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.export-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--color-borders-light);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.export-option:hover {
+  background-color: var(--color-backgrounds-secondary);
+}
+
+.export-option.selected {
+  background-color: var(--color-primary-light);
+  border-color: var(--color-primary);
+}
+
+/* Time range tabs */
+.time-range-tabs {
+  display: flex;
+  gap: var(--space-xs);
+  padding: var(--space-xs);
+  background: var(--color-backgrounds-secondary);
+  border-radius: var(--radius-md);
+}
+
+.time-range-tab {
+  flex: 1;
+  padding: var(--space-sm) var(--space-md);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.time-range-tab:hover {
+  color: var(--color-text-primary);
+}
+
+.time-range-tab.active {
+  background: var(--color-backgrounds-main);
+  color: var(--color-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .analytics-controls {
+    flex-direction: column;
+    gap: var(--space-md);
+  }
+  
+  .analytics-filters {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .analytics-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+  
+  .analytics-metrics {
+    grid-template-columns: 1fr;
+  }
+  
+  .chart-container {
+    padding: var(--space-md);
+    min-height: 300px;
+  }
+  
+  .time-range-tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .time-range-tab {
+    white-space: nowrap;
+  }
+}

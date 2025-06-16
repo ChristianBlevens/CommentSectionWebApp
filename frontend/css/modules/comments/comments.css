@@ -1,0 +1,296 @@
+/* Comment module styles */
+
+/* Comment section container */
+.comment-section {
+  max-width: var(--container-lg);
+  margin: 0 auto;
+  padding: var(--space-lg);
+}
+
+/* Comment thread container */
+.comment-thread {
+  position: relative;
+  padding-left: var(--space-lg);
+}
+
+/* Thread line */
+.comment-thread::before {
+  content: '';
+  position: absolute;
+  left: 1rem;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background-color: var(--color-thread-line);
+  transition: background-color 0.2s;
+}
+
+.comment-thread:hover::before {
+  background-color: var(--color-thread-line-hover);
+}
+
+/* Collapsed thread */
+.comment-thread.collapsed {
+  display: none;
+}
+
+/* Comment item wrapper */
+.comment-item {
+  position: relative;
+  margin-bottom: var(--space-md);
+}
+
+/* Thread connector */
+.comment-item::before {
+  content: '';
+  position: absolute;
+  left: calc(-1 * var(--space-lg) + 1rem);
+  top: 1.5rem;
+  width: var(--space-md);
+  height: 2px;
+  background-color: var(--color-thread-line);
+}
+
+/* First level comments don't need connector */
+.comment-item.level-0::before {
+  display: none;
+}
+
+/* Comment actions container */
+.comment-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-top: var(--space-sm);
+  flex-wrap: wrap;
+  overflow: visible;
+  position: relative;
+}
+
+/* Vote count display */
+.vote-count {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  min-width: 2ch;
+  text-align: center;
+}
+
+.vote-count.positive {
+  color: var(--color-like);
+}
+
+.vote-count.negative {
+  color: var(--color-dislike);
+}
+
+/* Comment collapse button */
+.comment-collapse-btn {
+  position: absolute;
+  left: calc(-1 * var(--space-lg) - 0.5rem);
+  top: 0.75rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-backgrounds-main);
+  border: 2px solid var(--color-thread-line);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: all 0.2s;
+  z-index: 1;
+}
+
+.comment-collapse-btn:hover {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-text-inverse);
+}
+
+.comment-collapse-btn i {
+  font-size: 0.75rem;
+  transition: transform 0.2s;
+}
+
+.comment-collapse-btn.collapsed i {
+  transform: rotate(-90deg);
+}
+
+/* Comment count indicator */
+.comment-count {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  margin-left: var(--space-sm);
+}
+
+/* Edited indicator */
+.comment-edited {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  font-style: italic;
+  margin-left: var(--space-xs);
+}
+
+/* Deleted comment */
+.comment-deleted {
+  opacity: 0.6;
+  font-style: italic;
+}
+
+.comment-deleted .comment-body {
+  color: var(--color-text-secondary);
+}
+
+/* Comment highlight */
+.comment-highlight {
+  animation: commentHighlight 2s ease-out;
+}
+
+@keyframes commentHighlight {
+  0% {
+    background-color: rgba(59, 130, 246, 0.2);
+    transform: scale(1.02);
+  }
+  100% {
+    background-color: transparent;
+    transform: scale(1);
+  }
+}
+
+/* Comment loading skeleton */
+.comment-skeleton {
+  padding: var(--space-md);
+  margin-bottom: var(--space-sm);
+}
+
+.comment-skeleton-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+
+.comment-skeleton-avatar {
+  width: var(--avatar-size);
+  height: var(--avatar-size);
+  border-radius: var(--radius-full);
+  background-color: var(--color-backgrounds-secondary);
+  animation: skeleton-loading 1.5s infinite;
+}
+
+.comment-skeleton-meta {
+  flex: 1;
+}
+
+.comment-skeleton-name {
+  width: 120px;
+  height: 16px;
+  background-color: var(--color-backgrounds-secondary);
+  border-radius: var(--radius-sm);
+  margin-bottom: 4px;
+  animation: skeleton-loading 1.5s infinite;
+}
+
+.comment-skeleton-time {
+  width: 80px;
+  height: 14px;
+  background-color: var(--color-backgrounds-secondary);
+  border-radius: var(--radius-sm);
+  animation: skeleton-loading 1.5s infinite;
+}
+
+.comment-skeleton-body {
+  width: 100%;
+  height: 60px;
+  background-color: var(--color-backgrounds-secondary);
+  border-radius: var(--radius-sm);
+  animation: skeleton-loading 1.5s infinite;
+}
+
+@keyframes skeleton-loading {
+  0% {
+    opacity: 0.7;
+  }
+  50% {
+    opacity: 0.4;
+  }
+  100% {
+    opacity: 0.7;
+  }
+}
+
+/* Comment sorting and filtering */
+.comment-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+  flex-wrap: wrap;
+}
+
+.comment-sort-group {
+  display: flex;
+  gap: var(--space-xs);
+}
+
+.comment-filter {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+/* No comments message */
+.no-comments {
+  text-align: center;
+  padding: var(--space-2xl);
+  color: var(--color-text-secondary);
+}
+
+.no-comments-icon {
+  font-size: 3rem;
+  margin-bottom: var(--space-md);
+  opacity: 0.5;
+}
+
+.no-comments-text {
+  font-size: var(--text-lg);
+  margin-bottom: var(--space-sm);
+}
+
+.no-comments-subtext {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 640px) {
+  .comment-section {
+    padding: var(--space-md);
+  }
+  
+  .comment-thread {
+    padding-left: var(--space-md);
+  }
+  
+  .comment-item::before {
+    left: calc(-1 * var(--space-md) + 0.5rem);
+    width: var(--space-sm);
+  }
+  
+  .comment-collapse-btn {
+    left: calc(-1 * var(--space-md) - 0.25rem);
+  }
+  
+  .comment-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .comment-sort-group {
+    width: 100%;
+  }
+}

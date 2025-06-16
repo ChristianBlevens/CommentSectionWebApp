@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Comment Section</title>
+    <title>Comment Section - Modular</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="css/main.css" rel="stylesheet">
@@ -11,1056 +11,146 @@
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.12.0/dist/cdn.min.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/markdown-it/dist/markdown-it.min.js"></script>
     <script src="https://d3js.org/d3.v7.min.js"></script>
+    
+    <!-- Load existing utilities -->
+    <script src="js/utils.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/ban-handler.js"></script>
+    <script src="js/markdown-processor.js"></script>
+    
+    <!-- Load modular app -->
+    <script type="module" src="js/app.js"></script>
 </head>
 <body class="page-container">
-    <div x-data="unifiedApp()" x-init="init()" class="container mx-auto px-4 max-w-6xl">
-        <!-- Ban Notification -->
-        <div x-show="banNotification && banNotification.show" 
-             x-transition:enter="transition ease-out duration-300"
-             x-transition:enter-start="opacity-0 transform -translate-y-2"
-             x-transition:enter-end="opacity-100 transform translate-y-0"
-             x-transition:leave="transition ease-in duration-200"
-             x-transition:leave-start="opacity-100 transform translate-y-0"
-             x-transition:leave-end="opacity-0 transform -translate-y-2"
-             class="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 max-w-md w-full px-4">
-            <div :class="{'notification-error': !banNotification.expired, 'notification-success': banNotification.expired}" 
-                 class="rounded-lg shadow-lg p-4">
-                <div class="flex items-start">
-                    <div class="flex-shrink-0">
-                        <i :class="{'fa-ban': !banNotification.expired, 'fa-check-circle': banNotification.expired}" 
-                           class="fas text-2xl"></i>
-                    </div>
-                    <div class="ml-3 flex-1">
-                        <p class="text-sm font-medium whitespace-pre-line" x-text="banNotification.message"></p>
-                    </div>
-                    <button @click="banNotification.show = false" 
-                            class="btn-base ml-4 flex-shrink-0 text-inverse">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Warning Notification -->
-        <div x-show="warningNotification && warningNotification.show" 
-             x-transition:enter="transition ease-out duration-300"
-             x-transition:enter-start="opacity-0 transform -translate-y-2"
-             x-transition:enter-end="opacity-100 transform translate-y-0"
-             x-transition:leave="transition ease-in duration-200"
-             x-transition:leave-start="opacity-100 transform translate-y-0"
-             x-transition:leave-end="opacity-0 transform -translate-y-2"
-             class="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 max-w-md w-full px-4 mt-16">
-            <div class="notification-warning rounded-lg shadow-lg p-4">
-                <div class="flex items-start">
-                    <div class="flex-shrink-0">
-                        <i class="fas fa-exclamation-triangle text-2xl"></i>
-                    </div>
-                    <div class="ml-3 flex-1">
-                        <p class="text-sm font-medium">Warning from Moderator</p>
-                        <p class="text-sm mt-1 whitespace-pre-line" x-text="warningNotification.message"></p>
-                    </div>
-                    <button @click="acknowledgeWarning()" 
-                            class="btn-base btn btn-warning ml-4 flex-shrink-0 text-sm">
-                        Acknowledge
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Moderation Panel with Tabs -->
-        <div x-show="user && user.is_moderator" id="moderation-panel" class="mb-4">
-            <!-- Tab Navigation - Always visible for moderators -->
-            <div class="card">
-                <div class="border-b border-light">
-                    <nav class="flex -mb-px">
-                        <button @click="activeTab = 'comments'" 
-                                :class="{'active': activeTab === 'comments'}"
-                                class="btn-base moderation-tab">
-                            <i class="fas fa-comments mr-2"></i>Comments
-                        </button>
-                        <button @click="activeTab = 'reports'; $nextTick(() => { if (user && user.is_moderator) { loadReports() } })" 
-                                :class="{'active': activeTab === 'reports'}"
-                                class="btn-base moderation-tab relative">
-                            <i class="fas fa-flag mr-2"></i>Reports
-                            <span x-show="totalPendingReports > 0" 
-                                  class="absolute -top-1 -right-1 bg-error text-inverse px-2 py-1 rounded-full text-xs">
-                                <span x-text="totalPendingReports"></span>
-                            </span>
-                        </button>
-                        <button @click="activeTab = 'users'; $nextTick(() => { if (user && user.is_moderator) { loadUsers() } })" 
-                                :class="{'active': activeTab === 'users'}"
-                                class="btn-base moderation-tab">
-                            <i class="fas fa-users mr-2"></i>Users
-                        </button>
-                        <button @click="activeTab = 'logs'; logsLoaded = false; $nextTick(() => { if (user && user.is_moderator) { loadModerationLogs() } })" 
-                                :class="{'active': activeTab === 'logs'}"
-                                class="btn-base moderation-tab">
-                            <i class="fas fa-history mr-2"></i>Logs
-                        </button>
-                        <button @click="activeTab = 'analytics'; analyticsTab = true; loadAnalyticsData()" 
-                                :class="{'active': activeTab === 'analytics'}"
-                                class="btn-base moderation-tab">
-                            <i class="fas fa-chart-line mr-2"></i>Analytics
-                        </button>
-                        <button @click="activeTab = 'theme'; $nextTick(() => { if (user && user.is_super_moderator && !themeLoaded) { loadTheme() } })"
-                                :class="{'active': activeTab === 'theme'}"
-                                class="btn-base moderation-tab"
-                                x-show="user && user.is_super_moderator">
-                            <i class="fas fa-palette mr-2"></i>Theme
-                        </button>
-                    </nav>
-                </div>
-
-                <!-- Tab Content - Only show for non-comment tabs -->
-                <div class="p-4" x-show="activeTab !== 'comments'">
-                <!-- Tab content is only shown for non-comment tabs -->
-
-                <!-- Reports Tab -->
-                <div x-show="activeTab === 'reports'">
-                    <div class="mb-4 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-                        <p class="text-secondary flex-shrink-0">
-                            Showing <span class="font-semibold" x-text="filteredReports.length"></span> pending reports
-                            <span x-show="selectedReportsPage && selectedReportsPage !== 'all'">(from page: <span class="font-semibold" x-text="selectedReportsPage"></span>)</span>
-                            <span x-show="!selectedReportsPage || selectedReportsPage === 'all'">(from all pages)</span>
-                        </p>
-                        <div class="flex gap-2 ml-auto">
-                            <select x-model="selectedReportsPage" @change="filterReports()" 
-                                    class="textarea-base max-w-xs">
-                                <option value="all">All Pages</option>
-                                <option :value="pageId" x-text="`Current Page (${pageId})`" x-show="pageId && pageId !== 'default'"></option>
-                                <template x-for="page in pages" :key="page.page_id">
-                                    <option :value="page.page_id" x-text="`${page.page_id} (${page.report_count} report${page.report_count != 1 ? 's' : ''})`"></option>
-                                </template>
-                            </select>
-                            <button @click="loadReports()" 
-                                    class="btn-base btn btn-primary">
-                                <i class="fas fa-sync-alt"></i>
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Loading reports -->
-                    <div x-show="loadingReports" class="text-center py-8">
-                        <i class="fas fa-spinner fa-spin text-4xl text-muted"></i>
-                        <p class="mt-4 text-secondary">Loading reports...</p>
-                    </div>
-
-                    <!-- No reports -->
-                    <div x-show="!loadingReports && filteredReports.length === 0" class="text-center py-8">
-                        <i class="fas fa-check-circle text-4xl text-success mb-4"></i>
-                        <p class="text-secondary">
-                            <span x-show="selectedReportsPage">No pending reports for page: <span class="font-semibold" x-text="selectedReportsPage"></span></span>
-                            <span x-show="!selectedReportsPage">No pending reports</span>
-                        </p>
-                    </div>
-
-                    <!-- Reports list -->
-                    <div x-show="!loadingReports && filteredReports.length > 0" class="space-y-4">
-                        <template x-for="report in filteredReports" :key="report.id">
-                            <div class="report-card">
-                                <div class="report-header">
-                                    <div>
-                                        <p class="report-meta">
-                                            <i class="fas fa-file-alt"></i>
-                                            Page: <span class="font-medium" x-text="report.page_id"></span>
-                                        </p>
-                                        <p class="report-meta">
-                                            <i class="fas fa-user"></i>
-                                            Reported by: <span class="font-medium" x-text="report.reporter_name"></span>
-                                        </p>
-                                        <p class="report-meta">
-                                            <i class="fas fa-clock"></i>
-                                            <span x-text="getRelativeTime(report.created_at)"></span>
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <p class="report-meta">
-                                            <i class="fas fa-exclamation-circle"></i>
-                                            Reason: <span class="font-medium" x-text="report.reason"></span>
-                                        </p>
-                                    </div>
-                                </div>
-                                
-                                <!-- Comment content -->
-                                <div class="report-content">
-                                    <p class="report-content-label">
-                                        Comment by: <span x-text="report.comment_user_name"></span>
-                                    </p>
-                                    <div class="report-content-text" x-text="report.content"></div>
-                                </div>
-                                
-                                <!-- Actions -->
-                                <div class="report-actions">
-                                    <button @click="jumpToComment(report.comment_id)" 
-                                            x-show="report.page_id === pageId"
-                                            class="btn-base report-action-btn view">
-                                        <i class="fas fa-eye"></i>View Comment
-                                    </button>
-                                    <a :href="`index.html?pageId=${report.page_id}#comment-${report.comment_id}`" 
-                                       x-show="report.page_id !== pageId"
-                                       target="_blank"
-                                       class="btn-base report-action-btn view">
-                                        <i class="fas fa-external-link-alt"></i>View in Context
-                                    </a>
-                                    <button @click="deleteReportedComment(report)" 
-                                            class="btn-base report-action-btn delete">
-                                        <i class="fas fa-trash"></i>Delete Comment
-                                    </button>
-                                    <button @click="warnUser(report.comment_user_id, report.comment_user_name, report.id)" 
-                                            class="btn-base report-action-btn warn">
-                                        <i class="fas fa-exclamation-triangle"></i>Warn User
-                                    </button>
-                                    <div class="ban-dropdown-container">
-                                        <button @click="toggleBanDropdown(report.id, $event)" 
-                                                class="btn-base report-action-btn ban">
-                                            <i class="fas fa-ban"></i>Ban User
-                                        </button>
-                                        <div x-show="showBanDropdown === report.id" 
-                                             @click.away="showBanDropdown = null"
-                                             class="dropdown-base ban-dropdown">
-                                            <div class="ban-dropdown-inner">
-                                                <button @click="banUserWithDuration(report.comment_user_id, report.comment_user_name, '30m')" 
-                                                        class="dropdown-item-base ban-dropdown-item">
-                                                    30 minutes
-                                                </button>
-                                                <button @click="banUserWithDuration(report.comment_user_id, report.comment_user_name, '6h')" 
-                                                        class="dropdown-item-base ban-dropdown-item">
-                                                    6 hours
-                                                </button>
-                                                <button @click="banUserWithDuration(report.comment_user_id, report.comment_user_name, '1d')" 
-                                                        class="dropdown-item-base ban-dropdown-item">
-                                                    1 day
-                                                </button>
-                                                <button @click="banUserWithDuration(report.comment_user_id, report.comment_user_name, '3d')" 
-                                                        class="dropdown-item-base ban-dropdown-item">
-                                                    3 days
-                                                </button>
-                                                <button @click="banUserWithDuration(report.comment_user_id, report.comment_user_name, '7d')" 
-                                                        class="dropdown-item-base ban-dropdown-item">
-                                                    1 week
-                                                </button>
-                                                <button @click="banUserWithDuration(report.comment_user_id, report.comment_user_name, '30d')" 
-                                                        class="dropdown-item-base ban-dropdown-item">
-                                                    1 month
-                                                </button>
-                                                <button @click="banUserWithDuration(report.comment_user_id, report.comment_user_name, '90d')" 
-                                                        class="dropdown-item-base ban-dropdown-item">
-                                                    3 months
-                                                </button>
-                                                <button @click="banUserWithDuration(report.comment_user_id, report.comment_user_name, 'permanent')" 
-                                                        class="dropdown-item-base ban-dropdown-item text-error">
-                                                    Permanent
-                                                </button>
-                                                <div class="ban-dropdown-divider">
-                                                    <button @click="showCustomBanInput(report.comment_user_id, report.comment_user_name)" 
-                                                            class="dropdown-item-base ban-dropdown-item text-primary">
-                                                        <i class="fas fa-clock mr-1"></i>Custom duration
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <button @click="dismissReport(report.id)" 
-                                            class="btn-base report-action-btn dismiss">
-                                        <i class="fas fa-times"></i>Dismiss Report
-                                    </button>
-                                </div>
-                            </div>
-                        </template>
-                    </div>
-                </div>
-
-                <!-- Users Tab -->
-                <div x-show="activeTab === 'users'">
-                    <!-- Search and Filter -->
-                    <div class="mb-4 flex flex-col sm:flex-row gap-4">
-                        <div class="flex-1">
-                            <input type="text" 
-                                   x-model="userSearchQuery" 
-                                   @input="filterUsers()"
-                                   placeholder="Search users by name or ID..." 
-                                   class="textarea-base">
-                        </div>
-                        <div class="flex gap-2">
-                            <select x-model="userFilter" @change="filterUsers()" 
-                                    class="textarea-base max-w-xs">
-                                <option value="all">All Users</option>
-                                <option value="moderators">Moderators Only</option>
-                                <option value="banned">Banned Users</option>
-                                <option value="warned">Users with Warnings</option>
-                                <option value="reported">Users with Reports</option>
-                            </select>
-                            <button @click="loadUsers()" 
-                                    class="btn-base btn btn-primary">
-                                <i class="fas fa-sync-alt"></i>
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Loading users -->
-                    <div x-show="loadingUsers" class="text-center py-8">
-                        <i class="fas fa-spinner fa-spin text-4xl text-muted"></i>
-                        <p class="mt-4 text-secondary">Loading users...</p>
-                    </div>
-
-                    <!-- No users -->
-                    <div x-show="!loadingUsers && filteredUsers.length === 0" class="text-center py-8">
-                        <i class="fas fa-users text-4xl text-muted mb-4"></i>
-                        <p class="text-secondary">No users found</p>
-                    </div>
-
-                    <!-- Users list -->
-                    <div x-show="!loadingUsers && filteredUsers.length > 0" class="space-y-3">
-                        <template x-for="userItem in paginatedUsers" :key="userItem.id">
-                            <div class="bg-secondary rounded-lg p-4">
-                                <!-- User Header -->
-                                <div class="flex items-center justify-between mb-3">
-                                    <div class="flex items-center">
-                                        <img :src="userItem.picture || 'https://cdn.discordapp.com/embed/avatars/1.png'" 
-                                             class="w-12 h-12 rounded-full mr-3">
-                                        <div>
-                                            <div class="flex items-center gap-2">
-                                                <p class="font-medium" x-text="userItem.name"></p>
-                                                <div class="user-roles" :data-role-count="((userItem.is_moderator ? 1 : 0) + (userItem.is_banned ? 1 : 0)) - 1">
-                                                    <span x-show="userItem.is_super_moderator" 
-                                                          class="role-badge role-super-mod">
-                                                        <i class="fas fa-crown"></i><span>Super Mod</span>
-                                                    </span>
-                                                    <span x-show="userItem.is_moderator && !userItem.is_super_moderator" 
-                                                          class="role-badge role-mod">
-                                                        <i class="fas fa-shield-alt"></i><span>Moderator</span>
-                                                    </span>
-                                                    <span x-show="userItem.is_banned" 
-                                                          class="role-badge role-banned">
-                                                        <i class="fas fa-ban"></i><span>Banned</span>
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            <p class="text-sm text-secondary" x-text="userItem.id"></p>
-                                        </div>
-                                    </div>
-                                    <button @click="toggleUserExpanded(userItem.id)" 
-                                            class="btn-base markdown-btn">
-                                        <i :class="expandedUsers.includes(userItem.id) ? 'fa-chevron-up' : 'fa-chevron-down'" 
-                                           class="fas"></i>
-                                    </button>
-                                </div>
-
-                                <!-- User Stats -->
-                                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
-                                    <div>
-                                        <p class="text-muted">Trust Score</p>
-                                        <p class="font-semibold" x-text="userItem.trust_score || 'N/A'"></p>
-                                    </div>
-                                    <div>
-                                        <p class="text-muted">Comments</p>
-                                        <p class="font-semibold" x-text="userItem.total_comments || 0"></p>
-                                    </div>
-                                    <div>
-                                        <p class="text-muted">Reports Made</p>
-                                        <p class="font-semibold" x-text="userItem.total_reports_made || 0"></p>
-                                    </div>
-                                    <div>
-                                        <p class="text-muted">Times Reported</p>
-                                        <p class="font-semibold" x-text="userItem.total_reports_received || 0"></p>
-                                    </div>
-                                </div>
-
-                                <!-- User Actions -->
-                                <div class="mt-4 flex flex-wrap gap-2">
-                                    <button @click="warnUser(userItem.id, userItem.name)" 
-                                            :disabled="userItem.is_banned"
-                                            class="btn-base btn btn-warning text-sm">
-                                        <i class="fas fa-exclamation-triangle mr-1"></i>Warn
-                                    </button>
-                                    <div class="relative">
-                                        <button @click="toggleBanDropdown(userItem.id, $event)" 
-                                                :disabled="userItem.is_banned"
-                                                class="btn-base btn btn-danger text-sm">
-                                            <i class="fas fa-ban mr-1"></i>Ban
-                                        </button>
-                                        <div x-show="showBanDropdown === userItem.id" 
-                                             @click.away="showBanDropdown = null"
-                                             class="dropdown-base ban-dropdown">
-                                            <div class="ban-dropdown-inner">
-                                                <button @click="banUserWithDuration(userItem.id, userItem.name, '30m')" 
-                                                        class="dropdown-item-base ban-dropdown-item">30 minutes</button>
-                                                <button @click="banUserWithDuration(userItem.id, userItem.name, '6h')" 
-                                                        class="dropdown-item-base ban-dropdown-item">6 hours</button>
-                                                <button @click="banUserWithDuration(userItem.id, userItem.name, '1d')" 
-                                                        class="dropdown-item-base ban-dropdown-item">1 day</button>
-                                                <button @click="banUserWithDuration(userItem.id, userItem.name, '3d')" 
-                                                        class="dropdown-item-base ban-dropdown-item">3 days</button>
-                                                <button @click="banUserWithDuration(userItem.id, userItem.name, '7d')" 
-                                                        class="dropdown-item-base ban-dropdown-item">1 week</button>
-                                                <button @click="banUserWithDuration(userItem.id, userItem.name, '30d')" 
-                                                        class="dropdown-item-base ban-dropdown-item">1 month</button>
-                                                <button @click="banUserWithDuration(userItem.id, userItem.name, '90d')" 
-                                                        class="dropdown-item-base ban-dropdown-item">3 months</button>
-                                                <button @click="banUserWithDuration(userItem.id, userItem.name, 'permanent')" 
-                                                        class="dropdown-item-base ban-dropdown-item text-error">Permanent</button>
-                                                <div class="ban-dropdown-divider">
-                                                    <button @click="showCustomBanInput(userItem.id, userItem.name)" 
-                                                            class="dropdown-item-base ban-dropdown-item text-primary">
-                                                        <i class="fas fa-clock mr-1"></i>Custom duration
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <button x-show="userItem.is_banned" 
-                                            @click="unbanUser(userItem.id, userItem.name)" 
-                                            class="btn-base btn btn-success text-sm">
-                                        <i class="fas fa-unlock mr-1"></i>Unban
-                                    </button>
-                                    <button x-show="user.is_super_moderator && !userItem.is_moderator" 
-                                            @click="toggleModerator(userItem.id, userItem.name, true)" 
-                                            class="btn-base btn btn-primary text-sm">
-                                        <i class="fas fa-shield-alt mr-1"></i>Make Moderator
-                                    </button>
-                                    <button x-show="user.is_super_moderator && userItem.is_moderator && !userItem.is_super_moderator" 
-                                            @click="toggleModerator(userItem.id, userItem.name, false)" 
-                                            class="btn-base btn btn-secondary text-sm">
-                                        <i class="fas fa-user mr-1"></i>Remove Moderator
-                                    </button>
-                                </div>
-
-                                <!-- Expanded Content -->
-                                <div x-show="expandedUsers.includes(userItem.id)" x-transition class="mt-4 border-t pt-4">
-                                    <div class="space-y-4">
-                                        <!-- Recent Comments -->
-                                        <div>
-                                            <h4 class="font-semibold mb-2">Recent Comments</h4>
-                                            <div x-show="!userItem.comments || userItem.comments.length === 0" 
-                                                 class="text-sm text-muted">No comments found</div>
-                                            <div x-show="userItem.comments && userItem.comments.length > 0" class="space-y-2">
-                                                <template x-for="comment in getDisplayedComments(userItem)" :key="comment.id">
-                                                    <div class="text-sm bg-white p-2 rounded">
-                                                        <p class="text-muted">
-                                                            Page: <span x-text="comment.page_id"></span> • 
-                                                            <span x-text="getRelativeTime(comment.created_at)"></span>
-                                                        </p>
-                                                        <p class="mt-1" x-text="comment.content"></p>
-                                                        <div class="mt-1 flex gap-2">
-                                                            <a :href="`index.html?pageId=${comment.page_id}#comment-${comment.id}`" 
-                                                               target="_blank"
-                                                               class="btn-base markdown-btn text-xs">
-                                                                <i class="fas fa-external-link-alt"></i>
-                                                            </a>
-                                                            <button @click="deleteUserComment(comment.id)" 
-                                                                    class="btn-base markdown-btn text-xs">
-                                                                <i class="fas fa-trash"></i>
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                </template>
-                                            </div>
-                                            <button x-show="shouldShowLoadMoreButton(userItem)" 
-                                                    @click="loadMoreUserComments(userItem.id)" 
-                                                    class="mt-2 text-blue-600 hover:text-blue-800 text-sm">
-                                                Load more comments...
-                                            </button>
-                                        </div>
-
-                                        <!-- Warning History -->
-                                        <div x-show="userItem.warnings && userItem.warnings.length > 0">
-                                            <h4 class="font-semibold mb-2">Warning History</h4>
-                                            <div class="space-y-2">
-                                                <template x-for="warning in getDisplayedWarnings(userItem)" :key="warning.id">
-                                                    <div class="text-sm bg-white p-2 rounded">
-                                                        <p><span class="font-medium">Warned by:</span> <span x-text="warning.moderator_name"></span></p>
-                                                        <p><span class="font-medium">Date:</span> <span x-text="new Date(warning.created_at).toLocaleString()"></span></p>
-                                                        <p><span class="font-medium">Reason:</span> <span x-text="warning.reason"></span></p>
-                                                        <p x-show="warning.message"><span class="font-medium">Message:</span> <span x-text="warning.message"></span></p>
-                                                    </div>
-                                                </template>
-                                            </div>
-                                        </div>
-
-                                        <!-- Reports Against User -->
-                                        <div x-show="userItem.reports_received && userItem.reports_received.length > 0">
-                                            <h4 class="font-semibold mb-2">Reports Against User</h4>
-                                            <div class="space-y-2">
-                                                <template x-for="report in userItem.reports_received" :key="report.id">
-                                                    <div class="text-sm bg-white p-2 rounded">
-                                                        <p><span class="font-medium">Reporter:</span> <span x-text="report.reporter_name"></span></p>
-                                                        <p><span class="font-medium">Date:</span> <span x-text="new Date(report.created_at).toLocaleString()"></span></p>
-                                                        <p><span class="font-medium">Reason:</span> <span x-text="report.reason"></span></p>
-                                                        <p><span class="font-medium">Status:</span> 
-                                                            <span x-text="report.resolved_at ? 'Resolved' : 'Pending'" 
-                                                                  :class="report.resolved_at ? 'text-green-600' : 'text-yellow-600'"></span>
-                                                        </p>
-                                                    </div>
-                                                </template>
-                                            </div>
-                                        </div>
-
-                                        <!-- Ban History -->
-                                        <div x-show="userItem.ban_history && userItem.ban_history.length > 0">
-                                            <h4 class="font-semibold mb-2">Ban History</h4>
-                                            <div class="space-y-2">
-                                                <template x-for="ban in userItem.ban_history" :key="ban.id">
-                                                    <div class="text-sm bg-white p-2 rounded">
-                                                        <p><span class="font-medium">Banned by:</span> <span x-text="ban.banned_by_name"></span></p>
-                                                        <p><span class="font-medium">Date:</span> <span x-text="new Date(ban.banned_at).toLocaleString()"></span></p>
-                                                        <p><span class="font-medium">Duration:</span> <span x-text="ban.duration"></span></p>
-                                                        <p x-show="ban.reason"><span class="font-medium">Reason:</span> <span x-text="ban.reason"></span></p>
-                                                    </div>
-                                                </template>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </template>
-                    </div>
-
-                    <!-- Pagination -->
-                    <div x-show="totalUserPages > 1" class="mt-6 flex justify-center gap-2">
-                        <button @click="currentUserPage = Math.max(1, currentUserPage - 1)" 
-                                :disabled="currentUserPage === 1"
-                                class="btn-base markdown-btn">
-                            <i class="fas fa-chevron-left"></i>
-                        </button>
-                        <span class="px-3 py-1">
-                            Page <span x-text="currentUserPage"></span> of <span x-text="totalUserPages"></span>
-                        </span>
-                        <button @click="currentUserPage = Math.min(totalUserPages, currentUserPage + 1)" 
-                                :disabled="currentUserPage === totalUserPages"
-                                class="btn-base markdown-btn">
-                            <i class="fas fa-chevron-right"></i>
-                        </button>
-                    </div>
-                </div>
+    <div x-data="commentSystem" x-init="init()" class="container mx-auto px-4 max-w-6xl">
+        <!-- Header -->
+        <header class="mb-8 mt-4">
+            <div class="flex justify-between items-center">
+                <h1 class="text-3xl font-bold">Comment System</h1>
                 
-                <!-- Logs Tab -->
-                <div x-show="activeTab === 'logs'">
-                    <div class="mb-4 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-                        <p class="text-secondary flex-shrink-0">
-                            Showing the 25 most recent moderation actions
-                            <span x-show="selectedModeratorId && selectedModeratorId !== 'all'">by <span class="font-semibold" x-text="moderators.find(m => m.id === selectedModeratorId)?.name"></span></span>
-                        </p>
-                        <div class="flex gap-2 ml-auto">
-                            <select x-model="selectedModeratorId" @change="loadModerationLogs()" 
-                                    class="textarea-base max-w-xs">
-                                <option value="all">All Moderators</option>
-                                <template x-for="mod in moderators" :key="mod.id">
-                                    <option :value="mod.id" x-text="mod.name"></option>
-                                </template>
-                            </select>
-                            <button @click="loadModerationLogs()" 
-                                    class="btn-base btn btn-primary">
-                                <i class="fas fa-sync-alt"></i>
+                <!-- User Menu -->
+                <div class="flex items-center gap-4">
+                    <template x-if="user">
+                        <div class="flex items-center gap-4">
+                            <span class="text-sm" x-text="user.username"></span>
+                            <button @click="logout()" class="btn btn-secondary btn-small">
+                                <i class="fas fa-sign-out-alt"></i> Logout
                             </button>
                         </div>
-                    </div>
-
-                    <!-- Loading logs -->
-                    <div x-show="loadingLogs" class="text-center py-8">
-                        <i class="fas fa-spinner fa-spin text-4xl text-muted"></i>
-                        <p class="mt-4 text-secondary">Loading moderation logs...</p>
-                    </div>
-
-                    <!-- No logs -->
-                    <div x-show="!loadingLogs && moderationLogs.length === 0" class="text-center py-8">
-                        <i class="fas fa-clipboard-list text-4xl text-muted mb-4"></i>
-                        <p class="text-secondary">No moderation actions found</p>
-                    </div>
-
-                    <!-- Logs list -->
-                    <div x-show="!loadingLogs && moderationLogs.length > 0" class="space-y-3 moderation-logs-container">
-                        <template x-for="log in moderationLogs" :key="log.id">
-                            <div class="log-entry">
-                                <div class="log-header">
-                                    <div class="flex items-start gap-3">
-                                        <img :src="log.moderator_picture || 'https://cdn.discordapp.com/embed/avatars/1.png'" 
-                                             class="w-10 h-10 rounded-full">
-                                        <div class="flex-1">
-                                            <div class="log-action-line">
-                                                <span class="moderator-name" x-text="log.moderator_name"></span>
-                                                <span class="action-type" x-html="formatActionType(log.action_type)"></span>
-                                                <template x-if="log.target_user_name">
-                                                    <span>
-                                                        <span class="arrow">→</span>
-                                                        <span class="target-name" x-text="log.target_user_name"></span>
-                                                    </span>
-                                                </template>
-                                            </div>
-                                            <span class="log-timestamp" x-text="getRelativeTime(log.created_at)"></span>
-                                            <div class="log-details" x-show="log.details">
-                                                <template x-if="log.details">
-                                                    <div>
-                                                        <template x-if="log.details.reason">
-                                                            <p><span class="font-medium">Reason:</span> <span x-text="log.details.reason"></span></p>
-                                                        </template>
-                                                        <template x-if="log.details.duration">
-                                                            <p><span class="font-medium">Duration:</span> <span x-text="log.details.duration"></span></p>
-                                                        </template>
-                                                        <template x-if="log.details.message">
-                                                            <p><span class="font-medium">Message:</span> <span x-text="log.details.message"></span></p>
-                                                        </template>
-                                                        <template x-if="log.details.content_preview">
-                                                            <p class="text-muted italic mt-1" x-text="log.details.content_preview"></p>
-                                                        </template>
-                                                    </div>
-                                                </template>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </template>
-                    </div>
-                </div>
-
-                <!-- Theme Tab -->
-                <div x-show="activeTab === 'theme'" class="space-y-6">
-                    <!-- Color Controls -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <!-- Primary Colors -->
-                        <div class="card p-4">
-                            <h4 class="font-medium mb-3">Primary Colors</h4>
-                            <template x-for="(color, key) in themeColors.primary" :key="key">
-                                <div class="flex items-center justify-between mb-3">
-                                    <label class="text-sm text-secondary" x-text="formatColorLabel(key)"></label>
-                                    <div class="flex items-center gap-2">
-                                        <button
-                                            x-show="typeof window.EyeDropper !== 'undefined'"
-                                            @click="pickColorFromScreen('primary', key)"
-                                            class="p-2 rounded transition-colors hover:bg-opacity-10 hover:bg-black"
-                                            :title="'Pick color from screen'"
-                                        >
-                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"></path>
-                                            </svg>
-                                        </button>
-                                        <input 
-                                            type="color" 
-                                            :value="color"
-                                            @input="updateThemeColor('primary', key, $event.target.value)"
-                                            class="color-input cursor-pointer"
-                                        >
-                                        <input 
-                                            type="text" 
-                                            :value="color"
-                                            @input="updateThemeColor('primary', key, $event.target.value)"
-                                            class="w-20 px-2 py-1 text-xs border border-light rounded font-mono"
-                                            placeholder="#000000"
-                                        >
-                                    </div>
-                                </div>
-                            </template>
-                        </div>
-                        
-                        <!-- Background Colors -->
-                        <div class="card p-4">
-                            <h4 class="font-medium mb-3">Background Colors</h4>
-                            <template x-for="(color, key) in themeColors.backgrounds" :key="key">
-                                <div class="flex items-center justify-between mb-3">
-                                    <label class="text-sm text-secondary" x-text="formatColorLabel(key)"></label>
-                                    <div class="flex items-center gap-2">
-                                        <button
-                                            x-show="typeof window.EyeDropper !== 'undefined'"
-                                            @click="pickColorFromScreen('backgrounds', key)"
-                                            class="p-2 rounded transition-colors hover:bg-opacity-10 hover:bg-black"
-                                            :title="'Pick color from screen'"
-                                        >
-                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"></path>
-                                            </svg>
-                                        </button>
-                                        <input 
-                                            type="color" 
-                                            :value="color"
-                                            @input="updateThemeColor('backgrounds', key, $event.target.value)"
-                                            class="color-input cursor-pointer"
-                                        >
-                                        <input 
-                                            type="text" 
-                                            :value="color"
-                                            @input="updateThemeColor('backgrounds', key, $event.target.value)"
-                                            class="w-20 px-2 py-1 text-xs border border-light rounded font-mono"
-                                            placeholder="#000000"
-                                        >
-                                    </div>
-                                </div>
-                            </template>
-                        </div>
-                        
-                        <!-- Text Colors -->
-                        <div class="card p-4">
-                            <h4 class="font-medium mb-3">Text Colors</h4>
-                            <template x-for="(color, key) in themeColors.text" :key="key">
-                                <div class="flex items-center justify-between mb-3">
-                                    <label class="text-sm text-secondary" x-text="formatColorLabel(key)"></label>
-                                    <div class="flex items-center gap-2">
-                                        <button
-                                            x-show="typeof window.EyeDropper !== 'undefined'"
-                                            @click="pickColorFromScreen('text', key)"
-                                            class="p-2 rounded transition-colors hover:bg-opacity-10 hover:bg-black"
-                                            :title="'Pick color from screen'"
-                                        >
-                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"></path>
-                                            </svg>
-                                        </button>
-                                        <input 
-                                            type="color" 
-                                            :value="color"
-                                            @input="updateThemeColor('text', key, $event.target.value)"
-                                            class="color-input cursor-pointer"
-                                        >
-                                        <input 
-                                            type="text" 
-                                            :value="color"
-                                            @input="updateThemeColor('text', key, $event.target.value)"
-                                            class="w-20 px-2 py-1 text-xs border border-light rounded font-mono"
-                                            placeholder="#000000"
-                                        >
-                                    </div>
-                                </div>
-                            </template>
-                        </div>
-                        
-                        <!-- Border Colors -->
-                        <div class="card p-4">
-                            <h4 class="font-medium mb-3">Border Colors</h4>
-                            <template x-for="(color, key) in themeColors.borders" :key="key">
-                                <div class="flex items-center justify-between mb-3">
-                                    <label class="text-sm text-secondary" x-text="formatColorLabel(key)"></label>
-                                    <div class="flex items-center gap-2">
-                                        <button
-                                            x-show="typeof window.EyeDropper !== 'undefined'"
-                                            @click="pickColorFromScreen('borders', key)"
-                                            class="p-2 rounded transition-colors hover:bg-opacity-10 hover:bg-black"
-                                            :title="'Pick color from screen'"
-                                        >
-                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"></path>
-                                            </svg>
-                                        </button>
-                                        <input 
-                                            type="color" 
-                                            :value="color"
-                                            @input="updateThemeColor('borders', key, $event.target.value)"
-                                            class="color-input cursor-pointer"
-                                        >
-                                        <input 
-                                            type="text" 
-                                            :value="color"
-                                            @input="updateThemeColor('borders', key, $event.target.value)"
-                                            class="w-20 px-2 py-1 text-xs border border-light rounded font-mono"
-                                            placeholder="#000000"
-                                        >
-                                    </div>
-                                </div>
-                            </template>
-                        </div>
-                    </div>
+                    </template>
                     
-                    <!-- Presets -->
-                    <div class="card p-4">
-                        <h4 class="font-medium mb-3">Theme Presets</h4>
-                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
-                            <template x-for="(preset, name) in themePresets" :key="name">
-                                <button 
-                                    @click="applyPreset(name)"
-                                    :class="{'ring-2 ring-primary': selectedPreset === name}"
-                                    class="btn-base btn-secondary"
-                                >
-                                    <span x-text="preset.displayName"></span>
-                                </button>
-                            </template>
-                        </div>
-                    </div>
-					
-					<!-- Actions -->
-                    <div class="card p-4">
-                        <div class="flex flex-wrap gap-2">
-                            <button @click="saveTheme" :disabled="loadingTheme" class="btn-base btn-primary">
-                                <span x-show="!loadingTheme">Save Theme</span>
-                                <span x-show="loadingTheme" class="flex items-center">
-                                    <svg class="animate-spin h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24">
-                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
-                                    Saving...
-                                </span>
-                            </button>
-                            <button @click="resetTheme" class="btn-base btn-secondary">Reset to Default</button>
-                            <button @click="exportTheme" class="btn-base btn-secondary">Export</button>
-                            <button @click="importTheme" class="btn-base btn-secondary">Import</button>
-		                            <button 
-                                @click="undoLastChange" 
-                                :disabled="!lastColorChange"
-                                class="btn-base btn btn-secondary"
-                                :class="{'opacity-50 cursor-not-allowed': !lastColorChange}">
-                                <i class="fas fa-undo mr-2"></i>Undo
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Analytics Panel -->
-                <div x-show="activeTab === 'analytics'" class="analytics-panel">
-                    <div class="analytics-header">
-                        <h2 class="analytics-title">Comment Activity Analytics</h2>
-                        <button @click="exportBubbleChart()" class="btn btn-base btn-secondary">
-                            <i class="fas fa-download mr-2"></i>Export as PNG
+                    <template x-if="!user">
+                        <button @click="login()" class="btn btn-primary btn-small">
+                            <i class="fab fa-discord"></i> Login with Discord
                         </button>
-                    </div>
-                    
-                    <div class="controls-section">
-                        <div class="timeframe-selector">
-                            <button @click="analyticsTimeframe = 'day'; analyticsDateIndex = 0; loadAnalyticsData()" 
-                                    :class="{'btn-primary': analyticsTimeframe === 'day', 'btn-secondary': analyticsTimeframe !== 'day'}"
-                                    class="btn btn-base">
-                                Daily
-                            </button>
-                            <button @click="analyticsTimeframe = 'week'; analyticsDateIndex = 0; loadAnalyticsData()" 
-                                    :class="{'btn-primary': analyticsTimeframe === 'week', 'btn-secondary': analyticsTimeframe !== 'week'}"
-                                    class="btn btn-base">
-                                Weekly
-                            </button>
-                            <button @click="analyticsTimeframe = 'month'; analyticsDateIndex = 0; loadAnalyticsData()" 
-                                    :class="{'btn-primary': analyticsTimeframe === 'month', 'btn-secondary': analyticsTimeframe !== 'month'}"
-                                    class="btn btn-base">
-                                Monthly
-                            </button>
-                        </div>
-                        
-                        <div class="date-selector-container">
-                            <select @change="loadAnalyticsData()" x-model="analyticsDateIndex" class="form-select date-selector">
-                                <template x-if="analyticsTimeframe === 'day'">
-                                    <template x-for="i in 24" :key="i">
-                                        <option :value="i-1" x-text="i === 1 ? 'Yesterday' : i === 2 ? '2 days ago' : `${i} days ago`"></option>
-                                    </template>
-                                </template>
-                                <template x-if="analyticsTimeframe === 'week'">
-                                    <template x-for="i in 4" :key="i">
-                                        <option :value="i-1" x-text="i === 1 ? 'Last week' : `${i} weeks ago`"></option>
-                                    </template>
-                                </template>
-                                <template x-if="analyticsTimeframe === 'month'">
-                                    <template x-for="i in 3" :key="i">
-                                        <option :value="i-1" x-text="`${i} month${i > 1 ? 's' : ''} ago`"></option>
-                                    </template>
-                                </template>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <div x-show="analyticsLoading" class="loading-container">
-                        <div class="loading-spinner"></div>
-                        <span class="loading-text">Loading analytics...</span>
-                    </div>
-                    
-                    <div id="bubble-chart-container" class="bubble-chart-container" x-show="!analyticsLoading"></div>
-                    
-                    <div class="chart-info" x-show="bubbleChartData && !analyticsLoading">
-                        <span>Showing top 50 pages by comment activity</span>
-                        <span x-text="bubbleChartData?.generatedAt ? `Data from: ${new Date(bubbleChartData.generatedAt).toLocaleString()}` : ''"></span>
-                    </div>
-                </div>
-
+                    </template>
                 </div>
             </div>
-        </div>
-
-        <!-- Main Comments Section (always shown) -->
-        <div class="comment-section rounded-lg shadow-md">
-            <!-- Header -->
-            <div class="comment-form">
-                <h1 class="comment-form-header">Comments</h1>
             
-            <!-- Sign In / User Info -->
-            <div class="mb-4">
-                <div x-show="!user">
-                    <button @click="signInWithDiscord()" 
-                            class="btn-base btn btn-discord w-full sm:w-auto">
-                        <svg class="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M20.317 4.492c-1.53-.69-3.17-1.2-4.885-1.49a.075.075 0 0 0-.079.036c-.21.369-.444.85-.608 1.23a18.566 18.566 0 0 0-5.487 0 12.36 12.36 0 0 0-.617-1.23A.077.077 0 0 0 8.562 3c-1.714.29-3.354.8-4.885 1.491a.07.07 0 0 0-.032.027C.533 9.093-.32 13.555.099 17.961a.08.08 0 0 0 .031.055 20.03 20.03 0 0 0 5.993 2.98.078.078 0 0 0 .084-.026 13.83 13.83 0 0 0 1.226-1.963.074.074 0 0 0-.041-.104 13.175 13.175 0 0 1-1.872-.878.075.075 0 0 1-.008-.125 10.775 10.775 0 0 0 .372-.291.072.072 0 0 1 .077-.01c3.927 1.764 8.18 1.764 12.061 0a.071.071 0 0 1 .078.009c.12.098.246.198.373.292a.075.075 0 0 1-.006.125c-.598.344-1.22.635-1.873.877a.075.075 0 0 0-.041.105c.36.687.772 1.341 1.225 1.962a.077.077 0 0 0 .084.028 19.963 19.963 0 0 0 6.002-2.981.076.076 0 0 0 .032-.054c.5-5.094-.838-9.52-3.549-13.442a.06.06 0 0 0-.031-.028zM8.02 15.278c-1.182 0-2.157-1.069-2.157-2.38 0-1.312.956-2.38 2.157-2.38 1.21 0 2.176 1.077 2.157 2.38 0 1.312-.956 2.38-2.157 2.38zm7.975 0c-1.183 0-2.157-1.069-2.157-2.38 0-1.312.955-2.38 2.157-2.38 1.21 0 2.176 1.077 2.157 2.38 0 1.312-.946 2.38-2.157 2.38z"/>
-                        </svg>
-                        Sign in with Discord
+            <!-- Navigation Tabs -->
+            <nav class="mt-4 border-b">
+                <div class="flex gap-4">
+                    <button @click="switchTab('comments')" 
+                            :class="{'tab-active': activeTab === 'comments'}"
+                            class="tab-btn">
+                        <i class="fas fa-comments"></i> Comments
+                    </button>
+                    
+                    <button x-show="showModeratorDashboard"
+                            @click="switchTab('moderation')" 
+                            :class="{'tab-active': activeTab === 'moderation'}"
+                            class="tab-btn">
+                        <i class="fas fa-shield-alt"></i> Moderation
+                        <span x-show="$store.moderation?.totalPendingReports > 0" 
+                              class="badge badge-danger ml-2"
+                              x-text="$store.moderation.totalPendingReports"></span>
+                    </button>
+                    
+                    <button x-show="showAnalytics"
+                            @click="switchTab('analytics')" 
+                            :class="{'tab-active': activeTab === 'analytics'}"
+                            class="tab-btn">
+                        <i class="fas fa-chart-line"></i> Analytics
+                    </button>
+                    
+                    <button x-show="showThemeEditor"
+                            @click="switchTab('theme')" 
+                            :class="{'tab-active': activeTab === 'theme'}"
+                            class="tab-btn">
+                        <i class="fas fa-palette"></i> Theme
                     </button>
                 </div>
+            </nav>
+        </header>
+
+        <!-- Main Content -->
+        <main>
+            <!-- Comments Tab -->
+            <div x-show="activeTab === 'comments'" class="tab-content">
+                <!-- Comment Form -->
+                <div x-show="user" class="card mb-6">
+                    <div id="comment-form-container"></div>
+                </div>
                 
-                <div x-show="user">
-                    <!-- User info -->
-                    <div class="flex items-center justify-between mb-4">
-                        <div class="flex items-center">
-                            <img :src="user?.avatar || ''" class="w-8 h-8 md:w-10 md:h-10 rounded-full mr-3">
-                            <span x-text="user?.username || ''" class="font-medium text-sm md:text-base"></span>
-                        </div>
-                        <button @click="signOut()" class="text-xs md:text-sm text-error hover:text-error">
-                            Sign Out
-                        </button>
-                    </div>
-                    
-                    <!-- Comment box -->
-                    <div class="space-y-3">
-                        <!-- Textarea container with relative positioning for dropdown -->
+                <!-- Comments Controls -->
+                <div class="flex justify-between items-center mb-6">
+                    <div class="flex gap-4 items-center">
+                        <!-- Sort Dropdown -->
+                        <select x-model="sortBy" 
+                                @change="window.commentsModule?.setSortOrder(sortBy)"
+                                class="form-select">
+                            <option value="likes">Most Liked</option>
+                            <option value="popularity">Most Popular</option>
+                            <option value="newest">Newest First</option>
+                            <option value="oldest">Oldest First</option>
+                        </select>
+                        
+                        <!-- Search -->
                         <div class="relative">
-                            <textarea x-model="newCommentText" 
-                                      @input="updatePreview(); handleCommentInput()"
-                                      @keydown="handleMentionKeydown($event)"
-                                      x-ref="commentTextarea"
-                                      :placeholder="user?.is_banned ? 'You are banned from commenting' : 'Write your comment... (Markdown supported)'"
-                                      :disabled="user?.is_banned"
-                                      class="textarea-base comment-textarea"
-                                      rows="3"></textarea>
-                            
-                            <!-- Mention dropdown positioned relative to textarea -->
-                            <div x-show="mentionDropdown.show" 
-                                 x-transition
-                                 @click.away="mentionDropdown.show = false"
-                                 class="mention-dropdown"
-                                 style="bottom: 100%; margin-bottom: 4px;">
-                                <template x-for="(user, index) in mentionDropdown.users" :key="user.id">
-                                    <div @click="insertMention(user)"
-                                         :class="{'selected': mentionDropdown.selectedIndex === index}"
-                                         class="mention-dropdown-item">
-                                        <img :src="user.picture || 'https://cdn.discordapp.com/embed/avatars/1.png'" 
-                                             alt="User avatar">
-                                        <span x-text="user.name"></span>
-                                    </div>
-                                </template>
-                                <div x-show="mentionDropdown.users.length === 0 && mentionDropdown.searchTerm !== ''" 
-                                     class="mention-dropdown-item">
-                                    <span class="text-muted">No users found</span>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Preview -->
-                        <div x-show="newCommentText" class="mt-3">
-                            <h4 class="font-semibold mb-2 text-sm">Preview:</h4>
-                            <div x-html="commentPreview" class="markdown-content bg-secondary p-3 rounded-md"></div>
-                        </div>
-                        
-                        <!-- Toolbar -->
-                        <div class="comment-toolbar">
-                            <!-- Markdown buttons -->
-                            <div class="markdown-buttons min-w-0 flex-1">
-                                <button @click="insertMarkdown('**', '**')" title="Bold" class="btn-base markdown-btn">
-                                    <i class="fas fa-bold"></i>
-                                </button>
-                                <button @click="insertMarkdown('*', '*')" title="Italic" class="btn-base markdown-btn">
-                                    <i class="fas fa-italic"></i>
-                                </button>
-                                <button @click="insertMarkdown('~~', '~~')" title="Strikethrough" class="btn-base markdown-btn">
-                                    <i class="fas fa-strikethrough"></i>
-                                </button>
-                                <button @click="insertMarkdown('## ', '')" title="Header" class="btn-base markdown-btn">
-                                    <i class="fas fa-heading"></i>
-                                </button>
-                                <button @click="insertMarkdown('||', '||')" title="Spoiler" class="btn-base markdown-btn">
-                                    <i class="fas fa-eye-slash"></i>
-                                </button>
-                                <button @click="insertImage()" title="Image" class="btn-base markdown-btn">
-                                    <i class="fas fa-image"></i>
-                                </button>
-                                <button @click="insertVideo()" title="Video" class="btn-base markdown-btn">
-                                    <i class="fas fa-video"></i>
-                                </button>
-                            </div>
-                            
-                            <!-- Post button -->
-                            <button @click="submitComment()" 
-                                    :disabled="!newCommentText.trim() || user?.is_banned"
-                                    class="btn-base btn btn-primary flex-shrink-0">
-                                Post Comment
-                            </button>
+                            <input type="text" 
+                                   x-model="searchQuery"
+                                   @input="window.commentsModule?.setSearchQuery(searchQuery)"
+                                   placeholder="Search comments..."
+                                   class="form-input pl-10">
+                            <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
                         </div>
                     </div>
-                </div>
-            </div>
-
-            <!-- Sorting and Search -->
-            <div class="sorting-search-container mb-4">
-                <!-- Sorting buttons on the left -->
-                <div class="flex gap-2">
-                    <button @click="sortBy = 'likes'; sortComments();" 
-                            :class="{'active': sortBy === 'likes'}"
-                            class="btn-base sort-btn">
-                        <i class="fas fa-thumbs-up"></i><span>Top</span>
-                    </button>
-                    <button @click="sortBy = 'popularity'; sortComments();" 
-                            :class="{'active': sortBy === 'popularity'}"
-                            class="btn-base sort-btn">
-                        <i class="fas fa-fire"></i><span>Popular</span>
-                    </button>
-                    <button @click="sortBy = 'newest'; sortComments();" 
-                            :class="{'active': sortBy === 'newest'}"
-                            class="btn-base sort-btn">
-                        <i class="fas fa-clock"></i><span>Newest</span>
-                    </button>
-                    <button @click="sortBy = 'oldest'; sortComments();" 
-                            :class="{'active': sortBy === 'oldest'}"
-                            class="btn-base sort-btn">
-                        <i class="fas fa-history"></i><span>Oldest</span>
-                    </button>
+                    
+                    <div class="text-sm text-muted">
+                        <span x-text="comments.length"></span> comments
+                    </div>
                 </div>
                 
-                <!-- Search input on the right -->
-                <div class="flex gap-2">
-                    <input type="text" 
-                           x-model="commentSearchQuery" 
-                           @input="filterComments()"
-                           placeholder="Search comments..." 
-                           class="textarea-base min-w-0"
-                           style="min-width: 200px; max-width: 300px;">
-					<button @click="toggleSearchMode()" 
-                            class="btn-base search-mode-btn"
-                            :title="searchMode === 'and' ? 'AND mode: All words must match' : searchMode === 'or' ? 'OR mode: Any word can match' : 'NOT mode: No words can match'">
-                        <span x-text="getSearchModeIcon()"></span>
-                    </button>
+                <!-- Comments List -->
+                <div id="comments-container" class="space-y-4">
+                    <!-- Comments will be rendered here by the comments module -->
                 </div>
-            </div>
-
-            <!-- Focus mode header -->
-            <div x-show="focusedCommentId" class="rounded-lg shadow-md p-4 mb-4" :style="'background-color: ' + themeColors.backgrounds.main">
-                <div class="flex justify-between items-center">
-                    <h2 class="text-lg font-semibold">Viewing replies</h2>
-                    <button @click="exitFocusMode()" class="btn-base btn btn-secondary text-sm">
-                        <i class="fas fa-arrow-left mr-1"></i>
-                        Back to discussion
-                    </button>
-                </div>
-            </div>
-
-            <!-- Comments -->
-            <div class="comments-container">
-                <template x-for="comment in (focusedCommentId ? focusedComments : filteredComments)" :key="comment.id + '-' + comment.likes + '-' + comment.dislikes + '-' + (comment.userVote || 'none')">
-                    <div x-html="renderComment(comment, 0)"></div>
-                </template>
-            </div>
-
-            <!-- Loading -->
-            <div x-show="loading" class="text-center py-8 px-4">
-                <div class="loading-spinner"></div>
-            </div>
-
-            <!-- Empty state -->
-            <div x-show="!loading && comments.length === 0" class="text-center py-8 px-4 text-muted">
-                <i class="fas fa-comments text-4xl mb-4"></i>
-                <p class="text-sm">No comments yet. Be the first to comment!</p>
             </div>
             
-            <!-- No search results -->
-            <div x-show="!loading && comments.length > 0 && filteredComments.length === 0 && commentSearchQuery.trim()" class="text-center py-8 px-4 text-muted">
-                <i class="fas fa-search text-4xl mb-4"></i>
-                <p class="text-sm">No comments match your search.</p>
+            <!-- Moderation Tab -->
+            <div x-show="activeTab === 'moderation'" 
+                 x-cloak
+                 class="tab-content">
+                <div id="moderation-dashboard"></div>
             </div>
-        </div>
+            
+            <!-- Analytics Tab -->
+            <div x-show="activeTab === 'analytics'" 
+                 x-cloak
+                 class="tab-content">
+                <div id="analytics-panel"></div>
+            </div>
+            
+            <!-- Theme Tab -->
+            <div x-show="activeTab === 'theme'" 
+                 x-cloak
+                 class="tab-content">
+                <div id="theme-editor"></div>
+            </div>
+        </main>
     </div>
-
-    <!-- JavaScript -->
-    <script src="js/config.js"></script>
-    <script src="js/auth.js"></script>
-    <script src="js/utils.js"></script>
-    <script src="js/ban-handler.js"></script>
-    <script src="js/markdown.js"></script>
-    <script src="js/unified-app.js"></script>
+    
+    <!-- Global notification container -->
+    <div id="notifications" class="fixed bottom-4 right-4 z-50 space-y-2"></div>
 </body>
 </html>
