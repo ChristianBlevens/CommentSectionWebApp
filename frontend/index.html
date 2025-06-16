@@ -811,27 +811,29 @@
                     </div>
                     
                     <div class="controls-section">
-                        <div class="timeframe-selector">
-                            <button @click="analyticsTimeframe = 'day'; analyticsDateIndex = 0; selectedPeriodDate = null; loadAnalyticsData()" 
-                                    :class="{'btn-primary': analyticsTimeframe === 'day', 'btn-secondary': analyticsTimeframe !== 'day'}"
-                                    class="btn btn-base">
-                                Daily
-                            </button>
-                            <button @click="analyticsTimeframe = 'week'; analyticsDateIndex = 0; selectedPeriodDate = null; loadAnalyticsData()" 
-                                    :class="{'btn-primary': analyticsTimeframe === 'week', 'btn-secondary': analyticsTimeframe !== 'week'}"
-                                    class="btn btn-base">
-                                Weekly
-                            </button>
-                            <button @click="analyticsTimeframe = 'month'; analyticsDateIndex = 0; selectedPeriodDate = null; loadAnalyticsData()" 
-                                    :class="{'btn-primary': analyticsTimeframe === 'month', 'btn-secondary': analyticsTimeframe !== 'month'}"
-                                    class="btn btn-base">
-                                Monthly
-                            </button>
-                            <button @click="analyticsTimeframe = 'quarter'; analyticsDateIndex = 0; selectedPeriodDate = null; loadAnalyticsData()" 
-                                    :class="{'btn-primary': analyticsTimeframe === 'quarter', 'btn-secondary': analyticsTimeframe !== 'quarter'}"
-                                    class="btn btn-base">
-                                90 Days
-                            </button>
+                        <div class="border-b border-light">
+                            <nav class="flex -mb-px">
+                                <button @click="analyticsTimeframe = 'day'; analyticsDateIndex = 0; selectedPeriodDate = null; loadAnalyticsData()" 
+                                        :class="{'active': analyticsTimeframe === 'day'}"
+                                        class="btn-base moderation-tab">
+                                    <i class="fas fa-calendar-day mr-2"></i>Daily
+                                </button>
+                                <button @click="analyticsTimeframe = 'week'; analyticsDateIndex = 0; selectedPeriodDate = null; loadAnalyticsData()" 
+                                        :class="{'active': analyticsTimeframe === 'week'}"
+                                        class="btn-base moderation-tab">
+                                    <i class="fas fa-calendar-week mr-2"></i>Weekly
+                                </button>
+                                <button @click="analyticsTimeframe = 'month'; analyticsDateIndex = 0; selectedPeriodDate = null; loadAnalyticsData()" 
+                                        :class="{'active': analyticsTimeframe === 'month'}"
+                                        class="btn-base moderation-tab">
+                                    <i class="fas fa-calendar-alt mr-2"></i>Monthly
+                                </button>
+                                <button @click="analyticsTimeframe = 'quarter'; analyticsDateIndex = 0; selectedPeriodDate = null; loadAnalyticsData()" 
+                                        :class="{'active': analyticsTimeframe === 'quarter'}"
+                                        class="btn-base moderation-tab">
+                                    <i class="fas fa-calendar mr-2"></i>90 Days
+                                </button>
+                            </nav>
                         </div>
                     </div>
                     
