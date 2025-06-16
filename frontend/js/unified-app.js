@@ -1940,8 +1940,14 @@ function unifiedApp() {
                 
                 // Log first few entries to see the structure
                 if (this.periodSummaryData && this.periodSummaryData.length > 0) {
-                    console.log('First entry:', this.periodSummaryData[0]);
-                    console.log('Last entry:', this.periodSummaryData[this.periodSummaryData.length - 1]);
+                    console.log('First entry:', JSON.stringify(this.periodSummaryData[0]));
+                    console.log('Last entry:', JSON.stringify(this.periodSummaryData[this.periodSummaryData.length - 1]));
+                    // Find entries with non-zero totalComments
+                    const nonZeroEntries = this.periodSummaryData.filter(d => d.totalComments > 0);
+                    console.log('Entries with comments:', nonZeroEntries.length, 'out of', this.periodSummaryData.length);
+                    if (nonZeroEntries.length > 0) {
+                        console.log('First non-zero entry:', JSON.stringify(nonZeroEntries[0]));
+                    }
                 }
                 
                 this.$nextTick(() => {
@@ -1995,9 +2001,15 @@ function unifiedApp() {
                 console.log('Analytics data received:', data);
                 
                 if (data.success) {
+                    console.log('Setting bubbleChartData:', data);
+                    console.log('Setting selectedPeriodDate:', date);
                     this.bubbleChartData = data;
                     this.selectedPeriodDate = date;
+                    
+                    // Force Alpine.js to update the UI
                     this.$nextTick(() => {
+                        console.log('Next tick - rendering bubble chart');
+                        console.log('Current selectedPeriodDate:', this.selectedPeriodDate);
                         setTimeout(() => {
                             this.renderBubbleChart();
                         }, 50);
@@ -2011,8 +2023,14 @@ function unifiedApp() {
         },
         
         renderBubbleChart() {
+            console.log('=== renderBubbleChart called ===');
+            console.log('bubbleChartData:', this.bubbleChartData);
+            
             const container = document.getElementById('bubble-chart-container');
-            if (!container || !this.bubbleChartData) return;
+            if (!container || !this.bubbleChartData) {
+                console.log('Cannot render bubble chart - container:', !!container, 'data:', !!this.bubbleChartData);
+                return;
+            }
             
             // Clear existing chart
             d3.select(container).selectAll('*').remove();
@@ -2233,29 +2251,25 @@ function unifiedApp() {
                     if (d.totalComments === 0) return 2; // Minimum 2px height
                     return height - yScale(d.totalComments);
                 })
-                .style('cursor', d => d.totalComments > 0 ? 'pointer' : 'default')
+                .style('cursor', 'pointer')  // Always show pointer since totalComments might be wrong
                 .style('pointer-events', 'all')  // Ensure clicks are enabled
                 .on('click', function(event, d) {
                     console.log('Bar click event triggered');
                     console.log('Data:', d);
                     console.log('Total comments:', d.totalComments);
-                    console.log('self reference:', self);
                     
-                    if (d.totalComments > 0) {
-                        console.log('Bar clicked for date:', d.date);
-                        console.log('Calling loadAnalyticsForDate...');
-                        self.loadAnalyticsForDate(d.date);
-                        // Update selected state
-                        d3.selectAll('.bar').classed('selected', false);
-                        d3.select(this).classed('selected', true);
-                    } else {
-                        console.log('Bar has 0 comments, not loading data');
-                    }
+                    // Always allow clicking to see if there's data
+                    // The totalComments field seems to be incorrectly showing 0
+                    console.log('Bar clicked for date:', d.date);
+                    console.log('Calling loadAnalyticsForDate...');
+                    self.loadAnalyticsForDate(d.date);
+                    // Update selected state
+                    d3.selectAll('.bar').classed('selected', false);
+                    d3.select(this).classed('selected', true);
                 })
                 .on('mouseenter', function(event, d) {
-                    if (d.totalComments > 0) {
-                        // Simple tooltip
-                        const tooltip = d3.select('body').append('div')
+                    // Always show tooltip
+                    const tooltip = d3.select('body').append('div')
                             .attr('class', 'bubble-tooltip')
                             .style('opacity', 0);
                         
@@ -2263,12 +2277,11 @@ function unifiedApp() {
                             .duration(200)
                             .style('opacity', .9);
                         
-                        const date = new Date(d.date);
-                        const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-                        tooltip.html(`${dateStr}<br/>${d.totalComments} comments`)
-                            .style('left', (event.pageX + 10) + 'px')
-                            .style('top', (event.pageY - 40) + 'px');
-                    }
+                    const date = new Date(d.date);
+                    const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                    tooltip.html(`${dateStr}<br/>${d.totalComments} comments`)
+                        .style('left', (event.pageX + 10) + 'px')
+                        .style('top', (event.pageY - 40) + 'px');
                 })
                 .on('mouseleave', function() {
                     d3.selectAll('.bubble-tooltip').remove();

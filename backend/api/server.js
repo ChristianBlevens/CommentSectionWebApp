@@ -2675,12 +2675,11 @@ app.get('/api/analytics/period-summary', authenticateUser, requireModerator, asy
         
         let query;
         if (period === 'day') {
-            // Get last N days
+            // Get last N days (just get all available data)
             query = `
                 SELECT period_date, data
                 FROM analytics_cache
                 WHERE period_type = 'day'
-                  AND period_date >= CURRENT_DATE - INTERVAL '${limit + 1} days'
                 ORDER BY period_date DESC
                 LIMIT ${limit}
             `;
@@ -2690,7 +2689,6 @@ app.get('/api/analytics/period-summary', authenticateUser, requireModerator, asy
                 SELECT period_date, data
                 FROM analytics_cache
                 WHERE period_type = 'week'
-                  AND period_date >= CURRENT_DATE - INTERVAL '${(limit * 7) + 1} days'
                 ORDER BY period_date DESC
                 LIMIT ${limit}
             `;
@@ -2700,7 +2698,6 @@ app.get('/api/analytics/period-summary', authenticateUser, requireModerator, asy
                 SELECT period_date, data
                 FROM analytics_cache
                 WHERE period_type = 'month'
-                  AND period_date >= CURRENT_DATE - INTERVAL '${(limit * 30) + 1} days'
                 ORDER BY period_date DESC
                 LIMIT ${limit}
             `;
@@ -2710,55 +2707,24 @@ app.get('/api/analytics/period-summary', authenticateUser, requireModerator, asy
         
         const result = await pgPool.query(query);
         
-        // Fill in missing dates with 0 comments
-        const allDates = [];
-        const dataMap = new Map();
-        
-        // If we have data, use the most recent date as reference
-        let endDate;
-        if (result.rows.length > 0) {
-            // Find the most recent date in the data
-            const dates = result.rows.map(row => new Date(row.period_date));
-            endDate = new Date(Math.max(...dates));
-            console.log('Most recent data date:', endDate.toISOString());
-        } else {
-            // No data, use yesterday
-            endDate = new Date();
-            endDate.setDate(endDate.getDate() - 1);
-        }
-        
-        // Create map of existing data
-        result.rows.forEach(row => {
-            console.log('Database row:', row.period_date, 'Data type:', typeof row.data, 'Data:', JSON.stringify(row.data).substring(0, 100));
+        // Convert the data directly from DB without generating new dates
+        const summaryData = result.rows.map(row => {
+            console.log('Database row:', row.period_date, 'Data type:', typeof row.data);
+            
             // Ensure data is parsed if it's a string
             const data = typeof row.data === 'string' ? JSON.parse(row.data) : row.data;
             const totalComments = data?.totalComments || 0;
-            console.log('Parsed totalComments:', totalComments);
-            dataMap.set(row.period_date, totalComments);
-        });
-        
-        for (let i = 0; i < limit; i++) {
-            const currentDate = new Date(endDate);
             
-            if (period === 'day') {
-                currentDate.setDate(currentDate.getDate() - i);
-            } else if (period === 'week') {
-                currentDate.setDate(currentDate.getDate() - (i * 7));
-            } else if (period === 'month') {
-                currentDate.setDate(currentDate.getDate() - (i * 30));
-            }
+            console.log(`Date: ${row.period_date}, totalComments: ${totalComments}`);
             
-            const dateStr = currentDate.toISOString().split('T')[0];
-            const totalComments = dataMap.get(dateStr) || 0;
-            console.log(`Generated date: ${dateStr}, Comments from map: ${totalComments}`);
-            allDates.push({
-                date: dateStr,
+            return {
+                date: row.period_date,
                 totalComments: totalComments,
                 periodType: period
-            });
-        }
+            };
+        }).reverse(); // Reverse to get chronological order (oldest first)
         
-        const summaryData = allDates.reverse(); // Reverse to get chronological order
+        console.log(`Returning ${summaryData.length} entries for period ${period}`);
         
         res.json({
             success: true,
