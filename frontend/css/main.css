@@ -1,28 +1,2112 @@
-/* Main CSS file - imports all modular CSS files */
+/* =====================================================
+   COLOR CONFIGURATION SYSTEM
+   ===================================================== */
+:root {
+    /* Primary Colors */
+    --color-primary-main: #3b82f6;
+    --color-primary-hover: #2563eb;
+    --color-primary-light: #dbeafe;
+    
+    /* Background Colors */
+    --color-backgrounds-main: #ffffff;
+    --color-backgrounds-secondary: #f3f4f6;
+    --color-backgrounds-hover: #f9fafb;
+    
+    /* Text Colors */
+    --color-text-primary: #111827;
+    --color-text-secondary: #6b7280;
+    --color-text-muted: #9ca3af;
+    --color-text-inverse: #ffffff;
+    
+    /* Status Colors */
+    --color-status-success: #10b981;
+    --color-status-warning: #f59e0b;
+    --color-status-error: #ef4444;
+    
+    /* Border Colors */
+    --color-borders-light: #e5e7eb;
+    --color-borders-medium: #d1d5db;
+    
+    /* Legacy mappings for backward compatibility */
+    --color-primary: var(--color-primary-main);
+    --color-secondary: #878a8c;
+    --color-secondary-hover: #636466;
+    --color-success: var(--color-status-success);
+    --color-success-hover: #059669;
+    --color-warning: var(--color-status-warning);
+    --color-warning-hover: #b45309;
+    --color-danger: var(--color-status-error);
+    --color-danger-hover: #dc2626;
+    --color-info: var(--color-primary-main);
+    --color-info-hover: var(--color-primary-hover);
+    --color-report-bg: #fee2e2;
+    --color-report-border: #fecaca;
+    --color-ban: #7f1d1d;
+    --color-ban-hover: #991b1b;
+    --color-bg-primary: var(--color-backgrounds-main);
+    --color-bg-secondary: var(--color-backgrounds-secondary);
+    --color-bg-tertiary: var(--color-backgrounds-secondary);
+    --color-bg-page: #f7fafc;
+    --color-border-primary: var(--color-borders-light);
+    --color-border-secondary: var(--color-borders-medium);
+    --color-like: #60a5fa;
+    --color-dislike: #f87171;
+    
+    /* Shadow Colors */
+    --color-shadow-sm: rgba(0, 0, 0, 0.05);
+    --color-shadow-md: rgba(0, 0, 0, 0.1);
+    --color-shadow-lg: rgba(0, 0, 0, 0.15);
+    
+    /* Comment Thread Colors */
+    --color-thread-line: #dae0e6;
+    --color-thread-line-hover: var(--color-primary);
+    
+    /* Discord Brand Color */
+    --color-discord: #5865F2;
+    --color-discord-hover: #4752C4;
+}
 
-/* Core styles */
-@import url('./core/variables.css');
-@import url('./core/reset.css');
-@import url('./core/base.css');
+/* =====================================================
+   FLUID TYPOGRAPHY AND SPACING - MOBILE FIRST
+   ===================================================== */
+:root {
+    /* Mobile-First Fluid Font Sizes using clamp() */
+    --text-xs: clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem);
+    --text-sm: clamp(0.875rem, 0.825rem + 0.25vw, 1rem);
+    --text-base: clamp(0.875rem, 0.85rem + 0.5vw, 1.125rem); /* Smaller base for mobile */
+    --text-lg: clamp(1rem, 0.95rem + 0.5vw, 1.25rem);
+    --text-xl: clamp(1.125rem, 1.05rem + 0.75vw, 1.5rem);
+    --text-2xl: clamp(1.25rem, 1.15rem + 1vw, 2rem);
+    --text-3xl: clamp(1.5rem, 1.35rem + 1.5vw, 2.5rem);
+    
+    /* Mobile-First Fluid Spacing using clamp() */
+    --space-xs: clamp(0.25rem, 0.225rem + 0.125vw, 0.375rem);
+    --space-sm: clamp(0.375rem, 0.35rem + 0.25vw, 0.75rem);
+    --space-md: clamp(0.75rem, 0.7rem + 0.5vw, 1.5rem);
+    --space-lg: clamp(1rem, 0.95rem + 0.75vw, 2.25rem);
+    --space-xl: clamp(1.5rem, 1.4rem + 1vw, 3rem);
+    --space-2xl: clamp(2rem, 1.8rem + 1.5vw, 4.5rem);
+    
+    /* Fluid Container Widths */
+    --container-xs: clamp(20rem, 50vw, 28rem);
+    --container-sm: clamp(24rem, 60vw, 36rem);
+    --container-md: clamp(28rem, 70vw, 48rem);
+    --container-lg: clamp(32rem, 80vw, 64rem);
+    --container-xl: clamp(36rem, 90vw, 80rem);
+    
+    /* Fluid Component Sizes */
+    --avatar-size: clamp(2rem, 1.8rem + 1vw, 2.5rem);
+    --button-height: clamp(2.5rem, 2.3rem + 1vw, 3rem);
+    --icon-size: clamp(1rem, 0.9rem + 0.5vw, 1.25rem);
+    
+    /* Fluid Border Radius */
+    --radius-sm: clamp(0.125rem, 0.1rem + 0.125vw, 0.25rem);
+    --radius-md: clamp(0.375rem, 0.325rem + 0.25vw, 0.5rem);
+    --radius-lg: clamp(0.5rem, 0.45rem + 0.25vw, 0.75rem);
+    --radius-full: 9999px;
+}
 
-/* Utility classes */
-@import url('./utilities/spacing.css');
-@import url('./utilities/layout.css');
-@import url('./utilities/typography.css');
-@import url('./utilities/colors.css');
-@import url('./utilities/accessibility.css');
+/* =====================================================
+   GLOBAL STYLES
+   ===================================================== */
+* {
+    box-sizing: border-box;
+}
 
-/* Component styles */
-@import url('./components/buttons.css');
-@import url('./components/forms.css');
-@import url('./components/dropdowns.css');
-@import url('./components/cards.css');
-@import url('./components/badges.css');
-@import url('./components/notifications.css');
+/* Hide ALL visual selection globally */
+*::selection {
+    background-color: transparent !important;
+    color: inherit !important;
+}
 
-/* Module-specific styles */
-@import url('./modules/comments/comments.css');
-@import url('./modules/reactions/reactions.css');
-@import url('./modules/moderation/moderation.css');
-@import url('./modules/analytics/analytics.css');
-@import url('./modules/theme-editor/theme-editor.css');
+*::-moz-selection {
+    background-color: transparent !important;
+    color: inherit !important;
+}
+
+/* Allow text selection to work functionally in text inputs and textareas (but still invisible) */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+textarea {
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    user-select: text;
+}
+
+/* Prevent text selection on all interactive elements globally */
+button, a, select, [role="button"], [onclick], .clickable {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-tap-highlight-color: rgba(0,0,0,0);
+    tap-highlight-color: transparent;
+}
+
+/* Remove ALL focus outlines */
+*:focus {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+*:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+/* Remove focus rings on buttons specifically */
+button:focus,
+button:focus-visible,
+a:focus,
+a:focus-visible,
+select:focus,
+select:focus-visible,
+[role="button"]:focus,
+[role="button"]:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+    border-color: inherit !important;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    font-size: var(--text-base);
+    line-height: 1.5;
+    color: var(--color-text-primary);
+    background-color: var(--color-bg-page);
+    overflow-x: hidden;
+    margin: 0;
+    padding: 0;
+}
+
+/* Main container padding */
+.container {
+    padding-top: var(--space-md);
+    padding-bottom: var(--space-md);
+}
+
+/* =====================================================
+   MAIN COMMENT SECTION CONTAINER
+   ===================================================== */
+.comment-section {
+    /* Base padding for all content */
+    padding: 0;
+    background-color: var(--color-backgrounds-main);
+}
+
+/* Comment Form Styling */
+.comment-form {
+    padding: 1rem; /* Match Tailwind's p-4 */
+    overflow: visible; /* Ensure markdown buttons aren't clipped */
+}
+
+.comment-form-header {
+    font-size: var(--text-lg);
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin-bottom: var(--space-md);
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+/* Comment textarea - extends textarea-base */
+.comment-textarea {
+    min-height: clamp(5rem, 4rem + 5vw, 8rem);
+    padding: var(--space-md);
+    font-size: var(--text-base);
+}
+
+.comment-textarea::placeholder {
+    color: var(--color-text-tertiary);
+}
+
+/* =====================================================
+   COMMENT THREAD STYLING
+   ===================================================== */
+.comments-container {
+    padding: 0 1rem 1rem 1rem; /* Match p-4 but no top padding since it follows comment-form */
+}
+
+.comment-thread {
+    position: relative;
+    margin-bottom: var(--space-md);
+}
+
+/* Comment wrapper - contains both comment and its children */
+.comment-wrapper {
+    margin-bottom: var(--space-sm);
+}
+
+.comment-container {
+    position: relative;
+    padding-left: 0; /* Base comments have no left padding */
+}
+
+/* Base level comments don't need extra margins since parent has padding */
+.comments-container > .comment-wrapper > .comment-container {
+    margin-left: 0;
+    margin-right: 0;
+}
+
+/* Remove extra padding from nested comments - indentation is handled by .comment-children */
+.comment-depth-1,
+.comment-depth-2,
+.comment-depth-3 {
+    padding-left: 0;
+}
+
+/* Thread Indicator Line - Reddit Style - Mobile First */
+.comment-line {
+    position: absolute;
+    left: clamp(-0.75rem, -2vw, -1rem); /* Consistent positioning */
+    top: 0;
+    bottom: 0;
+    width: clamp(3px, 0.5vw, 4px); /* Slightly wider for mobile touch */
+    background-color: var(--color-thread-line);
+    transition: all 0.2s ease;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+/* Invisible click area for better mobile interaction */
+.comment-line::before {
+    content: "";
+    position: absolute;
+    left: -8px;
+    right: -8px;
+    top: 0;
+    bottom: 0;
+    cursor: pointer;
+}
+
+/* ALL comments get thread lines, including base comments */
+.comment-container {
+    position: relative;
+}
+
+/* Base comment thread line */
+.comment-container:not([class*="comment-depth"]) > .comment-line {
+    left: clamp(-0.75rem, -2vw, -1rem);
+}
+
+/* Hover effect */
+.comment-container:hover > .comment-line {
+    background-color: var(--color-thread-line-hover);
+    width: clamp(4px, 0.75vw, 5px);
+}
+
+/* Collapsed state - Reddit style */
+.comment-container.collapsed > .comment-line {
+    background: transparent;
+    border: 2px solid var(--color-thread-line);
+    border-radius: 50%;
+    width: clamp(20px, 5vw, 24px);
+    height: clamp(20px, 5vw, 24px);
+    top: var(--space-sm);
+    left: clamp(-1.5rem, -4vw, -2rem);
+}
+
+/* Plus icon for collapsed state */
+.comment-container.collapsed > .comment-line::after {
+    content: "+";
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    font-size: clamp(0.875rem, 2vw, 1rem);
+    font-weight: bold;
+    color: var(--color-text-secondary);
+    line-height: 1;
+}
+
+/* Hide everything except header when collapsed */
+.comment-container.collapsed .comment-content {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: var(--space-sm) 0;
+    margin-bottom: 0;
+}
+
+.comment-container.collapsed .comment-body,
+.comment-container.collapsed .comment-actions,
+.comment-container.collapsed .reply-form {
+    display: none;
+}
+
+/* Hide children when parent is collapsed */
+.comment-container.collapsed ~ .comment-children {
+    display: none;
+}
+
+/* Collapsed header shows only essential info */
+.comment-container.collapsed .comment-header {
+    opacity: 0.7;
+}
+
+.comment-container.collapsed .comment-avatar {
+    width: clamp(1.5rem, 4vw, 2rem);
+    height: clamp(1.5rem, 4vw, 2rem);
+}
+
+/* Nested comment indentation */
+.comment-children {
+    margin-left: 1rem; /* Reduced margin for tighter spacing */
+}
+
+/* =====================================================
+   INDIVIDUAL COMMENT STYLING
+   ===================================================== */
+.comment-content {
+    background-color: var(--color-backgrounds-main);
+    border: 1px solid var(--color-borders-light);
+    border-radius: var(--radius-lg);
+    padding: var(--space-md);
+    margin-bottom: var(--space-sm);
+    box-shadow: 0 1px 3px var(--color-shadow-sm);
+    transition: box-shadow 0.2s, transform 0.2s;
+    position: relative;
+    overflow: visible; /* Allow dropdown to extend outside */
+}
+
+.comment-content:hover {
+    box-shadow: 0 4px 12px var(--color-shadow-md);
+    transform: translateY(-1px);
+}
+
+/* Maintain high z-index when dropdown is open */
+.comment-content.has-open-dropdown {
+    z-index: 9998;
+}
+
+/* Reported Comment Styling */
+.comment-content.reported,
+.comment-content.reported-comment {
+    background-color: var(--color-report-bg);
+    border-color: var(--color-report-border);
+}
+
+/* Comment Header */
+.comment-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    margin-bottom: var(--space-sm);
+    flex-wrap: nowrap; /* Prevent wrapping */
+    overflow: hidden; /* Handle overflow gracefully */
+}
+
+.comment-avatar {
+    width: clamp(1.75rem, 2.25rem, var(--avatar-size)); /* Responsive sizing */
+    height: clamp(1.75rem, 2.25rem, var(--avatar-size));
+    border-radius: var(--radius-full);
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.comment-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    flex-wrap: nowrap; /* Prevent wrapping */
+    font-size: clamp(0.75rem, 0.8rem, var(--text-sm)); /* Responsive text */
+    min-width: 0; /* Allow text truncation */
+}
+
+.comment-author {
+    font-weight: 600;
+    color: var(--color-text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px; /* Limit width to prevent overflow */
+}
+
+.comment-time {
+    color: var(--color-text-secondary);
+    white-space: nowrap;
+    font-size: clamp(0.7rem, 0.75rem, var(--text-sm));
+}
+
+/* Comment Body */
+.comment-body {
+    color: var(--color-text-primary);
+    font-size: var(--text-base);
+    line-height: 1.6;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    margin-bottom: var(--space-sm);
+}
+
+/* =====================================================
+   COMMENT ACTIONS - FLUID SIZING
+   ===================================================== */
+.comment-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem; /* Normal gap */
+    flex-wrap: nowrap; /* Force single line */
+    margin-top: var(--space-sm);
+    overflow: visible; /* Allow dropdown to extend outside */
+    position: relative; /* For dropdown positioning */
+}
+
+.comment-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem; /* Fixed gap - never shrinks */
+    padding: 0.375rem 0.75rem; /* Normal padding */
+    border-radius: var(--radius-md);
+    background-color: transparent;
+    border: 1px solid transparent;
+    color: var(--color-text-secondary);
+    font-size: 0.875rem; /* Normal font size */
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    flex-shrink: 1; /* Allow buttons to shrink */
+    flex-basis: auto; /* Base size is content */
+    min-width: 0; /* Allow shrinking to any size */
+    overflow: hidden; /* Hide text overflow */
+}
+
+/* Keep icons and counts from shrinking */
+.comment-action i {
+    flex-shrink: 0;
+}
+
+.comment-action span {
+    flex-shrink: 0;
+    min-width: fit-content;
+}
+
+/* Container query for responsive comment actions */
+.comment-container:has(.comment-actions) {
+    container-type: inline-size;
+}
+
+/* Progressive text hiding based on container size - but keep counts visible */
+@container (max-width: 480px) {
+    /* Hide "Reply" text but keep all numeric spans visible */
+    .comment-action:has(.fa-comment) {
+        font-size: 0;
+    }
+    .comment-action:has(.fa-comment) i {
+        font-size: 0.875rem; /* Restore icon size */
+    }
+    .comment-action {
+        padding: clamp(0.375rem, 1vw, 0.5rem);
+        /* Keep gap for all buttons */
+    }
+}
+
+/* Even smaller spaces */
+@container (max-width: 360px) {
+    .comment-action {
+        padding: clamp(0.25rem, 0.75vw, 0.375rem);
+    }
+}
+
+.comment-action:hover {
+    background-color: var(--color-backgrounds-secondary);
+    color: var(--color-text-primary);
+}
+
+.comment-action.active-like {
+    color: var(--color-like);
+    background-color: rgba(96, 165, 250, 0.1);
+}
+
+.comment-action.active-dislike {
+    color: var(--color-dislike);
+    background-color: rgba(248, 113, 113, 0.1);
+}
+
+/* =====================================================
+   BUTTONS - FLUID SIZING
+   ===================================================== */
+/* Global text selection prevention for all interactive elements */
+button,
+a,
+.clickable,
+[role="button"],
+[onclick],
+.comment-action,
+.dropdown-item,
+.moderation-tab,
+.comment-line,
+.ban-dropdown-item,
+.comment-dropdown-item,
+.report-action-btn,
+.markdown-btn,
+.sort-btn,
+select,
+input[type="button"],
+input[type="submit"] {
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Prevent text selection when clicking */
+button:active,
+a:active,
+.clickable:active,
+select:active {
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+/* Additional prevention for all elements with click handlers */
+* {
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Prevent selection highlighting for all interactive elements */
+button::selection,
+a::selection,
+.clickable::selection,
+[onclick]::selection,
+select::selection {
+    background: transparent;
+}
+
+/* Remove focus outline text selection */
+button:focus,
+a:focus,
+.clickable:focus,
+select:focus,
+[onclick]:focus {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+}
+
+/* Prevent text cursor on buttons */
+button,
+a,
+.clickable,
+[role="button"],
+[onclick] {
+    cursor: pointer;
+}
+
+/* Disable text selection for button content */
+button *,
+a *,
+.clickable *,
+[onclick] * {
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+/* =====================================================
+   BASE CLASSES FOR CONSOLIDATION
+   ===================================================== */
+
+/* Base button class - shared by all buttons */
+.btn-base {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-xs);
+    padding: clamp(0.5rem, 0.45rem + 0.25vw, 0.75rem) clamp(1rem, 0.9rem + 0.5vw, 1.5rem);
+    min-height: var(--button-height);
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+    white-space: nowrap;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    background-color: transparent;
+    color: var(--color-text-secondary);
+    -webkit-touch-callout: none;
+}
+
+.btn-base:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px var(--color-shadow-md);
+}
+
+.btn-base:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* Base dropdown class */
+.dropdown-base {
+    position: absolute;
+    min-width: clamp(10rem, 15vw, 12rem);
+    background-color: var(--color-backgrounds-main);
+    border: 1px solid var(--color-borders-light);
+    border-radius: var(--radius-md);
+    box-shadow: 0 4px 12px var(--color-shadow-lg);
+    z-index: 10000;
+    display: none;
+}
+
+.dropdown-base.show {
+    display: block;
+}
+
+/* Base dropdown item class */
+.dropdown-item-base {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-sm) var(--space-md);
+    background: none;
+    border: none;
+    color: var(--color-text-primary);
+    font-size: var(--text-sm);
+    cursor: pointer;
+    width: 100%;
+    text-align: left;
+    transition: background-color 0.2s;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+.dropdown-item-base:hover {
+    background-color: var(--color-backgrounds-secondary);
+}
+
+.dropdown-item-base:first-child {
+    border-radius: calc(var(--radius-md) - 1px) calc(var(--radius-md) - 1px) 0 0;
+}
+
+.dropdown-item-base:last-child {
+    border-radius: 0 0 calc(var(--radius-md) - 1px) calc(var(--radius-md) - 1px);
+}
+
+/* Base textarea class */
+.textarea-base {
+    width: 100%;
+    padding: var(--space-sm);
+    border: 1px solid var(--color-borders-light);
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+    resize: vertical;
+    transition: border-color 0.2s;
+    background-color: var(--color-backgrounds-main);
+    color: var(--color-text-primary);
+}
+
+.textarea-base:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(0, 121, 211, 0.1);
+}
+
+.textarea-base:disabled {
+    background-color: var(--color-backgrounds-secondary);
+    color: var(--color-text-secondary);
+    cursor: not-allowed;
+}
+/* Main button class - extends btn-base */
+.btn {
+    /* Inherits all from btn-base when both classes are used */
+}
+
+.btn-primary {
+    background-color: var(--color-primary);
+    color: var(--color-text-inverse);
+}
+
+.btn-primary:hover:not(:disabled) {
+    background-color: var(--color-primary-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px var(--color-shadow-md);
+}
+
+.btn-primary:disabled {
+    background-color: var(--color-backgrounds-secondary);
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.btn-secondary {
+    background-color: var(--color-backgrounds-secondary);
+    color: var(--color-text-primary);
+    border: 1px solid var(--color-borders-light);
+}
+
+.btn-secondary:hover {
+    background-color: var(--color-backgrounds-hover);
+    border-color: var(--color-borders-medium);
+}
+
+.btn-danger {
+    background-color: var(--color-status-error);
+    color: var(--color-text-inverse);
+}
+
+.btn-danger:hover {
+    background-color: var(--color-danger-hover);
+}
+
+.btn-warning {
+    background-color: var(--color-warning);
+    color: var(--color-text-inverse);
+}
+
+.btn-warning:hover {
+    background-color: var(--color-warning-hover);
+}
+
+.btn-success {
+    background-color: var(--color-success);
+    color: var(--color-text-inverse);
+}
+
+.btn-success:hover {
+    background-color: var(--color-success-hover);
+}
+
+/* Discord Button */
+.btn-discord {
+    background-color: var(--color-discord);
+    color: var(--color-text-inverse);
+}
+
+.btn-discord:hover {
+    background-color: var(--color-discord-hover);
+}
+
+/* Sorting buttons - extends btn-base - Mobile First */
+.sort-btn {
+    border: 1px solid var(--color-borders-light);
+    background-color: var(--color-backgrounds-secondary);
+    flex: 1 1 auto; /* Allow shrinking and growing */
+    min-width: 0; /* Allow shrinking below content */
+    min-height: var(--touch-target-min);
+    padding: clamp(0.375rem, 0.75vw, 0.75rem) clamp(0.5rem, 1vw, 1rem);
+    font-size: clamp(0.75rem, 1.5vw, 1rem);
+}
+
+.sort-btn:hover {
+    background-color: var(--color-backgrounds-secondary);
+    border-color: var(--color-borders-medium);
+}
+
+.sort-btn.active {
+    background-color: var(--color-primary);
+    color: var(--color-text-inverse);
+    border-color: var(--color-primary);
+}
+
+.sort-btn.active:hover {
+    background-color: var(--color-primary-hover);
+    border-color: var(--color-primary-hover);
+}
+
+/* Flexible text sizing for sort buttons */
+.sort-btn span {
+    display: inline-block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    /* Remove max-width to allow full shrinking */
+}
+
+/* Hide icon margins when very small */
+.sort-btn i {
+    margin-right: clamp(0, 0.5vw, 0.25rem);
+}
+
+/* Search mode toggle button */
+.search-mode-btn {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-family: monospace;
+    font-size: 1rem;
+    background-color: var(--color-backgrounds-secondary);
+    border: 1px solid var(--color-borders-light);
+    transition: all 0.2s ease;
+}
+
+.search-mode-btn:hover {
+    background-color: var(--color-backgrounds-secondary);
+    border-color: var(--color-borders-medium);
+}
+
+.search-mode-btn:active {
+    transform: scale(0.95);
+}
+
+/* Markdown toolbar buttons */
+.markdown-buttons {
+    display: flex;
+    gap: var(--space-xs);
+    flex-wrap: nowrap;
+    overflow: visible; /* Changed from hidden to visible */
+}
+
+/* Markdown toolbar buttons - extends btn-base */
+.markdown-btn {
+    padding: clamp(0.375rem, 1vw, 0.5rem);
+    background: var(--color-backgrounds-main);
+    border: 1px solid var(--color-borders-light);
+    min-width: 0; /* Remove min-width */
+    min-height: 0; /* Override btn-base min-height */
+    width: clamp(2rem, 6vw, 2.5rem); /* Responsive width */
+    height: clamp(2rem, 6vw, 2.5rem); /* Responsive height */
+    flex: 0 1 auto; /* Allow shrinking */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    overflow: visible;
+    position: relative;
+    z-index: 1;
+}
+
+.markdown-btn:hover {
+    background: var(--color-backgrounds-secondary);
+    border-color: var(--color-borders-medium);
+    z-index: 10; /* Ensure hover state is above siblings */
+}
+
+/* Comment options button (three dots) - extends btn-base */
+.comment-options-btn {
+    padding: 0.375rem;
+    min-width: 0;
+    flex-shrink: 1;
+}
+
+.comment-options-btn i {
+    font-size: 1rem;
+    color: inherit;
+}
+
+.comment-options-btn:hover {
+    background-color: var(--color-backgrounds-secondary);
+    color: var(--color-text-primary);
+}
+
+/* Comment dropdown container */
+.comment-dropdown-container {
+    position: relative;
+    display: inline-block;
+    z-index: 9999;
+}
+
+/* Comment dropdown - extends dropdown-base */
+.comment-dropdown {
+    right: 0;
+    top: 100%;
+    margin-top: var(--space-xs);
+}
+
+/* Comment dropdown items - extends dropdown-item-base */
+.comment-dropdown-item {
+    /* Inherits all from dropdown-item-base */
+}
+
+.comment-dropdown-item:last-child {
+    border-radius: 0 0 calc(var(--radius-md) - 1px) calc(var(--radius-md) - 1px);
+}
+
+.comment-dropdown-item.danger {
+    color: var(--color-status-error);
+}
+
+.comment-dropdown-item.danger:hover {
+    background-color: var(--color-report-bg);
+}
+
+/* Ban duration dropdown */
+.ban-dropdown-container {
+    position: relative;
+    display: inline-block;
+}
+
+/* Ban dropdown - extends dropdown-base */
+.ban-dropdown {
+    left: 0;
+    margin-top: var(--space-xs);
+    z-index: 20;
+}
+
+.ban-dropdown-inner {
+    padding: var(--space-xs) 0;
+}
+
+/* Ban dropdown items - extends dropdown-item-base */
+.ban-dropdown-item {
+    /* Inherits all from dropdown-item-base */
+}
+
+.ban-dropdown-divider {
+    border-top: 1px solid var(--color-borders-light);
+    margin: var(--space-xs) 0;
+}
+
+.ban-dropdown-item.text-error {
+    color: var(--color-status-error);
+}
+
+.ban-dropdown-item.text-primary {
+    color: var(--color-primary-main);
+}
+
+/* =====================================================
+   DROPDOWN MENUS - RESPONSIVE
+   ===================================================== */
+.dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+/* =====================================================
+   MENTION SYSTEM STYLES
+   ===================================================== */
+/* Mention dropdown */
+.mention-dropdown {
+    position: absolute;
+    z-index: 10000;
+    background-color: var(--color-backgrounds-main);
+    border: 1px solid var(--color-borders-light);
+    border-radius: var(--radius-md);
+    box-shadow: 0 4px 12px var(--color-shadow-lg);
+    max-height: 200px;
+    overflow-y: auto;
+    width: 250px;
+}
+
+/* Mention dropdown items */
+.mention-dropdown-item {
+    display: flex;
+    align-items: center;
+    padding: var(--space-sm) var(--space-md);
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.mention-dropdown-item:hover,
+.mention-dropdown-item.selected {
+    background-color: var(--color-backgrounds-secondary);
+}
+
+.mention-dropdown-item img {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-full);
+    margin-right: var(--space-sm);
+}
+
+.mention-dropdown-item span {
+    color: var(--color-text-primary);
+    font-size: var(--text-sm);
+}
+
+/* Highlighted mentions in comments */
+.mention {
+    color: var(--color-primary);
+    font-weight: 500;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.mention:hover {
+    color: var(--color-primary-hover);
+    text-decoration: underline;
+}
+
+/* Dropdown menu - extends dropdown-base */
+.dropdown-menu {
+    top: 100%;
+    left: 0;
+    margin-top: var(--space-xs);
+    z-index: 1000;
+}
+
+/* Dropdown items - extends dropdown-item-base */
+.dropdown-item {
+    /* Inherits all from dropdown-item-base */
+}
+
+.dropdown-item:last-child {
+    border-radius: 0 0 calc(var(--radius-md) - 1px) calc(var(--radius-md) - 1px);
+}
+
+/* Reply form styling */
+.reply-form {
+    margin-top: var(--space-sm);
+    padding: var(--space-md);
+    background: var(--color-backgrounds-secondary);
+    border-radius: var(--radius-md);
+    width: 100%;
+    overflow: visible; /* Ensure markdown buttons aren't clipped */
+    container-type: inline-size; /* Enable container queries */
+}
+
+/* Reply textarea - extends textarea-base */
+.reply-textarea {
+    min-height: clamp(4rem, 3rem + 3vw, 6rem);
+    padding: var(--space-md);
+    font-size: var(--text-base);
+    font-family: inherit;
+}
+
+.reply-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: var(--space-sm);
+    gap: var(--space-sm);
+    flex-wrap: wrap;
+    overflow: visible; /* Ensure markdown buttons aren't clipped */
+}
+
+.reply-actions {
+    display: flex;
+    gap: var(--space-sm);
+}
+
+/* Container query for reply toolbar stacking */
+@container (max-width: 450px) {
+    .reply-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .reply-toolbar .markdown-buttons {
+        order: 1;
+        width: 100%;
+    }
+    
+    .reply-toolbar .reply-actions {
+        order: 2;
+        width: 100%;
+        margin-top: clamp(0.5rem, 1.5vw, 0.75rem);
+        justify-content: flex-end;
+    }
+}
+
+/* Reply form buttons - extends btn-base */
+.reply-btn {
+    /* Inherits all from btn-base */
+}
+
+/* These are now just btn-primary and btn-secondary */
+
+/* =====================================================
+   MARKDOWN CONTENT - RESPONSIVE
+   ===================================================== */
+.markdown-content {
+    font-size: var(--text-base);
+    line-height: 1.6;
+    color: var(--color-text-primary);
+}
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3,
+.markdown-content h4,
+.markdown-content h5,
+.markdown-content h6 {
+    font-weight: 600;
+    margin: var(--space-md) 0 var(--space-sm) 0;
+    line-height: 1.25;
+    color: var(--color-text-primary);
+}
+
+.markdown-content h1 { font-size: clamp(1.5rem, 1.4rem + 0.5vw, 2rem); }
+.markdown-content h2 { font-size: clamp(1.25rem, 1.2rem + 0.25vw, 1.5rem); }
+.markdown-content h3 { font-size: clamp(1.125rem, 1.075rem + 0.25vw, 1.25rem); }
+.markdown-content h4 { font-size: var(--text-lg); }
+.markdown-content h5 { font-size: var(--text-base); }
+.markdown-content h6 { font-size: var(--text-sm); }
+
+.markdown-content p {
+    margin-bottom: var(--space-sm);
+}
+
+.markdown-content a {
+    color: var(--color-primary);
+    text-decoration: underline;
+}
+
+.markdown-content a:hover {
+    color: var(--color-primary-hover);
+}
+
+.markdown-content code {
+    background-color: var(--color-backgrounds-secondary);
+    padding: 0.125em 0.25em;
+    border-radius: var(--radius-sm);
+    font-size: 0.875em;
+}
+
+.markdown-content pre {
+    background-color: var(--color-backgrounds-secondary);
+    padding: var(--space-md);
+    border-radius: var(--radius-md);
+    overflow-x: auto;
+    margin-bottom: var(--space-md);
+}
+
+.markdown-content pre code {
+    background: none;
+    padding: 0;
+}
+
+.markdown-content blockquote {
+    border-left: 4px solid var(--color-primary);
+    padding-left: var(--space-md);
+    margin-left: 0;
+    margin-bottom: var(--space-md);
+    color: var(--color-text-secondary);
+}
+
+.markdown-content ul,
+.markdown-content ol {
+    margin-bottom: var(--space-md);
+    padding-left: var(--space-lg);
+}
+
+.markdown-content li {
+    margin-bottom: var(--space-xs);
+}
+
+.markdown-content img,
+.markdown-content video {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: var(--space-md) 0;
+    border-radius: var(--radius-md);
+}
+
+.markdown-content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: var(--space-md);
+}
+
+.markdown-content th,
+.markdown-content td {
+    border: 1px solid var(--color-borders-light);
+    padding: var(--space-sm);
+    text-align: left;
+}
+
+.markdown-content th {
+    background-color: var(--color-backgrounds-secondary);
+    font-weight: 600;
+}
+
+/* =====================================================
+   REPORT CARDS - RESPONSIVE
+   ===================================================== */
+.report-card {
+    background-color: var(--color-backgrounds-main);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 2px 8px var(--color-shadow-md);
+    padding: var(--space-lg);
+    border-left: 4px solid var(--color-report);
+    margin-bottom: var(--space-md);
+}
+
+.report-header {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(clamp(15rem, 20vw, 20rem), 1fr));
+    gap: var(--space-md);
+    margin-bottom: var(--space-md);
+}
+
+.report-meta {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    margin-bottom: var(--space-xs);
+}
+
+.report-content {
+    background-color: var(--color-backgrounds-secondary);
+    border-radius: var(--radius-md);
+    padding: var(--space-md);
+    margin-bottom: var(--space-md);
+    border: 1px solid var(--color-borders-light);
+}
+
+.report-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+}
+
+/* Report action buttons - extends btn-base */
+.report-action-btn {
+    color: var(--color-text-inverse);
+}
+
+/* Report action button variants */
+.report-action-btn.view {
+    background-color: var(--color-primary-main);
+}
+
+.report-action-btn.view:hover {
+    background-color: var(--color-info-hover);
+}
+
+.report-action-btn.delete {
+    background-color: var(--color-status-error);
+}
+
+.report-action-btn.delete:hover {
+    background-color: var(--color-danger-hover);
+}
+
+.report-action-btn.ban {
+    background-color: var(--color-ban);
+}
+
+.report-action-btn.ban:hover {
+    background-color: var(--color-ban-hover);
+}
+
+.report-action-btn.warn {
+    background-color: var(--color-warning);
+}
+
+.report-action-btn.warn:hover {
+    background-color: var(--color-warning-hover);
+}
+
+.report-action-btn.dismiss {
+    background-color: var(--color-backgrounds-secondary);
+}
+
+.report-action-btn.dismiss:hover {
+    background-color: var(--color-secondary-hover);
+}
+
+/* =====================================================
+   MODERATION PANEL - MOBILE FIRST
+   ===================================================== */
+.moderation-panel {
+    background-color: var(--color-backgrounds-main);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 2px 8px var(--color-shadow-md);
+    margin-bottom: var(--space-lg);
+    container-type: inline-size;
+}
+
+.moderation-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--color-borders-light);
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-borders-light) transparent;
+}
+
+/* Moderation tab - extends btn-base - Mobile First */
+.moderation-tab {
+    padding: clamp(0.5rem, 1.5vw, 1rem) clamp(0.75rem, 2vw, 1.5rem);
+    font-weight: 500;
+    font-size: clamp(0.75rem, 1.25vw, 1rem);
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    min-height: var(--touch-target-min);
+    position: relative;
+    flex: 1 1 auto; /* Allow grow and shrink */
+    min-width: 0; /* Allow shrinking below content */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    /* Remove max-width constraint */
+}
+
+/* Container query for very small spaces */
+@container (max-width: 400px) {
+    .moderation-tab {
+        padding: clamp(0.5rem, 1.5vw, 0.75rem) clamp(0.75rem, 2vw, 1rem);
+        font-size: clamp(0.75rem, 1.25vw, 0.875rem);
+    }
+}
+
+.moderation-tab:hover {
+    color: var(--color-text-primary);
+    background-color: var(--color-backgrounds-secondary);
+    transform: none;
+    box-shadow: none;
+}
+
+.moderation-tab.active {
+    color: var(--color-primary);
+    border-bottom-color: var(--color-primary);
+}
+
+/* Notification badge positioning for tabs */
+.moderation-tab .absolute {
+    position: absolute;
+    top: clamp(0.25rem, 0.5vw, 0.5rem);
+    right: clamp(0.25rem, 0.5vw, 0.5rem);
+    font-size: clamp(0.625rem, 1vw, 0.75rem);
+    padding: clamp(0.125rem, 0.25vw, 0.25rem) clamp(0.375rem, 0.5vw, 0.5rem);
+    min-width: clamp(1.25rem, 2vw, 1.5rem);
+    text-align: center;
+}
+
+.moderation-content {
+    padding: var(--space-lg);
+}
+
+/* =====================================================
+   MODERATION LOGS - MOBILE FIRST
+   ===================================================== */
+.moderation-logs-container {
+    container-type: inline-size;
+}
+
+/* Log entry - mobile first vertical layout */
+.log-entry {
+    background-color: var(--color-backgrounds-secondary);
+    border-radius: var(--radius-md);
+    padding: clamp(0.75rem, 2vw, 1rem);
+    border: 1px solid var(--color-borders-light);
+}
+
+/* Log header - stacked on mobile */
+.log-header {
+    display: grid;
+    grid-template-rows: auto auto;
+    gap: clamp(0.25rem, 0.5vw, 0.5rem);
+}
+
+/* Admin -> Action -> Recipient line */
+.log-action-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: clamp(0.25rem, 0.5vw, 0.5rem);
+    font-size: clamp(0.875rem, 1.5vw, 1rem);
+}
+
+/* Ensure text fits on one line with dynamic sizing */
+.log-action-line .moderator-name,
+.log-action-line .action-type,
+.log-action-line .target-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.log-action-line .moderator-name {
+    font-weight: 600;
+    max-width: clamp(10ch, 20vw, 20ch);
+}
+
+.log-action-line .action-type {
+    color: var(--color-text-secondary);
+    font-size: clamp(0.75rem, 1.25vw, 0.875rem);
+    /* Force each word to new line */
+    display: inline-flex;
+    flex-direction: column;
+    text-align: center;
+    line-height: 1.2;
+}
+
+.log-action-line .action-type span {
+    display: block;
+}
+
+.log-action-line .target-name {
+    font-weight: 500;
+    max-width: clamp(10ch, 20vw, 20ch);
+}
+
+/* Arrow separator */
+.log-action-line .arrow {
+    color: var(--color-text-tertiary);
+    font-size: clamp(0.75rem, 1vw, 0.875rem);
+}
+
+/* Timestamp on new line */
+.log-timestamp {
+    font-size: clamp(0.75rem, 1.25vw, 0.875rem);
+    color: var(--color-text-tertiary);
+    display: block;
+}
+
+/* Log details section */
+.log-details {
+    margin-top: clamp(0.5rem, 1vw, 0.75rem);
+    font-size: clamp(0.75rem, 1.25vw, 0.875rem);
+    color: var(--color-text-secondary);
+}
+
+/* Container query for larger screens */
+@container (min-width: 600px) {
+    .log-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+    }
+    
+    .log-timestamp {
+        text-align: right;
+    }
+}
+
+/* =====================================================
+   USER ROLES - MOBILE FIRST
+   ===================================================== */
+.user-roles {
+    display: inline-flex;
+    align-items: center;
+    gap: clamp(0.25rem, 0.5vw, 0.5rem);
+    container-type: inline-size;
+}
+
+/* Role badge base */
+.role-badge {
+    padding: clamp(0.125rem, 0.25vw, 0.25rem) clamp(0.375rem, 0.75vw, 0.5rem);
+    border-radius: var(--radius-full);
+    font-size: clamp(0.625rem, 1vw, 0.75rem);
+    font-weight: 500;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: clamp(0.125rem, 0.25vw, 0.25rem);
+}
+
+/* Role hierarchy - hide lower roles when higher role exists */
+.user-roles:has(.role-super-mod) .role-mod {
+    display: none;
+}
+
+/* Role count indicator */
+.user-roles[data-role-count]:has(.role-badge:not(:only-child))::after {
+    content: "+" attr(data-role-count);
+    font-size: clamp(0.625rem, 1vw, 0.75rem);
+    color: var(--color-text-secondary);
+    margin-left: clamp(0.125rem, 0.25vw, 0.25rem);
+}
+
+/* Role colors */
+.role-badge.role-mod {
+    background-color: rgba(59, 130, 246, 0.1);
+    color: #2563eb;
+}
+
+.role-badge.role-super-mod {
+    background-color: rgba(147, 51, 234, 0.1);
+    color: #7c3aed;
+}
+
+.role-badge.role-banned {
+    background-color: rgba(239, 68, 68, 0.1);
+    color: #dc2626;
+}
+
+/* Icon sizing in badges */
+.role-badge i {
+    font-size: clamp(0.5rem, 0.75vw, 0.625rem);
+}
+
+/* Container query for very small spaces */
+@container (max-width: 300px) {
+    .role-badge span {
+        display: none;
+    }
+}
+
+/* =====================================================
+   LOADING STATES
+   ===================================================== */
+.loading-spinner {
+    display: inline-block;
+    width: clamp(1.5rem, 1.3rem + 1vw, 2rem);
+    height: clamp(1.5rem, 1.3rem + 1vw, 2rem);
+    border: 2px solid var(--color-backgrounds-secondary);
+    border-radius: var(--radius-full);
+    border-top-color: var(--color-primary);
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* =====================================================
+   COMMENT FORM TOOLBAR - RESPONSIVE
+   ===================================================== */
+.comment-form {
+    container-type: inline-size;
+}
+
+/* Main comment toolbar container */
+.comment-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: clamp(0.5rem, 1vw, 1rem);
+    flex-wrap: nowrap; /* Default: side by side */
+}
+
+/* Container query for stacking when buttons would overlap */
+@container (max-width: 650px) {
+    .comment-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .comment-toolbar .markdown-buttons {
+        order: 1; /* Markdown buttons on top */
+        width: 100%;
+    }
+    
+    .comment-toolbar .btn-primary {
+        order: 2; /* Post button below */
+        width: 100%;
+        margin-top: clamp(0.75rem, 2vw, 1rem); /* Proper spacing */
+    }
+}
+
+/* =====================================================
+   NOTIFICATIONS - RESPONSIVE
+   ===================================================== */
+.notification {
+    position: fixed;
+    top: var(--space-md);
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: calc(100vw - (var(--space-md) * 2));
+    width: var(--container-sm);
+    padding: var(--space-md);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 4px 12px var(--color-shadow-lg);
+    z-index: 1000;
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-md);
+}
+
+.notification-success {
+    background-color: var(--color-success);
+    color: var(--color-text-inverse);
+}
+
+.notification-warning {
+    background-color: var(--color-warning);
+    color: var(--color-text-inverse);
+}
+
+.notification-danger {
+    background-color: var(--color-status-error);
+    color: var(--color-text-inverse);
+}
+
+.notification-info {
+    background-color: var(--color-primary-main);
+    color: var(--color-text-inverse);
+}
+
+/* =====================================================
+   LEGACY UTILITY CLASSES - For backward compatibility
+   ===================================================== */
+.bg-primary { background-color: var(--color-primary-main); }
+.bg-success { background-color: var(--color-status-success); }
+.bg-warning { background-color: var(--color-status-warning); }
+.bg-danger { background-color: var(--color-status-error); }
+.bg-info { background-color: var(--color-primary-main); }
+
+/* Spacing utilities */
+.mt-xs { margin-top: var(--space-xs); }
+.mt-sm { margin-top: var(--space-sm); }
+.mt-md { margin-top: var(--space-md); }
+.mt-lg { margin-top: var(--space-lg); }
+.mt-xl { margin-top: var(--space-xl); }
+
+/* Width utilities */
+.max-w-xs { max-width: 20rem; }
+.min-w-0 { min-width: 0; }
+.flex-1 { flex: 1 1 0%; }
+.flex-shrink-0 { flex-shrink: 0; }
+.flex-wrap { flex-wrap: wrap; }
+
+.mb-xs { margin-bottom: var(--space-xs); }
+.mb-sm { margin-bottom: var(--space-sm); }
+.mb-md { margin-bottom: var(--space-md); }
+.mb-lg { margin-bottom: var(--space-lg); }
+.mb-xl { margin-bottom: var(--space-xl); }
+
+.p-xs { padding: var(--space-xs); }
+.p-sm { padding: var(--space-sm); }
+.p-md { padding: var(--space-md); }
+.p-lg { padding: var(--space-lg); }
+.p-xl { padding: var(--space-xl); }
+
+/* =====================================================
+   COLOR UTILITIES
+   ===================================================== */
+/* Background utilities */
+.bg-main { background-color: var(--color-backgrounds-main); }
+.bg-secondary { background-color: var(--color-backgrounds-secondary); }
+.bg-error { background-color: var(--color-status-error); }
+.bg-warning-light { background-color: #fef3c7; }
+.bg-info-light { background-color: #dbeafe; }
+.bg-danger { background-color: var(--color-status-error); }
+
+/* Text utilities */
+.text-primary { color: var(--color-primary-main); }
+.text-primary-hover:hover { color: var(--color-primary-hover); }
+.text-secondary { color: var(--color-text-secondary); }
+.text-muted { color: var(--color-text-muted); }
+.text-inverse { color: var(--color-text-inverse); }
+.text-error { color: var(--color-status-error); }
+.text-success { color: var(--color-status-success); }
+.text-warning { color: var(--color-status-warning); }
+
+/* Border utilities */
+.border-light { border-color: var(--color-borders-light); }
+.border-medium { border-color: var(--color-borders-medium); }
+.border-warning { border-color: var(--color-status-warning); }
+
+/* =====================================================
+   ACCESSIBILITY
+   ===================================================== */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+}
+
+/* Remove all button focus highlights on mobile */
+@media (hover: none) and (pointer: coarse) {
+    button:focus,
+    a:focus,
+    .clickable:focus,
+    [onclick]:focus {
+        outline: none;
+    }
+}
+
+/* Focus styles - removed to prevent all visual highlighting */
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    :root {
+        --color-primary: #0066cc;
+        --color-text-primary: #000000;
+        --color-bg-primary: #ffffff;
+        --color-border-primary: #000000;
+    }
+}
+
+/* =====================================================
+   RESPONSIVE EMBED
+   ===================================================== */
+.embed-responsive {
+    position: relative;
+    display: block;
+    width: 100%;
+    padding: 0;
+    overflow: hidden;
+}
+
+.embed-responsive-16by9::before {
+    display: block;
+    content: "";
+    padding-top: 56.25%;
+}
+
+.embed-responsive-item {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+}
+
+/* =====================================================
+   SMOOTH SCROLLING
+   ===================================================== */
+html {
+    scroll-behavior: smooth;
+}
+
+/* =====================================================
+   SEARCH AND SORTING RESPONSIVE LAYOUT
+   ===================================================== */
+.sorting-search-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: clamp(0.5rem, 2vw, 1rem);
+    flex-wrap: wrap;
+    padding: 0 1rem; /* Match horizontal padding of comment-form */
+}
+
+/* Sorting buttons container - Shrinks to fit */
+.sorting-search-container > div:first-child {
+    display: flex;
+    gap: clamp(0.125rem, 0.5vw, 0.5rem);
+    flex-wrap: nowrap; /* Keep on single row */
+    min-width: 0; /* Allow shrinking */
+}
+
+/* Search input responsive sizing */
+.sorting-search-container > div:last-child {
+    flex: 1 1 auto;
+    min-width: min(100%, 200px);
+}
+
+
+/* Component-specific styles */
+.page-container {
+    background-color: var(--color-backgrounds-secondary);
+    color: var(--color-text-primary);
+}
+
+.card {
+    background-color: var(--color-backgrounds-main);
+    border: 1px solid var(--color-borders-light);
+    border-radius: 8px;
+    box-shadow: 0 1px 3px 0 var(--color-shadow-sm);
+    color: var(--color-text-primary);
+}
+
+.card p {
+    color: var(--color-text-secondary);
+}
+
+.notification-success {
+    background-color: var(--color-status-success);
+    color: var(--color-text-inverse);
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.notification-error {
+    background-color: var(--color-status-error);
+    color: var(--color-text-inverse);
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.notification-warning {
+    background-color: var(--color-status-warning);
+    color: var(--color-text-inverse);
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+/* Override any remaining hardcoded colors */
+body {
+    background-color: var(--color-backgrounds-secondary);
+    color: var(--color-text-primary);
+}
+
+h1, h2, h3, h4, h5, h6 {
+    color: var(--color-text-primary);
+}
+
+p {
+    color: var(--color-text-secondary);
+}
+
+a {
+    color: var(--color-primary-main);
+}
+
+a:hover {
+    color: var(--color-primary-hover);
+}
+
+input, textarea {
+    background-color: var(--color-backgrounds-main);
+    border: 1px solid var(--color-borders-medium);
+    color: var(--color-text-primary);
+}
+
+input:focus, textarea:focus {
+    border-color: var(--color-primary-main);
+    outline: none;
+}
+
+/* Remove default button background - buttons should use specific classes */
+button {
+    background-color: transparent;
+    color: inherit;
+    border: none;
+    cursor: pointer;
+}
+
+/* Hover states should be defined by specific button classes */
+
+/* =====================================================
+   THEME EDITOR STYLES
+   ===================================================== */
+.color-input {
+    width: 36px;
+    height: 36px;
+    border: 2px solid var(--color-borders-light);
+    border-radius: 4px;
+    cursor: pointer;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    padding: 0;
+    background: none;
+    transition: all 0.2s ease;
+}
+
+.color-input:hover {
+    border-color: var(--color-borders-medium);
+    transform: scale(1.05);
+}
+
+.color-input:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--color-primary-light);
+}
+
+/* Native color picker styling */
+input[type="color"].color-input::-webkit-color-swatch-wrapper {
+    padding: 2px;
+}
+
+input[type="color"].color-input::-webkit-color-swatch {
+    border: none;
+    border-radius: 2px;
+}
+
+input[type="color"].color-input::-moz-color-swatch {
+    border: none;
+    border-radius: 2px;
+}
+
+/* Theme preview section */
+.theme-preview-section {
+    background: var(--color-backgrounds-main);
+    border: 1px solid var(--color-borders-light);
+    transition: all 0.3s ease;
+}
+
+/* Update comment styles to use theme variables */
+.comment {
+    background: var(--color-backgrounds-secondary);
+    border: 1px solid var(--color-borders-light);
+    padding: 1rem;
+    border-radius: 0.5rem;
+    transition: all 0.2s ease;
+}
+
+.comment:hover {
+    background: var(--color-backgrounds-hover);
+    border-color: var(--color-borders-medium);
+}
+
+.comment-author {
+    color: var(--color-text-primary);
+    font-weight: 600;
+}
+
+.comment-meta {
+    color: var(--color-text-secondary);
+    font-size: 0.875rem;
+}
+
+.comment-content {
+    color: var(--color-text-primary);
+    margin: 0.5rem 0;
+}
+
+/* =====================================================
+   PRINT STYLES
+   ===================================================== */
+@media print {
+    .comment-actions,
+    .moderation-panel,
+    .notification,
+    .btn {
+        display: none !important;
+    }
+    
+    .comment-content {
+        box-shadow: none;
+        border: 1px solid #000;
+    }
+}
+
+/* =====================================================
+   ANALYTICS PANEL - MOBILE FIRST
+   ===================================================== */
+.analytics-panel {
+    padding: var(--spacing-base);
+}
+
+.analytics-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-xl);
+    padding-bottom: var(--spacing-lg);
+    border-bottom: 1px solid var(--color-borders-light);
+}
+
+.analytics-title {
+    font-size: clamp(1.25rem, 2vw, 1.5rem);
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.controls-section {
+    display: flex;
+    gap: var(--spacing-lg);
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-xl);
+    padding: var(--spacing-lg);
+    background: var(--color-backgrounds-secondary);
+    border-radius: var(--radius-base);
+}
+
+.timeframe-selector {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+.timeframe-selector .btn {
+    min-width: 80px;
+}
+
+.date-selector-container {
+    padding: var(--spacing-sm);
+    background: var(--color-backgrounds-main);
+    border: 1px solid var(--color-borders-medium);
+    border-radius: var(--radius-base);
+    box-shadow: var(--shadow-sm);
+}
+
+.date-selector {
+    background: transparent;
+    border: none;
+    padding: var(--spacing-sm) var(--spacing-base);
+    outline: none;
+    font-size: var(--font-size-base);
+    color: var(--color-text-primary);
+    cursor: pointer;
+    min-width: 120px;
+    transition: all 0.2s ease;
+}
+
+.date-selector:hover {
+    background: var(--color-backgrounds-hover);
+}
+
+.date-selector:focus {
+    outline: 2px solid var(--color-primary-light);
+    outline-offset: -2px;
+}
+
+.loading-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-base);
+    padding: var(--spacing-xl);
+    min-height: 400px;
+}
+
+.loading-text {
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-base);
+}
+
+.bubble-chart-container {
+    background: var(--color-background);
+    border-radius: var(--radius-base);
+    padding: var(--spacing-base);
+    min-height: 600px;
+    overflow: hidden;
+}
+
+.bubble circle {
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+.bubble circle:hover {
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
+}
+
+.bubble-tooltip {
+    position: absolute;
+    padding: var(--spacing-sm);
+    background: var(--color-surface-dark);
+    color: var(--color-text-inverse);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-sm);
+    pointer-events: none;
+    box-shadow: var(--shadow-lg);
+}
+
+.chart-info {
+    display: flex;
+    justify-content: space-between;
+    margin-top: var(--spacing-base);
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+    .controls-section {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .timeframe-selector {
+        justify-content: space-between;
+    }
+    
+    .bubble-chart-container {
+        min-height: 400px;
+    }
+}
