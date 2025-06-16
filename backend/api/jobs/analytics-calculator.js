@@ -31,18 +31,21 @@ class AnalyticsCalculator {
         
         const result = await this.pool.query(query, [yesterday, endDate]);
         
+        const pages = result.rows.map(row => ({
+            pageId: row.page_id,
+            pageName: `Page ${row.page_id}`,
+            url: `#page-${row.page_id}`,
+            commentCount: parseInt(row.comment_count)
+        }));
+        
         const data = {
-            pages: result.rows.map(row => ({
-                pageId: row.page_id,
-                pageName: `Page ${row.page_id}`,
-                url: `#page-${row.page_id}`,
-                commentCount: parseInt(row.comment_count)
-            })),
+            pages: pages,
             period: {
                 start: yesterday.toISOString(),
                 end: endDate.toISOString()
             },
-            date: yesterday.toISOString().split('T')[0]
+            date: yesterday.toISOString().split('T')[0],
+            totalComments: pages.reduce((sum, page) => sum + page.commentCount, 0)
         };
         
         // Store with absolute date as key for easier management
@@ -318,18 +321,21 @@ class AnalyticsCalculator {
         
         const result = await this.pool.query(query, [startDate, endDate]);
         
+        const pages = result.rows.map(row => ({
+            pageId: row.page_id,
+            pageName: `Page ${row.page_id}`,
+            url: `#page-${row.page_id}`,
+            commentCount: parseInt(row.comment_count)
+        }));
+        
         const data = {
-            pages: result.rows.map(row => ({
-                pageId: row.page_id,
-                pageName: `Page ${row.page_id}`,
-                url: `#page-${row.page_id}`,
-                commentCount: parseInt(row.comment_count)
-            })),
+            pages: pages,
             period: {
                 start: startDate.toISOString(),
                 end: endDate.toISOString()
             },
-            date: startDate.toISOString().split('T')[0]
+            date: startDate.toISOString().split('T')[0],
+            totalComments: pages.reduce((sum, page) => sum + page.commentCount, 0)
         };
         
         await this.pool.query(`

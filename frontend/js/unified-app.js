@@ -245,6 +245,8 @@ function unifiedApp() {
         analyticsTimeframe: 'day',
         analyticsDateIndex: 0,
         analyticsLoading: false,
+        periodSummaryData: null,
+        selectedPeriodDate: null,
         
         // Setup app on load
         async init() {
@@ -1876,31 +1878,94 @@ function unifiedApp() {
         async loadAnalyticsData() {
             this.analyticsLoading = true;
             try {
-                const params = new URLSearchParams({
-                    period: this.analyticsTimeframe,
-                    index: this.analyticsDateIndex
-                });
-                
-                const response = await fetch(`${API_URL}/api/analytics/activity-data?${params}`, {
-                    headers: getAuthHeaders()
-                });
-                
-                const data = await response.json();
-                if (data.success) {
-                    this.bubbleChartData = data;
-                    // Ensure the analytics panel is visible before rendering
-                    this.$nextTick(() => {
-                        // Additional delay to ensure DOM is ready
-                        setTimeout(() => {
-                            this.renderBubbleChart();
-                        }, 50);
+                // For 90-day view, just load single period
+                if (this.analyticsTimeframe === 'quarter') {
+                    const params = new URLSearchParams({
+                        period: 'quarter',
+                        index: 0
                     });
+                    
+                    const response = await fetch(`${API_URL}/api/analytics/activity-data?${params}`, {
+                        headers: getAuthHeaders()
+                    });
+                    
+                    const data = await response.json();
+                    if (data.success) {
+                        this.bubbleChartData = data;
+                        this.$nextTick(() => {
+                            setTimeout(() => {
+                                this.renderBubbleChart();
+                            }, 50);
+                        });
+                    }
+                } else {
+                    // For day/week/month, load period summary for bar chart
+                    await this.loadPeriodSummary();
+                    
+                    // Load data for selected period or most recent
+                    const targetDate = this.selectedPeriodDate || (this.periodSummaryData && this.periodSummaryData[this.periodSummaryData.length - 1]?.date);
+                    if (targetDate) {
+                        await this.loadAnalyticsForDate(targetDate);
+                    }
                 }
             } catch (error) {
                 console.error('Error loading analytics:', error);
                 this.showNotification('Failed to load analytics data', 'error');
             } finally {
                 this.analyticsLoading = false;
+            }
+        },
+        
+        async loadPeriodSummary() {
+            const count = this.analyticsTimeframe === 'day' ? 24 : 
+                         this.analyticsTimeframe === 'week' ? 12 : 3;
+            
+            const response = await fetch(`${API_URL}/api/analytics/period-summary?period=${this.analyticsTimeframe}&count=${count}`, {
+                headers: getAuthHeaders()
+            });
+            
+            const data = await response.json();
+            if (data.success) {
+                this.periodSummaryData = data.data;
+                this.$nextTick(() => {
+                    this.renderBarChart();
+                });
+            }
+        },
+        
+        async loadAnalyticsForDate(date) {
+            // Calculate index based on date
+            const today = new Date();
+            const targetDate = new Date(date);
+            const daysDiff = Math.floor((today - targetDate) / (1000 * 60 * 60 * 24));
+            
+            let index = 0;
+            if (this.analyticsTimeframe === 'day') {
+                index = daysDiff - 1;
+            } else if (this.analyticsTimeframe === 'week') {
+                index = Math.floor(daysDiff / 7);
+            } else if (this.analyticsTimeframe === 'month') {
+                index = Math.floor(daysDiff / 30);
+            }
+            
+            const params = new URLSearchParams({
+                period: this.analyticsTimeframe,
+                index: Math.max(0, index)
+            });
+            
+            const response = await fetch(`${API_URL}/api/analytics/activity-data?${params}`, {
+                headers: getAuthHeaders()
+            });
+            
+            const data = await response.json();
+            if (data.success) {
+                this.bubbleChartData = data;
+                this.selectedPeriodDate = date;
+                this.$nextTick(() => {
+                    setTimeout(() => {
+                        this.renderBubbleChart();
+                    }, 50);
+                });
             }
         },
         
@@ -2018,6 +2083,118 @@ function unifiedApp() {
             simulation.on('tick', () => {
                 bubbles.attr('transform', d => `translate(${d.x},${d.y})`);
             });
+        },
+        
+        renderBarChart() {
+            const container = document.getElementById('bar-chart-container');
+            if (!container || !this.periodSummaryData || this.periodSummaryData.length === 0) return;
+            
+            // Clear existing chart
+            d3.select(container).selectAll('*').remove();
+            
+            const margin = { top: 20, right: 20, bottom: 60, left: 50 };
+            const width = container.clientWidth - margin.left - margin.right;
+            const height = 200 - margin.top - margin.bottom;
+            
+            const svg = d3.select(container)
+                .append('svg')
+                .attr('width', width + margin.left + margin.right)
+                .attr('height', height + margin.top + margin.bottom);
+            
+            const g = svg.append('g')
+                .attr('transform', `translate(${margin.left},${margin.top})`);
+            
+            // Scales
+            const xScale = d3.scaleBand()
+                .domain(this.periodSummaryData.map(d => d.date))
+                .range([0, width])
+                .padding(0.1);
+            
+            const yScale = d3.scaleLinear()
+                .domain([0, d3.max(this.periodSummaryData, d => d.totalComments)])
+                .nice()
+                .range([height, 0]);
+            
+            // X axis
+            const xAxis = g.append('g')
+                .attr('transform', `translate(0,${height})`)
+                .attr('class', 'axis')
+                .call(d3.axisBottom(xScale)
+                    .tickFormat(d => {
+                        const date = new Date(d);
+                        if (this.analyticsTimeframe === 'day') {
+                            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                        } else if (this.analyticsTimeframe === 'week') {
+                            return `Week of ${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+                        } else {
+                            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                        }
+                    }));
+            
+            // Rotate x-axis labels for better readability
+            xAxis.selectAll('text')
+                .style('text-anchor', 'end')
+                .attr('dx', '-.8em')
+                .attr('dy', '.15em')
+                .attr('transform', 'rotate(-45)');
+            
+            // Y axis
+            g.append('g')
+                .attr('class', 'axis')
+                .call(d3.axisLeft(yScale).ticks(5));
+            
+            // Y axis label
+            g.append('text')
+                .attr('class', 'axis-label')
+                .attr('transform', 'rotate(-90)')
+                .attr('y', 0 - margin.left)
+                .attr('x', 0 - (height / 2))
+                .attr('dy', '1em')
+                .style('text-anchor', 'middle')
+                .text('Total Comments');
+            
+            // Bars
+            const bars = g.selectAll('.bar')
+                .data(this.periodSummaryData)
+                .enter()
+                .append('rect')
+                .attr('class', d => `bar ${d.date === this.selectedPeriodDate ? 'selected' : ''}`)
+                .attr('x', d => xScale(d.date))
+                .attr('width', xScale.bandwidth())
+                .attr('y', d => yScale(d.totalComments))
+                .attr('height', d => height - yScale(d.totalComments))
+                .attr('fill', 'var(--color-primary)')
+                .on('click', (event, d) => {
+                    this.loadAnalyticsForDate(d.date);
+                    // Update selected state
+                    d3.selectAll('.bar').classed('selected', false);
+                    d3.select(event.target).classed('selected', true);
+                })
+                .on('mouseenter', function(event, d) {
+                    // Tooltip
+                    const tooltip = d3.select('body').append('div')
+                        .attr('class', 'bubble-tooltip')
+                        .style('opacity', 0);
+                    
+                    tooltip.transition()
+                        .duration(200)
+                        .style('opacity', .9);
+                    
+                    tooltip.html(`Total Comments: ${d.totalComments}`)
+                        .style('left', (event.pageX + 10) + 'px')
+                        .style('top', (event.pageY - 28) + 'px');
+                })
+                .on('mouseleave', function() {
+                    d3.selectAll('.bubble-tooltip').remove();
+                });
+            
+            // Animate bars on load
+            bars.attr('y', height)
+                .attr('height', 0)
+                .transition()
+                .duration(500)
+                .attr('y', d => yScale(d.totalComments))
+                .attr('height', d => height - yScale(d.totalComments));
         },
         
         exportBubbleChart() {

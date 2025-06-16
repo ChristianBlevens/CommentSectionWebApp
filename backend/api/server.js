@@ -2656,6 +2656,66 @@ app.get('/api/analytics/activity-data', authenticateUser, requireModerator, asyn
     }
 });
 
+// Analytics data for bar chart - fetch multiple periods
+app.get('/api/analytics/period-summary', authenticateUser, requireModerator, async (req, res) => {
+    try {
+        const { period = 'day', count = 24 } = req.query;
+        const limit = Math.min(parseInt(count), 90); // Max 90 items
+        
+        let query;
+        if (period === 'day') {
+            // Get last N days
+            query = `
+                SELECT period_date, data
+                FROM analytics_cache
+                WHERE period_type = 'day'
+                  AND period_date >= CURRENT_DATE - INTERVAL '${limit + 1} days'
+                ORDER BY period_date DESC
+                LIMIT ${limit}
+            `;
+        } else if (period === 'week') {
+            // Get last N weeks (rolling 7-day periods)
+            query = `
+                SELECT period_date, data
+                FROM analytics_cache
+                WHERE period_type = 'week'
+                  AND period_date >= CURRENT_DATE - INTERVAL '${(limit * 7) + 1} days'
+                ORDER BY period_date DESC
+                LIMIT ${limit}
+            `;
+        } else if (period === 'month') {
+            // Get last N months (rolling 30-day periods)
+            query = `
+                SELECT period_date, data
+                FROM analytics_cache
+                WHERE period_type = 'month'
+                  AND period_date >= CURRENT_DATE - INTERVAL '${(limit * 30) + 1} days'
+                ORDER BY period_date DESC
+                LIMIT ${limit}
+            `;
+        } else {
+            return res.status(400).json({ error: 'Invalid period type' });
+        }
+        
+        const result = await pgPool.query(query);
+        
+        const summaryData = result.rows.map(row => ({
+            date: row.period_date,
+            totalComments: row.data?.totalComments || 0,
+            periodType: period
+        })).reverse(); // Reverse to get chronological order
+        
+        res.json({
+            success: true,
+            period,
+            data: summaryData
+        });
+    } catch (error) {
+        console.error('Error fetching period summary:', error);
+        res.status(500).json({ error: 'Failed to fetch analytics summary' });
+    }
+});
+
 app.use((req, res) => {
     res.status(404).json({ error: 'Endpoint not found' });
 });

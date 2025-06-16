@@ -97,7 +97,7 @@
                                 class="btn-base moderation-tab">
                             <i class="fas fa-history mr-2"></i>Logs
                         </button>
-                        <button @click="activeTab = 'analytics'; analyticsTab = true; loadAnalyticsData()" 
+                        <button @click="activeTab = 'analytics'; analyticsTab = true; selectedPeriodDate = null; loadAnalyticsData()" 
                                 :class="{'active': activeTab === 'analytics'}"
                                 class="btn-base moderation-tab">
                             <i class="fas fa-chart-line mr-2"></i>Analytics
@@ -812,49 +812,26 @@
                     
                     <div class="controls-section">
                         <div class="timeframe-selector">
-                            <button @click="analyticsTimeframe = 'day'; analyticsDateIndex = 0; loadAnalyticsData()" 
+                            <button @click="analyticsTimeframe = 'day'; analyticsDateIndex = 0; selectedPeriodDate = null; loadAnalyticsData()" 
                                     :class="{'btn-primary': analyticsTimeframe === 'day', 'btn-secondary': analyticsTimeframe !== 'day'}"
                                     class="btn btn-base">
                                 Daily
                             </button>
-                            <button @click="analyticsTimeframe = 'week'; analyticsDateIndex = 0; loadAnalyticsData()" 
+                            <button @click="analyticsTimeframe = 'week'; analyticsDateIndex = 0; selectedPeriodDate = null; loadAnalyticsData()" 
                                     :class="{'btn-primary': analyticsTimeframe === 'week', 'btn-secondary': analyticsTimeframe !== 'week'}"
                                     class="btn btn-base">
                                 Weekly
                             </button>
-                            <button @click="analyticsTimeframe = 'month'; analyticsDateIndex = 0; loadAnalyticsData()" 
+                            <button @click="analyticsTimeframe = 'month'; analyticsDateIndex = 0; selectedPeriodDate = null; loadAnalyticsData()" 
                                     :class="{'btn-primary': analyticsTimeframe === 'month', 'btn-secondary': analyticsTimeframe !== 'month'}"
                                     class="btn btn-base">
                                 Monthly
                             </button>
-                            <button @click="analyticsTimeframe = 'quarter'; analyticsDateIndex = 0; loadAnalyticsData()" 
+                            <button @click="analyticsTimeframe = 'quarter'; analyticsDateIndex = 0; selectedPeriodDate = null; loadAnalyticsData()" 
                                     :class="{'btn-primary': analyticsTimeframe === 'quarter', 'btn-secondary': analyticsTimeframe !== 'quarter'}"
                                     class="btn btn-base">
                                 90 Days
                             </button>
-                        </div>
-                        
-                        <div class="date-selector-container">
-                            <select @change="loadAnalyticsData()" x-model="analyticsDateIndex" class="form-select date-selector">
-                                <template x-if="analyticsTimeframe === 'day'">
-                                    <template x-for="i in 24" :key="i">
-                                        <option :value="i-1" x-text="i === 1 ? 'Yesterday' : i === 2 ? '2 days ago' : `${i} days ago`"></option>
-                                    </template>
-                                </template>
-                                <template x-if="analyticsTimeframe === 'week'">
-                                    <template x-for="i in 12" :key="i">
-                                        <option :value="i-1" x-text="i === 1 ? 'Last 7 days' : `${i} weeks ago`"></option>
-                                    </template>
-                                </template>
-                                <template x-if="analyticsTimeframe === 'month'">
-                                    <template x-for="i in 3" :key="i">
-                                        <option :value="i-1" x-text="i === 1 ? 'Last 30 days' : `${i * 30} days ago`"></option>
-                                    </template>
-                                </template>
-                                <template x-if="analyticsTimeframe === 'quarter'">
-                                    <option value="0">Last 90 days</option>
-                                </template>
-                            </select>
                         </div>
                     </div>
                     
@@ -868,6 +845,12 @@
                     <div class="chart-info" x-show="bubbleChartData && !analyticsLoading">
                         <span>Showing top 50 pages by comment activity</span>
                         <span x-text="bubbleChartData?.generatedAt ? `Data from: ${new Date(bubbleChartData.generatedAt).toLocaleString()}` : ''"></span>
+                    </div>
+                    
+                    <!-- Bar Chart for Time Period Selection -->
+                    <div x-show="analyticsTimeframe !== 'quarter' && !analyticsLoading" class="bar-chart-section mt-4">
+                        <h4 class="text-lg font-medium mb-3">Total Comments by Period</h4>
+                        <div id="bar-chart-container" class="bar-chart-container"></div>
                     </div>
                 </div>
 
