@@ -1928,24 +1928,26 @@ function unifiedApp() {
                 .domain([0.1, 0.3, 0.5, 0.8].map(d => d * maxCount))
                 .range(['var(--color-primary)', 'var(--color-success)', 'var(--color-warning)', 'var(--color-danger)', 'var(--color-danger)']);
             
-            const simulation = d3.forceSimulation(data.map(d => ({
+            const nodes = data.map(d => ({
                 ...d,
                 radius: radiusScale(d.commentCount),
                 x: width / 2,
                 y: height / 2
-            })))
+            }));
+            
+            const simulation = d3.forceSimulation(nodes)
                 .force('charge', d3.forceManyBody().strength(5))
                 .force('center', d3.forceCenter(width / 2, height / 2))
                 .force('collision', d3.forceCollide().radius(d => d.radius + padding));
             
             const bubbles = svg.selectAll('.bubble')
-                .data(data)
+                .data(nodes)
                 .enter()
                 .append('g')
                 .attr('class', 'bubble');
             
             bubbles.append('circle')
-                .attr('r', d => radiusScale(d.commentCount))
+                .attr('r', d => d.radius)
                 .style('fill', d => colorScale(d.commentCount))
                 .style('stroke', 'var(--color-background)')
                 .style('stroke-width', '2px')
@@ -1955,7 +1957,7 @@ function unifiedApp() {
                     d3.select(this)
                         .transition()
                         .duration(200)
-                        .attr('r', radiusScale(d.commentCount) * 1.2);
+                        .attr('r', d.radius * 1.2);
                     
                     // Show tooltip
                     const tooltip = d3.select('body').append('div')
@@ -1978,7 +1980,7 @@ function unifiedApp() {
                     d3.select(this)
                         .transition()
                         .duration(200)
-                        .attr('r', radiusScale(d.commentCount));
+                        .attr('r', d.radius);
                     
                     d3.selectAll('.bubble-tooltip').remove();
                 })
