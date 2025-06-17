@@ -305,6 +305,43 @@ function unifiedApp() {
                     }
                 }, 250); // Debounce resize events
             });
+            
+            // Iframe communication setup
+            const sendHeightToParent = () => {
+                const height = Math.max(
+                    document.body.scrollHeight,
+                    document.body.offsetHeight,
+                    document.documentElement.scrollHeight,
+                    document.documentElement.offsetHeight
+                );
+
+                window.parent.postMessage({
+                    type: 'resize',
+                    height: height,
+                    frameId: new URLSearchParams(window.location.search).get('pageId')
+                }, '*');
+            };
+
+            // Send height on load
+            window.addEventListener('load', sendHeightToParent);
+            
+            // Send height on DOM changes
+            const observer = new MutationObserver(sendHeightToParent);
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true,
+                attributes: true
+            });
+
+            // Send height on window resize
+            window.addEventListener('resize', sendHeightToParent);
+
+            // Listen for height requests
+            window.addEventListener('message', (event) => {
+                if (event.data && (event.data.type === 'getHeight' || event.data.action === 'requestHeight')) {
+                    sendHeightToParent();
+                }
+            });
         },
         
         // Fetch unread warnings
