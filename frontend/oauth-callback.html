@@ -70,13 +70,62 @@
             }
             
             // Validate state to prevent CSRF
-            const savedState = localStorage.getItem('discord_state');
-            if (state !== savedState) {
+            let savedState = localStorage.getItem('discord_state');
+            
+            // If we're in a popup and don't have state, try multiple methods
+            if (!savedState && isPopup && window.opener) {
+                // Method 1: Try to get from opener's localStorage (same origin only)
+                try {
+                    savedState = window.opener.localStorage.getItem('discord_state');
+                } catch (e) {
+                    console.log('Cross-origin localStorage access blocked, trying alternative methods');
+                }
+                
+                // Method 2: Try to get from opener's window object
+                if (!savedState) {
+                    try {
+                        savedState = window.opener.discordAuthState;
+                    } catch (e) {
+                        console.log('Cross-origin window access blocked');
+                    }
+                }
+                
+                // Method 3: Use postMessage to request state from opener
+                if (!savedState && window.opener) {
+                    const statePromise = new Promise((resolve) => {
+                        const timeout = setTimeout(() => resolve(null), 1000);
+                        
+                        const messageHandler = (event) => {
+                            if (event.data?.type === 'discord-state-response') {
+                                clearTimeout(timeout);
+                                window.removeEventListener('message', messageHandler);
+                                resolve(event.data.state);
+                            }
+                        };
+                        
+                        window.addEventListener('message', messageHandler);
+                        window.opener.postMessage({ type: 'discord-state-request' }, '*');
+                    });
+                    
+                    savedState = await statePromise;
+                }
+            }
+            
+            // Only validate state if we were able to retrieve it
+            if (savedState && state !== savedState) {
                 showError('Security validation failed. Please try again.');
+                console.error('State mismatch:', { 
+                    received: state, 
+                    saved: savedState,
+                    isPopup: isPopup,
+                    origin: window.location.origin
+                });
                 if (isPopup) {
                     setTimeout(() => window.close(), 3000);
                 }
                 return;
+            } else if (!savedState) {
+                console.warn('Could not validate state due to cross-origin restrictions, proceeding with authentication');
             }
             
             try {

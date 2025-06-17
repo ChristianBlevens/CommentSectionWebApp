@@ -56,6 +56,10 @@ const Auth = {
     signInWithDiscord() {
         const state = Math.random().toString(36).substring(7);
         localStorage.setItem('discord_state', state);
+        
+        // Store state globally for iframe scenarios
+        window.discordAuthState = state;
+        
         const clientId = CONFIG.discordClientId;
         const redirectUri = encodeURIComponent(CONFIG.discordRedirectUri);
         const scope = 'identify';
@@ -66,11 +70,29 @@ const Auth = {
         const left = (window.screen.width - width) / 2;
         const top = (window.screen.height - height) / 2;
         
-        window.open(
+        const authWindow = window.open(
             discordAuthUrl,
             'discord-auth',
             `width=${width},height=${height},left=${left},top=${top}`
         );
+        
+        // Set up message handler for state requests from popup
+        const messageHandler = (event) => {
+            if (event.data?.type === 'discord-state-request' && event.origin === window.location.origin) {
+                event.source.postMessage({ 
+                    type: 'discord-state-response', 
+                    state: state 
+                }, event.origin);
+            }
+        };
+        
+        window.addEventListener('message', messageHandler);
+        
+        // Clean up handler after 5 minutes
+        setTimeout(() => {
+            window.removeEventListener('message', messageHandler);
+            delete window.discordAuthState;
+        }, 300000);
     },
 
     // Logout user
