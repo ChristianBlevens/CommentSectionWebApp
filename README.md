@@ -7,32 +7,55 @@ A **production-ready** comment system with Discord OAuth authentication, AI-powe
 - **🔐 Discord OAuth Authentication** - No passwords, secure login through Discord
 - **🤖 AI-Powered Moderation** - Natural language processing detects spam, toxicity, and inappropriate content
 - **💬 Rich Text Support** - Markdown formatting with image and video embeds
-- **👍 Voting System** - Like/dislike comments with real-time updates
+- **👍 Voting System** - Like/dislike comments
 - **🛡️ Advanced Security** - HTTPS only, rate limiting, CSRF protection, SQL injection prevention
 - **👮 Moderation Tools** - Report system, user banning, moderator dashboard
 - **📱 Responsive Design** - Works on all devices
 - **🚀 High Performance** - Redis caching, PostgreSQL with optimized indexes
-- **🔄 Real-time Updates** - Comments appear instantly
+- **📊 Analytics Dashboard** - Activity tracking with visual charts and data export
+- **🎨 Theme Customization** - Customizable colors and presets
+- **🤖 Discord Bot** - Mention notifications via Discord DMs
 - **📊 Trust System** - User reputation scoring based on behavior
 
 ## Table of Contents
-1. [Deployment Options](#1-deployment-options)
-2. [Prerequisites Installation](#2-prerequisites-installation)
-3. [VPS Setup (Optional)](#3-vps-setup-optional)
-4. [Domain Setup](#4-domain-setup)
-5. [Discord OAuth Setup](#5-discord-oauth-setup)
-6. [Download and Configure Project](#6-download-and-configure-project)
-7. [SSL/TLS Certificate Setup](#7-ssltls-certificate-setup)
-8. [Initial Deployment](#8-initial-deployment)
-9. [Testing the Application](#9-testing-the-application)
-10. [Using as an iFrame](#10-using-as-an-iframe)
-11. [Maintenance and Troubleshooting](#11-maintenance-and-troubleshooting)
-12. [Project Architecture](#12-project-architecture)
-13. [File Reference](#13-file-reference)
+1. [Quick Start - Basic Embedding](#quick-start---basic-embedding)
+2. [Deployment Options](#2-deployment-options)
+3. [Prerequisites Installation](#3-prerequisites-installation)
+4. [VPS Setup (Optional)](#4-vps-setup-optional)
+5. [Domain Setup](#5-domain-setup)
+6. [Discord OAuth Setup](#6-discord-oauth-setup)
+7. [Download and Configure Project](#7-download-and-configure-project)
+8. [SSL/TLS Certificate Setup](#8-ssltls-certificate-setup)
+9. [Initial Deployment](#9-initial-deployment)
+10. [Testing the Application](#10-testing-the-application)
+11. [Using as an iFrame](#11-using-as-an-iframe)
+12. [Maintenance and Troubleshooting](#12-maintenance-and-troubleshooting)
+13. [Feature Overview](#13-feature-overview)
+14. [Detailed Feature Guide](#14-detailed-feature-guide)
+15. [Project Architecture](#15-project-architecture)
+16. [File Reference](#16-file-reference)
 
 ---
 
-## 1. Deployment Options
+## Quick Start - Basic Embedding
+
+If you already have the comment system deployed, embedding it on your website is simple:
+
+```html
+<iframe 
+    src="https://yourdomain.com/?pageId=YOUR_PAGE_ID"
+    style="width: 100%; min-height: 600px; border: none;"
+    frameborder="0">
+</iframe>
+```
+
+Replace `YOUR_PAGE_ID` with a unique identifier for each page (e.g., `blog-post-123`, `product-456`).
+
+For automatic height adjustment and advanced features, see the [Advanced Embedding Guide](#11-using-as-an-iframe) below.
+
+---
+
+## 2. Deployment Options
 
 You can deploy this comment system in several ways:
 
@@ -56,14 +79,14 @@ You can deploy this comment system in several ways:
 > **Note**: This guide includes specific instructions for VPS deployment. We use Hetzner Cloud as an example due to its competitive pricing and reliability, but the steps work with any VPS provider.
 
 ### C. Choose Your Path
-- **For Home Server**: Continue with [Prerequisites Installation](#2-prerequisites-installation)
-- **For VPS Deployment**: Skip to [VPS Setup](#3-vps-setup-optional)
+- **For Home Server**: Continue with [Prerequisites Installation](#3-prerequisites-installation)
+- **For VPS Deployment**: Skip to [VPS Setup](#4-vps-setup-optional)
 
 ---
 
-## 2. Prerequisites Installation
+## 3. Prerequisites Installation
 
-> **VPS Users**: Skip to [VPS Setup](#3-vps-setup-optional)
+> **VPS Users**: Skip to [VPS Setup](#4-vps-setup-optional)
 
 ### For Windows
 
@@ -206,9 +229,9 @@ curl ifconfig.me
 
 ---
 
-## 3. VPS Setup (Optional)
+## 4. VPS Setup (Optional)
 
-> Continue to [Domain Setup](#4-domain-setup) if you are using a home server.
+> Continue to [Domain Setup](#5-domain-setup) if you are using a home server.
 
 This section covers deploying on a VPS. We'll use Hetzner Cloud as an example, but these steps apply to any VPS provider.
 
@@ -283,7 +306,7 @@ ufw status
 
 ---
 
-## 4. Domain Setup
+## 5. Domain Setup
 
 You have two options for domain setup:
 
@@ -375,7 +398,7 @@ Should return your public IP address.
 
 ---
 
-## 5. Discord OAuth Setup
+## 6. Discord OAuth Setup
 
 ### A. Create Discord Application
 
@@ -407,7 +430,7 @@ Should return your public IP address.
 
 ---
 
-## 6. Download and Configure Project
+## 7. Download and Configure Project
 
 ### A. Get the Project Files
 
@@ -439,64 +462,26 @@ cd comment-app
 
 > **Note**: Git was already installed during VPS setup. If you're using a private repository, you may need to configure SSH keys or use HTTPS with credentials.
 
-### B. Configure Environment Files
+### B. Configure Environment
 
-> **Note**: The project includes all necessary scripts and directories. You only need to:
-> 1. Copy the example environment files
-> 2. Configure them with your settings
-> 3. Copy your SSL certificates to `docker/ssl/`
+> **Note**: The project now uses a single `.env` file in the root directory. All services read from this central configuration.
 
-1. **Copy Example Files**
+1. **Copy the Environment Template**
 
    **Windows (PowerShell):**
    ```powershell
    copy .env.example .env
-   copy backend\api\.env.example backend\api\.env
-   copy backend\moderation\.env.example backend\moderation\.env
    ```
 
    **Linux/VPS:**
    ```bash
    cp .env.example .env
-   cp backend/api/.env.example backend/api/.env
-   cp backend/moderation/.env.example backend/moderation/.env
    ```
 
-2. **Edit Root .env File**
+2. **Edit the Environment File**
 
    **Windows:** `notepad .env`  
    **Linux:** `nano .env` or `vim .env`
-
-   Update these values:
-   ```env
-   # PostgreSQL Database Configuration
-   DB_USER=postgres
-   DB_NAME=comments_db
-   DB_PASSWORD=ChangeThisSecurePassword123!
-
-   # Moderation Database Configuration
-   MODERATION_DB_NAME=moderation_db
-
-   # SSL/TLS Configuration
-   SSL_DOMAIN=mycomments.duckdns.org
-
-   # Docker Compose project name
-   COMPOSE_PROJECT_NAME=comment-system
-   ```
-
-3. **Copy and Edit the Environment File**
-
-   **Windows:** 
-   ```cmd
-   copy .env.example .env
-   notepad .env
-   ```
-   
-   **Linux:** 
-   ```bash
-   cp .env.example .env
-   nano .env
-   ```
 
    Update all the values in your `.env` file:
    ```env
@@ -509,11 +494,15 @@ cd comment-app
    # API Service Configuration
    API_PORT=3000
    MODERATION_PORT=3001
+   BOT_PORT=3002
 
    # Discord OAuth Configuration
    DISCORD_CLIENT_ID=your-discord-client-id-here
    DISCORD_CLIENT_SECRET=your-discord-client-secret-here
    DISCORD_REDIRECT_URI=https://mycomments.duckdns.org/oauth-callback.html
+
+   # Discord Bot Configuration (Optional)
+   DISCORD_BOT_TOKEN=your-discord-bot-token-here
 
    # Initial Moderators (Discord user IDs, comma-separated)
    INITIAL_MODERATORS=discord_123456789012345678
@@ -531,19 +520,25 @@ cd comment-app
    SSL_DOMAIN=mycomments.duckdns.org
    ```
 
+3. **Important Notes**:
+   - Use strong, unique passwords for database and admin key
+   - Discord credentials come from your Discord Developer Portal application
+   - SSL_DOMAIN should match your actual domain or DuckDNS subdomain
+   - ALLOWED_ORIGINS should include all domains that will embed the comment system
+
 ### C. Set File Permissions (Linux/VPS Only)
 
 ```bash
-# Secure the environment files
-chmod 600 .env backend/api/.env backend/moderation/.env
+# Secure the environment file
+chmod 600 .env
 
 # Make scripts executable
-chmod +x docker/*.sh
+chmod +x docker/*.sh docker/ssl/*.sh
 ```
 
 ---
 
-## 7. SSL/TLS Certificate Setup
+## 8. SSL/TLS Certificate Setup
 
 ### For Windows Home Server
 
@@ -706,7 +701,7 @@ dnf install certbot -y
 
 ---
 
-## 8. Initial Deployment
+## 9. Initial Deployment
 
 ### A. Start the Application
 
@@ -759,7 +754,7 @@ docker-compose logs frontend
 
 ---
 
-## 9. Testing the Application
+## 10. Testing the Application
 
 ### A. Test Comment System Features
 
@@ -815,7 +810,7 @@ docker-compose logs frontend
 
 ---
 
-## 10. Using as an iFrame
+## 11. Using as an iFrame
 
 ### A. Basic iFrame Implementation
 
@@ -930,9 +925,20 @@ add_shortcode('comments', 'comments_iframe_shortcode');
 // Usage: [comments pageid="custom-id" height="800"]
 ```
 
+### E. Advanced Iframe Embedding
+
+For automatic height adjustment and advanced integration features, see [COMMENT_IFRAME_EMBEDDING_GUIDE.md](COMMENT_IFRAME_EMBEDDING_GUIDE.md).
+
+The guide covers:
+- Automatic iframe resizing
+- Multiple comment sections per page
+- Dynamic iframe creation
+- Message-based communication
+- Responsive design considerations
+
 ---
 
-## 11. Maintenance and Troubleshooting
+## 12. Maintenance and Troubleshooting
 
 ### A. Daily Maintenance
 
@@ -1121,7 +1127,454 @@ apt install fail2ban -y
 
 ---
 
-## 12. Project Architecture
+## 13. Feature Overview
+
+The comment system provides a comprehensive set of features organized into a unified interface.
+
+### Core Features
+
+**Comment System**
+- Threaded discussions with nested replies
+- Rich Markdown formatting with live preview
+- Like/dislike voting system
+- 5000 character limit per comment
+- @mentions with Discord notifications
+- Real-time search and sorting options
+
+**User Management**
+- Discord OAuth authentication
+- Automatic trust score calculation (0.1-1.0)
+- User profiles with avatars and statistics
+- Session management with Redis
+
+**Content Moderation**
+- AI-powered spam and toxicity detection
+- Configurable blocked word filtering
+- Duplicate comment prevention
+- Smart filtering based on trust scores
+
+### Moderation Interface
+
+All moderation features are accessible through tabs at the top of the page (moderators only):
+
+**Comments Tab** - Main comment interface with inline moderation actions
+**Reports Tab** - Review and resolve user reports
+**Users Tab** - Manage users, moderators, bans, and warnings
+**Logs Tab** - Audit trail of all moderation actions
+**Analytics Tab** - Visual activity tracking and statistics
+**Theme Tab** - Color customization (super moderators only)
+
+### Advanced Features
+
+**Ban System**
+- Predefined durations from 30 minutes to permanent
+- Custom duration support
+- Automatic expiration
+- Ban reasons displayed to users
+
+**Warning System**
+- Issue warnings that users must acknowledge
+- Warning history tracking
+- Affects user trust scores
+
+**Analytics Dashboard**
+- Daily, weekly, monthly, and quarterly views
+- Interactive bubble and bar charts
+- Export visualizations as PNG
+- Activity tracking by page
+
+**Theme Customization**
+- Customizable colors for all UI elements
+- Six preset themes
+- Import/export theme configurations
+- Live preview with undo support
+
+### Security & Performance
+
+**Security**
+- HTTPS enforcement with TLS 1.2/1.3
+- Rate limiting (5 auth attempts, 100 requests per 15 min)
+- XSS and CSRF protection
+- SQL injection prevention
+
+**Performance**
+- Redis caching layer
+- PostgreSQL with optimized indexes
+- Lazy loading for images
+- Batch comment loading (50 per page)
+
+### Integration Options
+
+**Iframe Embedding**
+- Simple iframe integration
+- Automatic height adjustment
+- Page isolation with pageId parameter
+- Cross-domain messaging support
+
+**Discord Bot**
+- Mention notifications via DM
+- User preference controls
+- Deep linking to comments
+
+For detailed usage instructions, see the [Detailed Feature Guide](#14-detailed-feature-guide) section.
+
+---
+
+## 14. Detailed Feature Guide
+
+This section provides an in-depth walkthrough of every feature and tab in the unified comment system interface.
+
+### Main Interface Overview
+
+The comment system is a single-page application (index.html) with all features integrated into a tabbed interface. For moderators, a tab bar appears at the top with six sections: Comments, Reports, Users, Logs, Analytics, and Theme (super moderators only).
+
+### Sign In Process
+1. **Discord OAuth Button**: Located in the top-right corner, click "Sign in with Discord"
+2. **Authorization**: Discord requests permission to share your username and avatar
+3. **Session Creation**: After authorization, you're logged in for SESSION_DURATION (default 24 hours)
+4. **User Display**: Your Discord avatar and username appear in the top-right corner
+
+### Comments Tab (Default View)
+
+This is the main comment interface visible to all users.
+
+#### Comment Form
+1. **Text Area**: 
+   - 5000 character limit with live character counter
+   - Auto-resizes as you type
+   - Supports multiline input with Enter key
+   - Submit with Ctrl+Enter or click "Post Comment"
+
+2. **Markdown Toolbar**:
+   - **Bold (B)**: Wraps selected text with `**text**`
+   - **Italic (I)**: Wraps selected text with `*text*`
+   - **Strikethrough (S)**: Wraps selected text with `~~text~~`
+   - **Header (H)**: Adds `## ` prefix for headers
+   - **Spoiler**: Wraps text with `||spoiler||` tags
+   - **Image**: Inserts `![alt text](url)` template
+   - **Video**: Inserts `[Video Title](youtube-url)` template
+
+3. **Markdown Preview**:
+   - Toggle "Preview" to see rendered output
+   - Supports all GitHub-flavored markdown
+   - YouTube links auto-embed as players
+   - Images display inline with max width constraints
+
+#### Comment Display
+1. **Comment Structure**:
+   - Avatar on the left (from Discord)
+   - Username with "@" prefix
+   - Relative timestamp ("2 hours ago")
+   - Formatted comment content
+   - Action buttons below
+
+2. **Voting System**:
+   - **Thumbs Up**: Like a comment (highlighted when clicked)
+   - **Thumbs Down**: Dislike a comment (highlighted when clicked)
+   - Vote counts display next to each button
+   - Can change vote or remove by clicking again
+   - Cannot vote on your own comments
+
+3. **Comment Actions Menu** (three dots):
+   - **Reply**: Opens reply form indented under parent
+   - **Report**: Opens report dialog with reason input
+   - **Delete** (own comments only): Removes comment with confirmation
+   - **Focus**: Isolates comment thread, hiding others
+
+4. **@Mentions**:
+   - Type "@" to trigger username search
+   - Dropdown shows matching users with avatars
+   - Use arrow keys to navigate, Enter to select
+   - Creates clickable mention in format `@username`
+   - Mentioned users receive Discord DM if enabled
+
+5. **Search and Sort**:
+   - **Search Bar**: Filter comments by keywords with AND/OR/NOT modes
+   - **Sort Options**: Top (most liked), Popular, Newest, Oldest
+   - **Results Update**: Real-time as you type
+
+#### Moderator Actions in Comments
+For moderators, each comment has additional options:
+- **Delete**: Remove any comment with reason logging
+- **Warn User**: Issue warning visible on next login
+- **Ban User**: Quick ban with duration selection
+
+### Reports Tab (Moderators Only)
+
+Accessed by clicking the "Reports" tab in the moderation panel. Shows a red badge with count if there are pending reports.
+
+#### Report List View
+1. **Report Cards**:
+   - **Reporter Info**: Who reported and when
+   - **Reported User**: Username and avatar of the reported user
+   - **Report Reason**: User-provided explanation
+   - **Comment Preview**: First 200 characters of reported comment
+   - **Page Context**: Which pageId the comment belongs to
+
+2. **Report Actions**:
+   - **Jump to Comment**: Switches to Comments tab and scrolls to the reported comment
+   - **Delete Comment**: Removes comment and creates moderation log entry
+   - **Warn User**: Issues warning that user must acknowledge on next visit
+   - **Ban User**: Opens ban modal with duration options
+   - **Dismiss**: Marks report as resolved without action
+
+3. **Filtering Options**:
+   - **Page Filter**: Dropdown to show reports from specific pages only
+   - **Status Filter**: Toggle between pending and resolved reports
+   - **Auto-refresh**: Updates every 30 seconds
+
+### Users Tab (Moderators Only)
+
+Comprehensive user management interface accessed via the "Users" tab.
+
+#### User Filters
+Toggle buttons at the top to filter users:
+- **All**: Complete user list
+- **Moderators**: Users with moderator privileges
+- **Banned**: Currently banned users with expiration times
+- **Warned**: Users with active warnings
+- **Reported**: Users who have been reported
+
+#### User List
+1. **User Cards** display:
+   - Discord avatar and username
+   - Join date (first comment)
+   - Trust score with color indicator:
+     - Green (0.8-1.0): Trusted user
+     - Yellow (0.4-0.7): Average user  
+     - Red (0.1-0.3): Problematic user
+   - Statistics: Total comments, reports made, reports received
+
+2. **Expandable Details** (click user card):
+   - **Recent Comments**: Last 10 comments with timestamps and content
+   - **Warnings**: Full history with reasons, dates, and issuing moderator
+   - **Reports**: All reports involving this user (made by or against)
+   - **Ban History**: Past and current bans with durations and reasons
+
+3. **User Actions**:
+   - **Toggle Moderator**: Grant or revoke moderator status
+   - **Warn User**: Issue new warning with custom message
+   - **Ban User**: Opens ban modal with duration selection
+   - **View Comments**: Switches to Comments tab filtered by this user
+
+#### Search Functionality
+- Real-time search by username
+- Results update as you type
+- Maintains current filter while searching
+
+### Logs Tab (Moderators Only)
+
+Audit trail of all moderation actions, accessed via the "Logs" tab.
+
+#### Log Display
+Each entry shows:
+- **Timestamp**: Exact date and time of action
+- **Moderator**: Who performed the action (avatar + username)
+- **Action Type**: Delete comment, warn user, ban user, unban, toggle moderator
+- **Target User**: Who was affected (avatar + username)
+- **Details**: Reason provided, duration for bans
+- **Page Context**: Where the action occurred (if applicable)
+
+#### Filtering Options
+1. **By Moderator**: Dropdown to see specific moderator's actions
+2. **By Action Type**: Filter by delete, warn, ban, etc.
+3. **Date Range**: Last 24 hours, 7 days, 30 days, or all time
+4. **Search**: Find logs by username or reason text
+
+#### Pagination
+- 50 entries per page
+- Navigation controls at bottom
+- Total count displayed
+
+### Analytics Tab (Moderators Only)
+
+Data visualization dashboard accessed via the "Analytics" tab.
+
+#### Period Selection
+Buttons at the top to choose time range:
+- **Daily**: Last 24 hours
+- **Weekly**: Last 7 days (default)
+- **Monthly**: Last 30 days
+- **Quarterly**: Last 90 days
+
+#### Visualizations
+
+1. **Bubble Chart** (Top Section):
+   - Each bubble represents a page with comments
+   - Bubble size indicates comment volume
+   - Color intensity shows activity level
+   - Hover to see exact numbers
+   - Shows top 50 most active pages
+   - Click bubble to filter Comments tab by that page
+
+2. **Bar Chart** (Bottom Section):
+   - X-axis: Dates in selected period
+   - Y-axis: Number of comments
+   - Hover for exact count per day
+   - Visual representation of comment trends
+   - Helps identify peak activity times
+
+3. **Summary Statistics**:
+   - Total comments in period
+   - Number of unique pages with activity
+   - Average comments per day
+   - Most active day highlighted
+
+#### Export Features
+- **Download as PNG**: Saves current visualization
+- **Refresh**: Updates with latest data
+- **Auto-refresh**: Every 5 minutes
+
+### Theme Tab (Super Moderators Only)
+
+Only visible to super moderators (initial moderators defined in INITIAL_MODERATORS).
+
+#### Color Customization Interface
+
+1. **Color Categories**:
+   - **Primary Colors**: 
+     - Main: Buttons, links, active states
+     - Hover: Hover states for interactive elements
+     - Light: Backgrounds and subtle accents
+   - **Background Colors**:
+     - Main: Primary page background
+     - Secondary: Card and component backgrounds
+   - **Text Colors**:
+     - Main: Primary text
+     - Secondary: Subdued text, timestamps
+     - Muted: Disabled states
+     - Inverse: Text on colored backgrounds
+   - **Border Colors**:
+     - Main: Primary borders
+     - Light: Subtle dividers
+
+2. **Color Input Methods**:
+   - **Color Picker**: Click color swatch to open system picker
+   - **Hex Input**: Type or paste hex codes directly
+   - **Eye Dropper**: Pick colors from anywhere on screen (Chrome/Edge only)
+   - **Copy/Paste**: Right-click to copy, paste between swatches
+
+3. **Theme Presets**:
+   Quick-apply buttons for predefined themes:
+   - **Light**: Default bright theme
+   - **Dark**: Dark mode with high contrast
+   - **Blue**: Professional blue color scheme
+   - **Green**: Calm green palette
+   - **Purple**: Modern purple theme
+   - **Orange**: Warm orange tones
+
+4. **Actions**:
+   - **Save**: Stores current colors to database
+   - **Apply**: Preview without saving  
+   - **Reset**: Revert to last saved state
+   - **Export**: Download as CSS file
+   - **Import**: Upload CSS theme file
+
+### Additional Features
+
+#### Ban System
+1. **Ban Modal Options**:
+   - **Duration**: 5 minutes, 1 hour, 24 hours, 7 days, 30 days, or permanent
+   - **Reason**: Required text explanation
+   - **Ban History**: Shows previous bans for context
+   - **IP Tracking**: Optional IP-based ban enforcement
+
+2. **Ban Effects**:
+   - Cannot post comments
+   - Cannot vote on comments
+   - Cannot report comments
+   - Sees ban notification with expiration
+   - Can still read comments
+
+#### Warning System
+1. **Warning Creation**:
+   - Custom message from moderator
+   - No expiration (manual acknowledgment required)
+   - Logged in moderation history
+
+2. **Warning Display**:
+   - Modal popup on user's next visit
+   - Must click "Acknowledge" to proceed
+   - Warning text preserved in user history
+
+#### Trust Score System
+1. **Score Calculation**:
+   - Positive factors: Upvoted comments, age of account, comment frequency
+   - Negative factors: Reports received, deleted comments, bans
+   - Range: 0.0 (worst) to 1.0 (best)
+   - Updates hourly
+
+2. **Score Effects**:
+   - High (>0.8): Bypass some spam filters
+   - Medium (0.4-0.8): Normal filtering
+   - Low (<0.4): Additional scrutiny, rate limits
+
+#### Rate Limiting
+1. **Comment Posting**:
+   - 1 comment per 30 seconds (new users)
+   - 1 comment per 10 seconds (trusted users)
+   - Burst allowance for active discussions
+
+2. **Voting**:
+   - 10 votes per minute
+   - Cannot repeatedly vote/unvote same comment
+
+3. **Reporting**:
+   - 5 reports per hour
+   - Duplicate reports ignored
+
+#### Notification Preferences
+Users can control Discord notifications:
+1. **Mention Notifications**: Toggle on/off
+2. **Reply Notifications**: Toggle on/off
+3. **Weekly Digest**: Summary of activity
+4. **DM Privacy**: Allow/block bot DMs
+
+### Embedding Features
+
+#### Basic Embedding
+```html
+<iframe src="https://yourdomain.com/?pageId=unique-id"></iframe>
+```
+
+#### Advanced Embedding
+With automatic height adjustment:
+```html
+<iframe id="comments" src="https://yourdomain.com/?pageId=unique-id"></iframe>
+<script>
+window.addEventListener('message', (e) => {
+  if (e.data.type === 'resize' && e.data.frameId === 'comments') {
+    document.getElementById('comments').height = e.data.height;
+  }
+});
+</script>
+```
+
+#### URL Parameters
+- `pageId`: Required, unique identifier for comment thread
+- `theme`: Optional, "light" or "dark" (overrides saved theme)
+- `sort`: Optional, "newest", "oldest", "top", "popular"
+- `highlight`: Optional, comment ID to highlight on load
+
+### Keyboard Shortcuts
+- **Ctrl+Enter**: Submit comment
+- **Ctrl+B**: Bold selected text
+- **Ctrl+I**: Italic selected text
+- **Ctrl+K**: Insert link
+- **Escape**: Close modals
+- **@**: Trigger mention dropdown
+- **/**: Focus search box
+
+### Mobile Experience
+- Responsive design adapts to screen size
+- Touch-friendly buttons and inputs
+- Swipe gestures for navigation
+- Optimized modals for small screens
+- Virtual keyboard awareness
+
+---
+
+## 15. Project Architecture
 
 ### System Components
 
@@ -1327,17 +1780,16 @@ docker-compose exec backend-api sh
 - HTTPS: 443
 - Backend API: 3000 (internal)
 - Moderation: 3001 (internal)
-- PostgreSQL: 5432 (internal)
+- Discord Bot: 3002 (internal)
+- PostgreSQL: 5432, 5433 (internal)
 - Redis: 6379 (internal)
 
 ---
 
-## 13. File Reference
+## 16. File Reference
 
 ### Files You Need to Create
 - `.env` (copy from `.env.example`)
-- `backend/api/.env` (copy from `backend/api/.env.example`)
-- `backend/moderation/.env` (copy from `backend/moderation/.env.example`)
 - SSL certificates in `docker/ssl/`:
   - `fullchain.pem`
   - `privkey.pem`
@@ -1349,7 +1801,7 @@ docker-compose exec backend-api sh
 Main orchestration file that defines all services (databases, Redis, backend APIs, frontend). Controls how containers interact, sets up networks, volumes, and environment variables.
 
 **`/.env.example`**  
-Template for root environment variables. Contains Docker-level configurations like database passwords, SSL domain, and project name. Copy to `.env` for use.
+Template for all environment variables. Contains complete configuration for all services including database passwords, Discord OAuth credentials, API ports, and SSL domain. Copy to `.env` and update with your values.
 
 **`/.gitignore`**  
 Git ignore file that prevents sensitive files from being tracked. Ignores:
@@ -1360,6 +1812,9 @@ Git ignore file that prevents sensitive files from being tracked. Ignores:
 
 **`/LICENSE`**  
 MIT License file allowing free use, modification, and distribution of this software.
+
+**`/COMMENT_IFRAME_EMBEDDING_GUIDE.md`**  
+Comprehensive guide for embedding the comment system in websites with advanced features like automatic resizing and message-based communication.
 
 ### Frontend Files
 
@@ -1378,6 +1833,17 @@ Discord OAuth callback handler. Receives the authorization code from Discord, ex
 **`/frontend/iframe-test.html`**  
 Example page showing how to embed the comment system in an iframe. Useful for testing iframe integration before adding to your actual website.
 
+**`/frontend/css/main.css`**  
+Custom styles complementing Tailwind CSS framework.
+
+**`/frontend/js/`**
+- `unified-app.js` - Main application logic with Alpine.js
+- `auth.js` - Discord OAuth authentication handling
+- `ban-handler.js` - Ban management functionality
+- `config.js` - Client-side configuration
+- `markdown.js` - Markdown processing and preview
+- `utils.js` - Utility functions and helpers
+
 ### Backend API Files
 
 **`/backend/api/server.js`**  
@@ -1389,8 +1855,11 @@ Defines API dependencies including Express, PostgreSQL client, Redis client, and
 **`/backend/api/Dockerfile`**  
 Container configuration for the API service. Based on Node.js Alpine image, installs dependencies, and runs as non-root user for security.
 
-**`/backend/api/.env.example`**  
-Template for API environment variables. Contains Discord OAuth credentials, database connections, session secrets, and rate limiting configuration. Critical for API operation.
+**`/backend/api/jobs/analytics-calculator.js`**  
+Analytics data aggregation job that runs daily to calculate comment statistics.
+
+**`/backend/api/recalculate-analytics.js`**  
+Manual script for recalculating analytics data when needed.
 
 ### Moderation Service Files
 
@@ -1403,10 +1872,26 @@ Defines moderation service dependencies including Express, PostgreSQL client, an
 **`/backend/moderation/Dockerfile`**  
 Container configuration for moderation service. Similar to API Dockerfile but for the moderation microservice.
 
-**`/backend/moderation/.env.example`**  
-Template for moderation environment variables. Contains database connection, admin key for management endpoints, and moderation thresholds.
+### Discord Bot Files
 
-### Docker Configuration Files
+**`/backend/discord-bot/notification-bot.js`**  
+Discord bot service that sends mention notifications to users via Discord DMs.
+
+**`/backend/discord-bot/package.json`**  
+Bot dependencies including Discord.js and database clients.
+
+### Docker Files
+
+**`/Dockerfile.api`**  
+Container configuration for the main API server. Based on Node.js Alpine for minimal size.
+
+**`/Dockerfile.moderation`**  
+Container configuration for the AI moderation service. Includes Natural language processing dependencies.
+
+**`/Dockerfile.discord-bot`**  
+Container configuration for the Discord notification bot. Handles mention notifications.
+
+### Nginx Configuration
 
 **`/docker/nginx.conf`**  
 Nginx web server configuration. Handles HTTPS/TLS termination, HTTP to HTTPS redirects, rate limiting, security headers, and reverse proxying to backend services. Core of the security infrastructure.
@@ -1458,6 +1943,9 @@ Node.js moderation microservice. Analyzes content before it's posted to prevent 
 **`frontend`**  
 Nginx web server serving static files and handling TLS. Entry point for all HTTP/HTTPS traffic.
 
+**`discord-bot`**  
+Discord bot service for sending mention notifications to users.
+
 ### Docker Volumes
 
 **`postgres-comments-data`**  
@@ -1469,30 +1957,35 @@ Persistent storage for moderation database. Keeps blocked words and moderation h
 **`redis-data`**  
 Persistent storage for Redis. Maintains sessions and cache between restarts.
 
-**`nginx-ssl`**  
-Stores SSL certificates and DH parameters. Can be used instead of bind mount for certificates.
-
 ### Database Tables
 
 **Comments Database (`comments_db`):**
-- `users` - Discord user profiles
-- `comments` - Comment content with threading
+- `users` - Discord user profiles and permissions
+- `comments` - Comment content with threading support
 - `votes` - Like/dislike records
 - `reports` - User reports on comments
 - `report_rate_limits` - Prevents report spam
+- `bans` - Ban records with expiration
+- `warnings` - User warnings issued by moderators
+- `user_notification_preferences` - Discord notification settings
+- `analytics_daily` - Daily comment statistics
+- `moderator_actions` - Moderation action logs
+- `theme_config` - Custom theme settings
 
 **Moderation Database (`moderation_db`):**
-- `moderation_logs` - All content moderation decisions
-- `blocked_words` - Prohibited terms with severity levels
+- `moderation_logs` - AI moderation decisions
+- `blocked_words` - Prohibited terms with severity
 - `trusted_users` - User reputation tracking
+- `comment_hashes` - Duplicate detection
 
 ### Key Configuration Files
 
-**Environment Variables** (`.env` files):
+**Environment Variables** (`.env` file):
 - Database passwords (must match across services)
 - Discord OAuth credentials (from Discord Developer Portal)
+- Discord Bot token (for mention notifications)
 - SSL domain name (your DuckDNS or actual domain)
-- Session secrets (random 64+ character strings)
+- Initial moderators (Discord user IDs)
 - Admin keys (for moderation management)
 
 **Critical Security Files:**
