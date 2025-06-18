@@ -1038,7 +1038,7 @@
             </div>
 
             <!-- Focus mode header -->
-            <div x-show="focusedCommentId" class="rounded-lg shadow-md p-4 mb-4" :style="'background-color: ' + themeColors.backgrounds.main">
+            <div x-show="focusedCommentId" x-cloak class="rounded-lg shadow-md p-4 mb-4" :style="'background-color: ' + themeColors.backgrounds.main">
                 <div class="flex justify-between items-center">
                     <h2 class="text-lg font-semibold">Viewing replies</h2>
                     <button @click="exitFocusMode()" class="btn-base btn btn-secondary text-sm">

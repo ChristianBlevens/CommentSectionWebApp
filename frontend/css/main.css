@@ -1,3 +1,6 @@
+/* Alpine.js x-cloak directive to prevent FOUC */
+[x-cloak] { display: none !important; }
+
 /* =====================================================
    COLOR CONFIGURATION SYSTEM
    ===================================================== */
