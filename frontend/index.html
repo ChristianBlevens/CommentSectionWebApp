@@ -7,13 +7,13 @@
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="css/main.css" rel="stylesheet">
-    <link href="/theme.css" rel="stylesheet">
+	<link href="/theme.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.12.0/dist/cdn.min.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/markdown-it/dist/markdown-it.min.js"></script>
     <script src="https://d3js.org/d3.v7.min.js"></script>
 </head>
 <body class="page-container">
-    <div x-data="unifiedApp()" x-init="init()" class="container mx-auto px-4 max-w-6xl">
+    <div x-data="CommentSectionApp()" x-init="init()" class="container mx-auto px-4 max-w-6xl">
         <!-- Ban Notification -->
         <div x-show="banNotification && banNotification.show" 
              x-transition:enter="transition ease-out duration-300"
