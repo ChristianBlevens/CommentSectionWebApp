@@ -310,7 +310,7 @@ function unifiedApp() {
             await Moderation.banUserWithDuration(this, userId, userName, duration);
         },
         
-        showCustomBanInput(userId, userName) {
+        async showCustomBanInput(userId, userName) {
             await Moderation.showCustomBanInput(this, userId, userName);
         },
         
