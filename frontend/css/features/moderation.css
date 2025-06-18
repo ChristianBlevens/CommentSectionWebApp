@@ -1,0 +1,239 @@
+/* =====================================================
+   MODERATION PANEL FEATURES
+   ===================================================== */
+
+/* Moderation panel */
+#moderation-panel {
+    margin-bottom: var(--space-lg);
+}
+
+/* Report action buttons */
+.report-action-btn {
+    padding: 0.375rem 0.75rem;
+    font-size: var(--text-xs);
+    font-weight: 500;
+    border-radius: var(--radius-md);
+    transition: all var(--transition-fast);
+}
+
+.report-action-btn.view {
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    color: var(--text-primary);
+}
+
+.report-action-btn.view:hover {
+    background-color: var(--bg-hover);
+    border-color: var(--border-medium);
+}
+
+.report-action-btn.delete {
+    background-color: var(--error);
+    border: 1px solid var(--error);
+    color: var(--text-inverse);
+}
+
+.report-action-btn.delete:hover {
+    background-color: var(--error-hover);
+    border-color: var(--error-hover);
+}
+
+.report-action-btn.warn {
+    background-color: var(--warning);
+    border: 1px solid var(--warning);
+    color: var(--text-inverse);
+}
+
+.report-action-btn.warn:hover {
+    background-color: var(--warning-hover);
+    border-color: var(--warning-hover);
+}
+
+.report-action-btn.ban {
+    background-color: var(--ban);
+    border: 1px solid var(--ban);
+    color: var(--text-inverse);
+}
+
+.report-action-btn.ban:hover {
+    background-color: var(--ban-hover);
+    border-color: var(--ban-hover);
+}
+
+.report-action-btn.dismiss {
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    color: var(--text-secondary);
+}
+
+.report-action-btn.dismiss:hover {
+    background-color: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+/* Moderation logs */
+.moderation-logs-container {
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.moderator-name {
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+.action-type {
+    font-weight: 500;
+    margin: 0 0.25rem;
+}
+
+.target-name {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.arrow {
+    color: var(--text-muted);
+    margin: 0 0.25rem;
+}
+
+/* User management */
+.user-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: var(--space-md);
+    text-align: center;
+}
+
+.user-stat-value {
+    display: block;
+    font-size: var(--text-xl);
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.user-stat-label {
+    display: block;
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* User expanded content */
+.user-expanded-content {
+    margin-top: var(--space-md);
+    padding-top: var(--space-md);
+    border-top: 1px solid var(--border-light);
+}
+
+.user-expanded-section {
+    margin-bottom: var(--space-lg);
+}
+
+.user-expanded-section:last-child {
+    margin-bottom: 0;
+}
+
+.user-expanded-section h4 {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    margin-bottom: var(--space-sm);
+    color: var(--text-primary);
+}
+
+.user-comment-item,
+.user-warning-item,
+.user-report-item,
+.user-ban-item {
+    padding: var(--space-sm);
+    background-color: var(--bg-main);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-xs);
+}
+
+.user-comment-item:last-child,
+.user-warning-item:last-child,
+.user-report-item:last-child,
+.user-ban-item:last-child {
+    margin-bottom: 0;
+}
+
+/* Moderation actions feedback */
+.mod-action-success {
+    position: fixed;
+    bottom: var(--space-lg);
+    right: var(--space-lg);
+    padding: var(--space-md);
+    background-color: var(--success);
+    color: var(--text-inverse);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    animation: slide-in-up 0.3s ease-out;
+    z-index: var(--z-notification);
+}
+
+@keyframes slide-in-up {
+    from {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Moderator activity indicator */
+.moderator-activity {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0.75rem;
+    background-color: var(--primary-light);
+    color: var(--primary-color);
+    border-radius: var(--radius-full);
+    font-size: var(--text-xs);
+    font-weight: 500;
+}
+
+.moderator-activity::before {
+    content: "";
+    width: 0.5rem;
+    height: 0.5rem;
+    background-color: var(--success);
+    border-radius: var(--radius-full);
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+/* Filters and controls */
+.moderation-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-md);
+    margin-bottom: var(--space-lg);
+}
+
+.moderation-controls > * {
+    flex: 1;
+    min-width: 200px;
+}
+
+@media (max-width: 768px) {
+    .moderation-controls {
+        flex-direction: column;
+    }
+    
+    .moderation-controls > * {
+        width: 100%;
+    }
+}

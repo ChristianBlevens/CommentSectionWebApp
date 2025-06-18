@@ -1,0 +1,182 @@
+/* =====================================================
+   ANIMATIONS & TRANSITIONS
+   ===================================================== */
+
+/* Transition utilities */
+.transition-none { transition: none; }
+.transition-all { transition: all var(--transition-normal); }
+.transition-colors { transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast); }
+.transition-opacity { transition: opacity var(--transition-normal); }
+.transition-transform { transition: transform var(--transition-normal); }
+
+/* Animation utilities */
+.animate-spin {
+    animation: spin 1s linear infinite;
+}
+
+.animate-pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.animate-bounce {
+    animation: bounce 1s infinite;
+}
+
+.animate-fade-in {
+    animation: fade-in var(--transition-normal) ease-out;
+}
+
+.animate-fade-out {
+    animation: fade-out var(--transition-normal) ease-out;
+}
+
+.animate-slide-in-up {
+    animation: slide-in-up var(--transition-normal) ease-out;
+}
+
+.animate-slide-in-down {
+    animation: slide-in-down var(--transition-normal) ease-out;
+}
+
+.animate-slide-in-left {
+    animation: slide-in-left var(--transition-normal) ease-out;
+}
+
+.animate-slide-in-right {
+    animation: slide-in-right var(--transition-normal) ease-out;
+}
+
+/* Keyframes */
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+@keyframes bounce {
+    0%, 100% {
+        transform: translateY(-25%);
+        animation-timing-function: cubic-bezier(0.8, 0, 1, 1);
+    }
+    50% {
+        transform: translateY(0);
+        animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
+    }
+}
+
+@keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes fade-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+@keyframes slide-in-up {
+    from {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slide-in-down {
+    from {
+        transform: translateY(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slide-in-left {
+    from {
+        transform: translateX(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slide-in-right {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Hover effects */
+.hover\:scale-105:hover {
+    transform: scale(1.05);
+}
+
+.hover\:scale-110:hover {
+    transform: scale(1.1);
+}
+
+.hover\:rotate-180:hover {
+    transform: rotate(180deg);
+}
+
+/* Active effects */
+.active\:scale-95:active {
+    transform: scale(0.95);
+}
+
+/* Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* Page transitions */
+.page-enter {
+    opacity: 0;
+    transform: translateY(1rem);
+}
+
+.page-enter-active {
+    transition: all var(--transition-slow);
+}
+
+.page-enter-to {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.page-leave {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.page-leave-active {
+    transition: all var(--transition-slow);
+}
+
+.page-leave-to {
+    opacity: 0;
+    transform: translateY(-1rem);
+}

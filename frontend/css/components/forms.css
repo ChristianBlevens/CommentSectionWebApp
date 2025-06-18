@@ -1,0 +1,254 @@
+/* =====================================================
+   FORM COMPONENTS
+   ===================================================== */
+
+/* Base textarea styles */
+.textarea-base {
+    width: 100%;
+    min-height: var(--input-height);
+    padding: var(--space-sm) var(--space-md);
+    font-size: var(--text-sm);
+    line-height: 1.5;
+    color: var(--text-primary);
+    background-color: var(--bg-main);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    resize: vertical;
+    transition: border-color var(--transition-fast);
+}
+
+.textarea-base:hover:not(:disabled) {
+    border-color: var(--border-medium);
+}
+
+.textarea-base:focus {
+    outline: none;
+    border-color: var(--border-focus);
+    box-shadow: 0 0 0 3px var(--primary-light);
+}
+
+.textarea-base:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: var(--bg-secondary);
+}
+
+.textarea-base::placeholder {
+    color: var(--text-muted);
+}
+
+/* Comment textarea */
+.comment-textarea {
+    min-height: 5rem;
+    font-size: var(--text-base);
+}
+
+/* Input fields */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="search"],
+input[type="url"],
+input[type="tel"],
+input[type="number"],
+input[type="date"],
+input[type="time"],
+input[type="color"] {
+    width: 100%;
+    height: var(--input-height);
+    padding: var(--space-sm) var(--space-md);
+    font-size: var(--text-sm);
+    line-height: 1.5;
+    color: var(--text-primary);
+    background-color: var(--bg-main);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    transition: border-color var(--transition-fast);
+}
+
+input[type="text"]:hover:not(:disabled),
+input[type="email"]:hover:not(:disabled),
+input[type="password"]:hover:not(:disabled),
+input[type="search"]:hover:not(:disabled),
+input[type="url"]:hover:not(:disabled),
+input[type="tel"]:hover:not(:disabled),
+input[type="number"]:hover:not(:disabled),
+input[type="date"]:hover:not(:disabled),
+input[type="time"]:hover:not(:disabled) {
+    border-color: var(--border-medium);
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="search"]:focus,
+input[type="url"]:focus,
+input[type="tel"]:focus,
+input[type="number"]:focus,
+input[type="date"]:focus,
+input[type="time"]:focus {
+    outline: none;
+    border-color: var(--border-focus);
+    box-shadow: 0 0 0 3px var(--primary-light);
+}
+
+/* Color input special handling */
+input[type="color"] {
+    padding: var(--space-xs);
+    cursor: pointer;
+}
+
+.color-input {
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    border: 2px solid var(--border-light);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+}
+
+.color-input:hover {
+    border-color: var(--border-medium);
+}
+
+/* Select dropdowns */
+select {
+    width: 100%;
+    height: var(--input-height);
+    padding: var(--space-sm) var(--space-md);
+    padding-right: 2.5rem;
+    font-size: var(--text-sm);
+    line-height: 1.5;
+    color: var(--text-primary);
+    background-color: var(--bg-main);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none' stroke='%236b7280'%3E%3Cpath d='M4 6L8 10L12 6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 1rem;
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    appearance: none;
+    cursor: pointer;
+    transition: border-color var(--transition-fast);
+}
+
+select:hover:not(:disabled) {
+    border-color: var(--border-medium);
+}
+
+select:focus {
+    outline: none;
+    border-color: var(--border-focus);
+    box-shadow: 0 0 0 3px var(--primary-light);
+}
+
+/* Checkbox and radio */
+input[type="checkbox"],
+input[type="radio"] {
+    width: 1rem;
+    height: 1rem;
+    margin: 0;
+    vertical-align: middle;
+    cursor: pointer;
+}
+
+/* Labels */
+label {
+    display: inline-block;
+    margin-bottom: var(--space-xs);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+/* Form groups */
+.form-group {
+    margin-bottom: var(--space-md);
+}
+
+.form-group:last-child {
+    margin-bottom: 0;
+}
+
+/* Form row */
+.form-row {
+    display: flex;
+    gap: var(--space-md);
+    margin-bottom: var(--space-md);
+}
+
+.form-row > * {
+    flex: 1;
+}
+
+/* Inline forms */
+.form-inline {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+/* Form help text */
+.form-help {
+    margin-top: var(--space-xs);
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+}
+
+/* Form validation states */
+.form-error {
+    border-color: var(--error) !important;
+}
+
+.form-error:focus {
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2) !important;
+}
+
+.form-error-message {
+    margin-top: var(--space-xs);
+    font-size: var(--text-xs);
+    color: var(--error);
+}
+
+.form-success {
+    border-color: var(--success) !important;
+}
+
+.form-success:focus {
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2) !important;
+}
+
+/* File input */
+input[type="file"] {
+    width: 100%;
+    padding: var(--space-sm);
+    font-size: var(--text-sm);
+    background-color: var(--bg-secondary);
+    border: 1px dashed var(--border-light);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+}
+
+input[type="file"]:hover {
+    border-color: var(--border-medium);
+    background-color: var(--bg-hover);
+}
+
+/* Search input with icon */
+.search-input-wrapper {
+    position: relative;
+}
+
+.search-input-wrapper input[type="search"] {
+    padding-left: 2.5rem;
+}
+
+.search-input-wrapper::before {
+    content: "🔍";
+    position: absolute;
+    left: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1rem;
+    pointer-events: none;
+}

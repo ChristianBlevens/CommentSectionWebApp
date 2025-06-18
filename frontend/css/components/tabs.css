@@ -1,0 +1,200 @@
+/* =====================================================
+   TAB COMPONENTS
+   ===================================================== */
+
+/* Tab container */
+.tabs {
+    border-bottom: 1px solid var(--border-light);
+}
+
+.tab-list {
+    display: flex;
+    margin-bottom: -1px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.tab-list::-webkit-scrollbar {
+    display: none;
+}
+
+/* Tab items */
+.tab {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: var(--space-sm) var(--space-md);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    color: var(--text-secondary);
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all var(--transition-fast);
+}
+
+.tab:hover {
+    color: var(--text-primary);
+    background-color: var(--bg-secondary);
+}
+
+.tab.active {
+    color: var(--primary-color);
+    border-bottom-color: var(--primary-color);
+}
+
+.tab:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: -2px;
+}
+
+/* Tab icons */
+.tab i {
+    font-size: 0.875rem;
+}
+
+/* Tab badges */
+.tab .notification-badge {
+    position: static;
+    margin-left: 0.25rem;
+}
+
+/* Moderation tabs specific */
+.moderation-tab {
+    position: relative;
+    padding: 0.75rem 1rem;
+    font-size: var(--text-sm);
+    font-weight: 500;
+    color: var(--text-secondary);
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.moderation-tab:hover {
+    color: var(--text-primary);
+    background-color: var(--bg-secondary);
+}
+
+.moderation-tab.active {
+    color: var(--primary-color);
+    border-bottom-color: var(--primary-color);
+}
+
+/* Tab panels */
+.tab-panel {
+    padding: var(--space-lg);
+}
+
+.tab-panel[hidden] {
+    display: none;
+}
+
+/* Vertical tabs */
+.tabs-vertical {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: var(--space-lg);
+}
+
+.tabs-vertical .tab-list {
+    flex-direction: column;
+    border-bottom: none;
+    border-right: 1px solid var(--border-light);
+    margin-bottom: 0;
+    margin-right: -1px;
+}
+
+.tabs-vertical .tab {
+    border-bottom: none;
+    border-right: 2px solid transparent;
+    justify-content: flex-start;
+}
+
+.tabs-vertical .tab.active {
+    border-right-color: var(--primary-color);
+    border-bottom-color: transparent;
+}
+
+/* Pill tabs */
+.tabs-pills .tab-list {
+    gap: var(--space-sm);
+    border-bottom: none;
+}
+
+.tabs-pills .tab {
+    border: none;
+    border-radius: var(--radius-full);
+    padding: 0.375rem 1rem;
+}
+
+.tabs-pills .tab:hover {
+    background-color: var(--bg-secondary);
+}
+
+.tabs-pills .tab.active {
+    color: var(--text-inverse);
+    background-color: var(--primary-color);
+}
+
+/* Small tabs */
+.tabs-sm .tab {
+    padding: 0.375rem 0.75rem;
+    font-size: var(--text-xs);
+}
+
+/* Large tabs */
+.tabs-lg .tab {
+    padding: 0.875rem 1.25rem;
+    font-size: var(--text-base);
+}
+
+/* Tab scroll indicators */
+.tab-scroll-left,
+.tab-scroll-right {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(to right, var(--bg-main) 0%, transparent 100%);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+    z-index: 1;
+}
+
+.tab-scroll-right {
+    right: 0;
+    background: linear-gradient(to left, var(--bg-main) 0%, transparent 100%);
+}
+
+.tab-list-scrollable .tab-scroll-left,
+.tab-list-scrollable .tab-scroll-right {
+    opacity: 1;
+}
+
+/* Mobile tabs */
+@media (max-width: 640px) {
+    .tab {
+        padding: 0.5rem 0.75rem;
+        font-size: var(--text-xs);
+    }
+    
+    .tab i {
+        font-size: 0.75rem;
+    }
+    
+    .tab-panel {
+        padding: var(--space-md);
+    }
+}
