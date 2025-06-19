@@ -121,6 +121,7 @@ const AppState = {
             selectedPeriodDate: null,
             analyticsTab: false,
             bubbleChartData: null,
+            periodSummaryData: null,
             
             // Theme
             themeLoaded: false,

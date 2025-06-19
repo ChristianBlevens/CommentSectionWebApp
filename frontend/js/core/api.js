@@ -95,7 +95,7 @@ const API = {
     // Reports API
     reports: {
         async getAll() {
-            const response = await fetch(`${API.getBaseUrl()}/api/reports`, {
+            const response = await fetch(`${API.getBaseUrl()}/api/reports?includePages=true&status=pending`, {
                 headers: API.getHeaders()
             });
             
@@ -105,7 +105,7 @@ const API = {
         },
 
         async create(commentId, reason) {
-            const response = await fetch(`${API.getBaseUrl()}/api/moderation/reports`, {
+            const response = await fetch(`${API.getBaseUrl()}/api/reports`, {
                 method: 'POST',
                 headers: API.getHeaders(),
                 body: JSON.stringify({ comment_id: commentId, reason })
@@ -190,8 +190,13 @@ const API = {
 
     // Moderation logs API
     moderationLogs: {
-        async getAll() {
-            const response = await fetch(`${API.getBaseUrl()}/api/moderation-logs`, {
+        async getAll(moderatorId = null) {
+            let url = `${API.getBaseUrl()}/api/moderation-logs?limit=25`;
+            if (moderatorId && moderatorId !== 'all') {
+                url += `&userId=${moderatorId}`;
+            }
+            
+            const response = await fetch(url, {
                 headers: API.getHeaders()
             });
             
@@ -203,13 +208,28 @@ const API = {
 
     // Analytics API
     analytics: {
-        async get(timeframe = '24h') {
-            const response = await fetch(`${API.getBaseUrl()}/api/analytics/activity-data?timeframe=${timeframe}`, {
+        async getActivityData(period, index = 0) {
+            const params = new URLSearchParams({
+                period: period,
+                index: index
+            });
+            
+            const response = await fetch(`${API.getBaseUrl()}/api/analytics/activity-data?${params}`, {
                 headers: API.getHeaders()
             });
             
             if (await API.handleAuthError(response)) return null;
             if (!response.ok) throw new Error('Failed to fetch analytics');
+            return response.json();
+        },
+        
+        async getPeriodSummary(period) {
+            const response = await fetch(`${API.getBaseUrl()}/api/analytics/period-summary?period=${period}`, {
+                headers: API.getHeaders()
+            });
+            
+            if (await API.handleAuthError(response)) return null;
+            if (!response.ok) throw new Error('Failed to fetch period summary');
             return response.json();
         }
     },

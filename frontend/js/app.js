@@ -32,9 +32,13 @@ function unifiedApp() {
             // Load initial data
             await this.loadComments();
             
-            // Load theme if super moderator
+            // Load theme editor data if super moderator
             if (AppState.hasPermission(this, 'super_moderate')) {
-                await ThemeEditor.loadTheme(this);
+                try {
+                    await ThemeEditor.loadTheme(this);
+                } catch (error) {
+                    console.log('Theme editor loading failed:', error);
+                }
             }
             
             // Setup iframe communication
@@ -284,11 +288,11 @@ function unifiedApp() {
         
         // Analytics methods
         async loadAnalytics(timeframe) {
-            await Analytics.loadAnalytics(this, timeframe);
+            await Analytics.loadAnalyticsData(this);
         },
         
         exportChart(chartId) {
-            Analytics.exportChart(chartId);
+            Analytics.exportBubbleChart(this);
         },
         
         // Dropdown methods
@@ -457,7 +461,12 @@ function unifiedApp() {
         },
         
         // Theme presets
-        themePresets: ThemeEditor.presets
+        themePresets: ThemeEditor.presets,
+        
+        // Alpine.js compatibility
+        $nextTick(callback) {
+            return this.$nextTick ? this.$nextTick(callback) : setTimeout(callback, 0);
+        }
     };
 }
 

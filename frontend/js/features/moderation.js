@@ -8,11 +8,13 @@ const Moderation = {
         try {
             const data = await API.reports.getAll();
             state.reports = data.reports || [];
-            state.totalPendingReports = state.reports.filter(r => r.status === 'pending').length;
+            state.pages = data.pages || [];
+            state.totalPendingReports = state.reports.length; // All are pending due to query
             
-            // Extract unique pages
-            const pageSet = new Set(state.reports.map(r => r.page_path));
-            state.pages = Array.from(pageSet).sort();
+            // If selectedReportsPage is not set, default to current page
+            if (state.selectedReportsPage === null) {
+                state.selectedReportsPage = state.pageId;
+            }
             
             this.filterReports(state);
             state.reportsLoaded = true;
@@ -25,22 +27,20 @@ const Moderation = {
 
     // Filter reports by page
     filterReports(state) {
-        let filtered = state.reports;
-        
-        if (state.selectedReportsPage) {
-            filtered = filtered.filter(r => r.page_path === state.selectedReportsPage);
+        if (state.selectedReportsPage && state.selectedReportsPage !== 'all') {
+            state.filteredReports = state.reports.filter(r => r.page_id === state.selectedReportsPage);
+        } else {
+            state.filteredReports = [...state.reports];
         }
-        
-        state.pageReports = filtered;
         
         // Filter pages for dropdown
         if (state.pageSearchQuery) {
             const query = state.pageSearchQuery.toLowerCase();
-            state.filteredPages = state.pages.filter(p => 
-                p.toLowerCase().includes(query)
+            state.filteredPages = state.pages.filter(page => 
+                page.page_id.toLowerCase().includes(query)
             );
         } else {
-            state.filteredPages = state.pages;
+            state.filteredPages = [...state.pages];
         }
     },
 
@@ -268,8 +268,21 @@ const Moderation = {
         
         state.loadingLogs = true;
         try {
-            const data = await API.moderationLogs.getAll();
+            const data = await API.moderationLogs.getAll(state.selectedModeratorId);
             state.moderationLogs = data.logs || [];
+            state.moderators = data.moderators || [];
+            
+            // Parse JSON details
+            state.moderationLogs.forEach(log => {
+                if (log.details && typeof log.details === 'string') {
+                    try {
+                        log.details = JSON.parse(log.details);
+                    } catch (e) {
+                        log.details = {};
+                    }
+                }
+            });
+            
             state.logsLoaded = true;
         } catch (error) {
             console.error('Error loading moderation logs:', error);

@@ -4,9 +4,9 @@ const Comments = {
     async loadComments(state) {
         state.loading = true;
         try {
-            const data = await API.comments.getAll(state.pageId);
-            state.comments = data.comments || [];
-            state.commentVotes = data.user_votes || {};
+            const flatComments = await API.comments.getAll(state.pageId);
+            state.comments = Array.isArray(flatComments) ? flatComments : [];
+            state.commentVotes = {};
             
             this.processComments(state);
             this.applySort(state);
@@ -26,15 +26,15 @@ const Comments = {
         
         // First pass: create comment map
         state.comments.forEach(comment => {
-            comment.replies = [];
+            comment.children = [];
             commentMap[comment.id] = comment;
         });
         
         // Second pass: build tree structure
         state.comments.forEach(comment => {
-            if (comment.parent_id && commentMap[comment.parent_id]) {
-                commentMap[comment.parent_id].replies.push(comment);
-            } else if (!comment.parent_id) {
+            if (comment.parentId && commentMap[comment.parentId]) {
+                commentMap[comment.parentId].children.push(comment);
+            } else if (!comment.parentId) {
                 rootComments.push(comment);
             }
         });
@@ -55,18 +55,40 @@ const Comments = {
                 return (a, b) => new Date(b.created_at) - new Date(a.created_at);
             case 'oldest':
                 return (a, b) => new Date(a.created_at) - new Date(b.created_at);
+            case 'popularity':
+                return (a, b) => {
+                    const aReplies = this.countReplies(a);
+                    const bReplies = this.countReplies(b);
+                    return bReplies - aReplies || new Date(b.created_at) - new Date(a.created_at);
+                };
             case 'likes':
             default:
-                return (a, b) => (b.like_count - b.dislike_count) - (a.like_count - a.dislike_count);
+                return (a, b) => {
+                    const aScore = (a.like_count || 0) - (a.dislike_count || 0);
+                    const bScore = (b.like_count || 0) - (b.dislike_count || 0);
+                    return bScore - aScore || new Date(b.created_at) - new Date(a.created_at);
+                };
         }
+    },
+    
+    // Count total replies recursively
+    countReplies(comment) {
+        let count = 0;
+        if (comment.children && comment.children.length > 0) {
+            count = comment.children.length;
+            comment.children.forEach(child => {
+                count += this.countReplies(child);
+            });
+        }
+        return count;
     },
 
     // Recursively sort comments and replies
     sortCommentsRecursive(comments, sortFn) {
         comments.sort(sortFn);
         comments.forEach(comment => {
-            if (comment.replies && comment.replies.length > 0) {
-                this.sortCommentsRecursive(comment.replies, sortFn);
+            if (comment.children && comment.children.length > 0) {
+                this.sortCommentsRecursive(comment.children, sortFn);
             }
         });
     },
@@ -107,13 +129,13 @@ const Comments = {
                     break;
             }
             
-            const filteredReplies = comment.replies ? 
-                this.filterCommentsRecursive(comment.replies, terms, mode) : [];
+            const filteredChildren = comment.children ? 
+                this.filterCommentsRecursive(comment.children, terms, mode) : [];
             
-            if (matches || filteredReplies.length > 0) {
+            if (matches || filteredChildren.length > 0) {
                 acc.push({
                     ...comment,
-                    replies: filteredReplies
+                    children: filteredChildren
                 });
             }
             
@@ -219,8 +241,8 @@ const Comments = {
                 if (comment.id === targetId) {
                     return [...path, comment];
                 }
-                if (comment.replies) {
-                    const found = findCommentPath(comment.replies, targetId, [...path, comment]);
+                if (comment.children) {
+                    const found = findCommentPath(comment.children, targetId, [...path, comment]);
                     if (found) return found;
                 }
             }
@@ -322,10 +344,10 @@ const Comments = {
                     ` : ''}
                 </div>
                 
-                ${comment.replies && comment.replies.length > 0 ? `
+                ${comment.children && comment.children.length > 0 ? `
                     <div class="replies">
-                        ${comment.replies.map(reply => 
-                            this.renderComment(reply, state, level + 1)
+                        ${comment.children.map(child => 
+                            this.renderComment(child, state, level + 1)
                         ).join('')}
                     </div>
                 ` : ''}

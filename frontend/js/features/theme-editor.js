@@ -35,8 +35,15 @@ const ThemeEditor = {
         try {
             const data = await API.theme.get();
             if (data && data.colors) {
-                state.themeColors = data.colors;
-                state.originalTheme = JSON.parse(JSON.stringify(data.colors));
+                // Merge loaded colors with defaults to ensure all properties exist
+                state.themeColors = {
+                    primary: data.colors.primary || state.themeColors.primary,
+                    backgrounds: data.colors.backgrounds || state.themeColors.backgrounds,
+                    text: data.colors.text || state.themeColors.text,
+                    borders: data.colors.borders || state.themeColors.borders,
+                    accents: data.colors.accents || state.themeColors.accents
+                };
+                state.originalTheme = JSON.parse(JSON.stringify(state.themeColors));
                 this.applyTheme(state.themeColors);
             }
             state.themeInitialized = true;
