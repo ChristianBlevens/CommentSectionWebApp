@@ -299,5 +299,108 @@ window.CommentInteractions = {
                 ...comment,
                 replies: this.buildCommentTree(comments, comment.id)
             }));
+    },
+    
+    // Toggle search mode
+    toggleSearchMode() {
+        const modes = ['and', 'or', 'not'];
+        const currentIndex = modes.indexOf(this.searchMode);
+        this.searchMode = modes[(currentIndex + 1) % modes.length];
+        this.filterComments();
+    },
+    
+    // Get search mode icon
+    getSearchModeIcon() {
+        switch (this.searchMode) {
+            case 'and':
+                return '∧ AND';
+            case 'or':
+                return '∨ OR';
+            case 'not':
+                return '¬ NOT';
+            default:
+                return '∧ AND';
+        }
+    },
+    
+    // Handle comment input for mentions
+    handleCommentInput() {
+        this.handleMentionInput({ target: document.getElementById('comment-input') });
+    },
+    
+    // Handle mention keydown
+    handleMentionKeydown(event) {
+        if (!this.mentionDropdown.show) return;
+        
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            this.mentionDropdown.selectedIndex = Math.min(
+                this.mentionDropdown.selectedIndex + 1,
+                this.mentionDropdown.users.length - 1
+            );
+        } else if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            this.mentionDropdown.selectedIndex = Math.max(
+                this.mentionDropdown.selectedIndex - 1,
+                -1
+            );
+        } else if (event.key === 'Enter' && this.mentionDropdown.selectedIndex >= 0) {
+            event.preventDefault();
+            const user = this.mentionDropdown.users[this.mentionDropdown.selectedIndex];
+            this.insertMention(user);
+        } else if (event.key === 'Escape') {
+            this.mentionDropdown.show = false;
+        }
+    },
+    
+    // Insert mention
+    insertMention(user) {
+        this.selectMention(user);
+    },
+    
+    // Update preview
+    updatePreview() {
+        this.commentPreview = window.MarkdownHelpers.renderMarkdown(this.newCommentText);
+    },
+    
+    // Insert markdown
+    insertMarkdown(before, after) {
+        const textarea = document.getElementById('comment-input');
+        if (!textarea) return;
+        
+        window.MarkdownHelpers.insertMarkdown(textarea, before, after);
+        this.newCommentText = textarea.value;
+        this.updatePreview();
+    },
+    
+    // Insert image
+    insertImage() {
+        const url = prompt('Enter image URL:');
+        if (url) {
+            this.insertMarkdown('![Image](', ')');
+            // Replace "Image" with the URL
+            const textarea = document.getElementById('comment-input');
+            const value = textarea.value;
+            const imageIndex = value.lastIndexOf('![Image](');
+            if (imageIndex !== -1) {
+                textarea.value = value.substring(0, imageIndex) + '![' + url + '](' + url + ')' + value.substring(imageIndex + 9);
+                this.newCommentText = textarea.value;
+                this.updatePreview();
+            }
+        }
+    },
+    
+    // Insert video
+    insertVideo() {
+        const url = prompt('Enter YouTube video URL:');
+        if (url) {
+            const videoId = window.GeneralHelpers.extractYouTubeId(url);
+            if (videoId) {
+                const embedUrl = `https://www.youtube.com/embed/${videoId}`;
+                this.insertMarkdown(`<iframe width="560" height="315" src="${embedUrl}" frameborder="0" allowfullscreen></iframe>`, '');
+            } else {
+                alert('Invalid YouTube URL');
+            }
+        }
     }
 };

@@ -45,6 +45,7 @@ function unifiedApp() {
         pages: [],
         filteredPages: [],
         showPageDropdown: false,
+        pageId: null,
         
         // User management data
         users: [],

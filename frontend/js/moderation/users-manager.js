@@ -210,5 +210,60 @@ window.UsersManager = {
         } catch (error) {
             console.error('Error unbanning user:', error);
         }
+    },
+    
+    // Get displayed comments for a user
+    getDisplayedComments(user) {
+        if (!user.comments) return [];
+        const displayCount = this.userCommentsDisplayCount[user.id] || 5;
+        return user.comments.slice(0, displayCount);
+    },
+    
+    // Get displayed warnings for a user
+    getDisplayedWarnings(user) {
+        if (!user.warnings) return [];
+        return user.warnings;
+    },
+    
+    // Check if should show load more button
+    shouldShowLoadMoreButton(user) {
+        if (!user.comments) return false;
+        const displayCount = this.userCommentsDisplayCount[user.id] || 5;
+        return user.comments.length > displayCount;
+    },
+    
+    // Load more user comments
+    loadMoreUserComments(userId) {
+        this.showMoreComments(userId);
+    },
+    
+    // Toggle user expanded state
+    toggleUserExpanded(userId) {
+        this.toggleUserExpansion(userId);
+    },
+    
+    // Delete user comment (moderator action)
+    async deleteUserComment(commentId) {
+        if (!confirm('Delete this comment as a moderator?')) return;
+        
+        const reason = prompt('Reason for deletion (optional):');
+        
+        try {
+            const url = `${API_URL}/api/comments/${commentId}?moderate=true`;
+            const body = reason ? JSON.stringify({ reason }) : undefined;
+            
+            const response = await fetch(url, {
+                method: 'DELETE',
+                headers: window.ApiClient.getAuthHeaders(),
+                body
+            });
+            
+            if (await window.ApiClient.handleAuthError(response)) return;
+            
+            // Refresh user list to show updated data
+            await this.loadUsers();
+        } catch (error) {
+            console.error('Error deleting comment:', error);
+        }
     }
 };

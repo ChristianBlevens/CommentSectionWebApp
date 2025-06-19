@@ -135,5 +135,39 @@ window.AnalyticsManager = {
         a.click();
         
         URL.revokeObjectURL(url);
+    },
+    
+    // Export bubble chart as PNG
+    exportBubbleChart() {
+        const svgElement = document.querySelector('#bubble-chart-container svg');
+        if (!svgElement) return;
+        
+        // Create a canvas element
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Get SVG data
+        const svgData = new XMLSerializer().serializeToString(svgElement);
+        const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+        const url = URL.createObjectURL(svgBlob);
+        
+        // Create an image
+        const img = new Image();
+        img.onload = () => {
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx.drawImage(img, 0, 0);
+            
+            // Download the image
+            canvas.toBlob((blob) => {
+                const a = document.createElement('a');
+                a.download = `analytics-${this.analyticsTimeframe}-${Date.now()}.png`;
+                a.href = URL.createObjectURL(blob);
+                a.click();
+            });
+            
+            URL.revokeObjectURL(url);
+        };
+        img.src = url;
     }
 };

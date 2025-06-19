@@ -68,5 +68,12 @@ window.LogsManager = {
             'remove_moderator': '👤'
         };
         return iconMap[action] || '📋';
+    },
+    
+    // Format action type with icon
+    formatActionTypeWithIcon(actionType) {
+        const icon = this.getActionIcon(actionType);
+        const text = this.formatActionType(actionType);
+        return `${icon} ${text}`;
     }
 };

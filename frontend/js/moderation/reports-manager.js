@@ -21,6 +21,10 @@ window.ReportsManager = {
         if (!this.user?.is_moderator) return;
         
         this.loadingReports = true;
+        
+        // Get current page ID
+        this.pageId = window.pageKey || document.querySelector('meta[name="page-key"]')?.content || window.location.pathname;
+        
         try {
             const response = await fetch(`${API_URL}/api/reports`, {
                 headers: window.ApiClient.getAuthHeaders()
@@ -122,5 +126,57 @@ window.ReportsManager = {
         } catch (error) {
             console.error('Error deleting comment:', error);
         }
+    },
+    
+    // Dismiss a report
+    async dismissReport(reportId) {
+        await this.resolveReport(reportId, 'dismissed');
+    },
+    
+    // Jump to comment
+    jumpToComment(commentId) {
+        const element = document.getElementById(`comment-${commentId}`);
+        if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            // Highlight the comment temporarily
+            element.classList.add('highlighted');
+            setTimeout(() => {
+                element.classList.remove('highlighted');
+            }, 3000);
+        }
+    },
+    
+    // Warn user from report
+    async warnUser(userId, userName, reportId) {
+        const reason = prompt(`Why are you warning ${userName}?`);
+        if (!reason) return;
+        
+        try {
+            const response = await fetch(`${API_URL}/api/users/${userId}/warn`, {
+                method: 'POST',
+                headers: window.ApiClient.getAuthHeaders(),
+                body: JSON.stringify({ reason })
+            });
+            
+            if (await window.ApiClient.handleAuthError(response)) return;
+            
+            // Resolve the report
+            await this.resolveReport(reportId, 'user_warned');
+            
+            alert(`${userName} has been warned.`);
+        } catch (error) {
+            console.error('Error warning user:', error);
+        }
+    },
+    
+    // Toggle ban dropdown
+    toggleBanDropdown(reportId, event) {
+        event.stopPropagation();
+        this.showBanDropdown = this.showBanDropdown === reportId ? null : reportId;
+    },
+    
+    // Filter reports
+    filterReports() {
+        this.filterReportsByPage();
     }
 };

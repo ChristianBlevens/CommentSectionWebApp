@@ -115,8 +115,8 @@ window.ThemeEditor = {
         URL.revokeObjectURL(url);
     },
     
-    // Import theme
-    async importTheme(event) {
+    // Import theme from file
+    async importThemeFromFile(event) {
         const file = event.target.files[0];
         if (!file) return;
         
@@ -137,6 +137,15 @@ window.ThemeEditor = {
         event.target.value = '';
     },
     
+    // Import theme button handler
+    importTheme() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        input.onchange = (event) => this.importThemeFromFile(event);
+        input.click();
+    },
+    
     // Undo last change
     undoColorChange() {
         if (!this.lastColorChange) return;
@@ -151,5 +160,40 @@ window.ThemeEditor = {
     openColorPicker(category, key) {
         this.selectedColorTarget = { category, key };
         // The actual color picker is handled by Alpine's x-model binding
+    },
+    
+    // Format color label
+    formatColorLabel(key) {
+        return key.split(/(?=[A-Z])/).map(word => 
+            word.charAt(0).toUpperCase() + word.slice(1)
+        ).join(' ');
+    },
+    
+    // Reset theme to default
+    resetTheme() {
+        this.applyPreset('light');
+    },
+    
+    // Update theme color
+    updateThemeColor(category, key, value) {
+        this.updateColor(category, key, value);
+    },
+    
+    // Pick color from screen
+    async pickColorFromScreen(category, key) {
+        if (!window.EyeDropper) return;
+        
+        try {
+            const eyeDropper = new window.EyeDropper();
+            const result = await eyeDropper.open();
+            this.updateColor(category, key, result.sRGBHex);
+        } catch (error) {
+            // User canceled or error occurred
+        }
+    },
+    
+    // Undo last change (alias for undoColorChange)
+    undoLastChange() {
+        this.undoColorChange();
     }
 };
