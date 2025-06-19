@@ -318,7 +318,7 @@ function unifiedApp() {
                 window.parent.postMessage({
                     type: 'resize',
                     height: height,
-                    frameId: new URLSearchParams(window.location.search).get('pageId')
+                    pageId: new URLSearchParams(window.location.search).get('pageId')
                 }, '*');
             };
 
