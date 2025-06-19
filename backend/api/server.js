@@ -634,6 +634,13 @@ const initDatabase = async () => {
             CREATE INDEX IF NOT EXISTS idx_moderation_logs_action_type ON moderation_logs(action_type);
         `);
         
+        // One-time update to set all NULL allow_discord_dms to TRUE
+        await client.query(`
+            UPDATE users 
+            SET allow_discord_dms = TRUE 
+            WHERE allow_discord_dms IS NULL
+        `);
+        
         // Create site_settings table for theme storage
         await client.query(`
             CREATE TABLE IF NOT EXISTS site_settings (
@@ -1020,7 +1027,7 @@ app.get('/api/session/validate', async (req, res) => {
         
         // Fetch user details
         const userResult = await pgPool.query(
-            'SELECT id, email, name, picture, is_moderator, is_super_moderator, is_banned FROM users WHERE id = $1',
+            'SELECT id, email, name, picture, is_moderator, is_super_moderator, is_banned, allow_discord_dms FROM users WHERE id = $1',
             [userId]
         );
         
@@ -1036,7 +1043,8 @@ app.get('/api/session/validate', async (req, res) => {
             avatar: user.picture,
             is_moderator: user.is_moderator,
             is_super_moderator: user.is_super_moderator,
-            is_banned: user.is_banned
+            is_banned: user.is_banned,
+            allow_discord_dms: user.allow_discord_dms
         });
     } catch (error) {
         console.error('Session validation error:', error);
