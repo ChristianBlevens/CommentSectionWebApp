@@ -50,27 +50,36 @@ const ThemeEditor = {
     applyTheme(colors) {
         if (!colors) return;
         
+        // Ensure all required properties exist with defaults
+        const themeColors = {
+            primary: colors.primary || { main: '#3b82f6', hover: '#2563eb', light: '#dbeafe' },
+            backgrounds: colors.backgrounds || { main: '#ffffff', secondary: '#f3f4f6', hover: '#f9fafb' },
+            text: colors.text || { primary: '#111827', secondary: '#6b7280', muted: '#9ca3af' },
+            borders: colors.borders || { main: '#e5e7eb', focus: '#3b82f6' },
+            accents: colors.accents || { success: '#10b981', warning: '#f59e0b', error: '#ef4444', info: '#3b82f6' }
+        };
+        
         const styles = `
             :root {
-                --primary-color: ${colors.primary.main};
-                --primary-hover: ${colors.primary.hover};
-                --primary-light: ${colors.primary.light};
+                --primary-color: ${themeColors.primary.main};
+                --primary-hover: ${themeColors.primary.hover};
+                --primary-light: ${themeColors.primary.light};
                 
-                --bg-main: ${colors.backgrounds.main};
-                --bg-secondary: ${colors.backgrounds.secondary};
-                --bg-hover: ${colors.backgrounds.hover};
+                --bg-main: ${themeColors.backgrounds.main};
+                --bg-secondary: ${themeColors.backgrounds.secondary};
+                --bg-hover: ${themeColors.backgrounds.hover};
                 
-                --text-primary: ${colors.text.primary};
-                --text-secondary: ${colors.text.secondary};
-                --text-muted: ${colors.text.muted};
+                --text-primary: ${themeColors.text.primary};
+                --text-secondary: ${themeColors.text.secondary};
+                --text-muted: ${themeColors.text.muted};
                 
-                --border-main: ${colors.borders.main};
-                --border-focus: ${colors.borders.focus};
+                --border-main: ${themeColors.borders.main};
+                --border-focus: ${themeColors.borders.focus || themeColors.primary.main};
                 
-                --success: ${colors.accents.success};
-                --warning: ${colors.accents.warning};
-                --error: ${colors.accents.error};
-                --info: ${colors.accents.info};
+                --success: ${themeColors.accents.success};
+                --warning: ${themeColors.accents.warning};
+                --error: ${themeColors.accents.error};
+                --info: ${themeColors.accents.info};
             }
         `;
         

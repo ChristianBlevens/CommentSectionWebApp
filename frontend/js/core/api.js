@@ -95,7 +95,7 @@ const API = {
     // Reports API
     reports: {
         async getAll() {
-            const response = await fetch(`${API.getBaseUrl()}/api/moderation/reports`, {
+            const response = await fetch(`${API.getBaseUrl()}/api/reports`, {
                 headers: API.getHeaders()
             });
             
@@ -191,7 +191,7 @@ const API = {
     // Moderation logs API
     moderationLogs: {
         async getAll() {
-            const response = await fetch(`${API.getBaseUrl()}/api/moderation/logs`, {
+            const response = await fetch(`${API.getBaseUrl()}/api/moderation-logs`, {
                 headers: API.getHeaders()
             });
             
@@ -204,7 +204,7 @@ const API = {
     // Analytics API
     analytics: {
         async get(timeframe = '24h') {
-            const response = await fetch(`${API.getBaseUrl()}/api/analytics?timeframe=${timeframe}`, {
+            const response = await fetch(`${API.getBaseUrl()}/api/analytics/activity-data?timeframe=${timeframe}`, {
                 headers: API.getHeaders()
             });
             
