@@ -7,13 +7,13 @@
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="css/main.css" rel="stylesheet">
-	<link href="/theme.css" rel="stylesheet">
+    <link href="/theme.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.12.0/dist/cdn.min.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/markdown-it/dist/markdown-it.min.js"></script>
     <script src="https://d3js.org/d3.v7.min.js"></script>
 </head>
 <body class="page-container">
-    <div x-data="CommentSectionApp()" x-init="init()" class="container mx-auto px-4 max-w-6xl">
+    <div x-data="unifiedApp()" x-init="init()" class="container mx-auto px-4 max-w-6xl">
         <!-- Ban Notification -->
         <div x-show="banNotification && banNotification.show" 
              x-transition:enter="transition ease-out duration-300"
@@ -1077,31 +1077,11 @@
     </div>
 
     <!-- JavaScript -->
-    <!-- Core modules -->
-    <script src="js/core/config.js"></script>
-    <script src="js/core/auth.js"></script>
-    <script src="js/core/api.js"></script>
-    <script src="js/core/state.js"></script>
-    
-    <!-- Utilities -->
-    <script src="js/utils/time.js"></script>
-    <script src="js/utils/validation.js"></script>
-    <script src="js/utils/dom.js"></script>
-    <script src="js/utils/index.js"></script>
-    
-    <!-- UI Components -->
-    <script src="js/ui/markdown.js"></script>
-    <script src="js/ui/mentions.js"></script>
-    <script src="js/ui/dropdowns.js"></script>
-    <script src="js/ui/notifications.js"></script>
-    
-    <!-- Features -->
-    <script src="js/features/comments.js"></script>
-    <script src="js/features/moderation.js"></script>
-    <script src="js/features/analytics.js"></script>
-    <script src="js/features/theme-editor.js"></script>
-    
-    <!-- Main application -->
-    <script src="js/app.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/ban-handler.js"></script>
+    <script src="js/markdown.js"></script>
+    <script src="js/unified-app.js"></script>
 </body>
 </html>
