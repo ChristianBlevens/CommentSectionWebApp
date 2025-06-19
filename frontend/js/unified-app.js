@@ -205,6 +205,11 @@ function unifiedApp() {
             }
         },
         themePresets: {
+            default: {
+                displayName: 'Default (Auto-Match)',
+                colors: null, // Will be populated by theme detection
+                autoMatch: true
+            },
             light: {
                 displayName: 'Light',
                 colors: {
@@ -233,7 +238,7 @@ function unifiedApp() {
                 }
             }
         },
-        selectedPreset: 'light',
+        selectedPreset: 'default',
         selectedColorTarget: null,
         loadingTheme: false,
         themeLoaded: false,
@@ -336,10 +341,14 @@ function unifiedApp() {
             // Send height on window resize
             window.addEventListener('resize', sendHeightToParent);
 
-            // Listen for height requests
+            // Listen for messages from parent
             window.addEventListener('message', (event) => {
-                if (event.data && (event.data.type === 'getHeight' || event.data.action === 'requestHeight')) {
-                    sendHeightToParent();
+                if (event.data) {
+                    if (event.data.type === 'getHeight' || event.data.action === 'requestHeight') {
+                        sendHeightToParent();
+                    } else if (event.data.type === 'setTheme' && event.data.theme) {
+                        this.handleParentTheme(event.data.theme);
+                    }
                 }
             });
         },
@@ -1748,7 +1757,20 @@ function unifiedApp() {
                 
                 if (response.ok) {
                     const data = await response.json();
-                    if (data.colors) {
+                    if (data.preset) {
+                        // Site has a saved preset preference
+                        this.selectedPreset = data.preset;
+                        if (data.preset === 'default') {
+                            // Request theme from parent for auto-matching
+                            window.parent.postMessage({ type: 'requestTheme' }, '*');
+                        } else if (data.colors) {
+                            // Use saved colors for non-default presets
+                            this.themeColors = data.colors;
+                            this.injectThemeStyles();
+                        }
+                    } else if (data.colors && !data.preset) {
+                        // Site has custom colors but no preset (legacy)
+                        this.selectedPreset = 'custom';
                         this.themeColors = data.colors;
                         this.injectThemeStyles();
                     }
@@ -1782,9 +1804,14 @@ function unifiedApp() {
         applyPreset(presetName) {
             const preset = this.themePresets[presetName];
             if (preset) {
-                this.themeColors = JSON.parse(JSON.stringify(preset.colors));
                 this.selectedPreset = presetName;
-                this.injectThemeStyles();
+                if (presetName === 'default') {
+                    // Request theme from parent for auto-matching
+                    window.parent.postMessage({ type: 'requestTheme' }, '*');
+                } else if (preset.colors) {
+                    this.themeColors = JSON.parse(JSON.stringify(preset.colors));
+                    this.injectThemeStyles();
+                }
             }
         },
         
@@ -1821,7 +1848,8 @@ function unifiedApp() {
                         'Authorization': `Bearer ${Auth.getToken()}`
                     },
                     body: JSON.stringify({
-                        colors: this.themeColors
+                        colors: this.themeColors,
+                        preset: this.selectedPreset
                     })
                 });
                 
@@ -1840,8 +1868,12 @@ function unifiedApp() {
         
         // Reset theme to defaults
         resetTheme() {
-            if (confirm('Reset all colors to default theme?')) {
-                this.applyPreset('light');
+            if (confirm('Reset to default theme (auto-match parent site)?')) {
+                this.selectedPreset = 'default';
+                // Clear any custom colors
+                this.themeColors = null;
+                // The parent theme will be reapplied via message
+                window.parent.postMessage({ type: 'requestTheme' }, '*');
             }
         },
         
@@ -1926,6 +1958,56 @@ function unifiedApp() {
             };
             
             this.injectThemeStyles();
+        },
+        
+        // Handle theme data from parent window
+        handleParentTheme(parentTheme) {
+            // Only apply parent theme if using "default" preset
+            if (this.selectedPreset === 'default' && !this.showThemeEditor) {
+                // Store the detected theme
+                this.themePresets.default.colors = {
+                    primary: parentTheme.primary || this.getDefaultColors().primary,
+                    backgrounds: parentTheme.backgrounds || this.getDefaultColors().backgrounds,
+                    text: parentTheme.text || this.getDefaultColors().text,
+                    status: this.getDefaultColors().status, // Keep our status colors
+                    borders: parentTheme.borders || this.getDefaultColors().borders
+                };
+                
+                // Apply the detected theme
+                this.themeColors = this.themePresets.default.colors;
+                this.injectThemeStyles();
+            }
+        },
+        
+        // Get default colors (light theme)
+        getDefaultColors() {
+            return {
+                primary: {
+                    main: '#3b82f6',
+                    hover: '#2563eb',
+                    light: '#dbeafe'
+                },
+                backgrounds: {
+                    main: '#ffffff',
+                    secondary: '#f3f4f6',
+                    hover: '#f9fafb'
+                },
+                text: {
+                    primary: '#111827',
+                    secondary: '#6b7280',
+                    muted: '#9ca3af',
+                    inverse: '#ffffff'
+                },
+                status: {
+                    success: '#10b981',
+                    warning: '#f59e0b',
+                    error: '#ef4444'
+                },
+                borders: {
+                    light: '#e5e7eb',
+                    medium: '#d1d5db'
+                }
+            };
         },
         
         // Analytics methods
