@@ -31,17 +31,24 @@ const API = {
 
     // Comments API
     comments: {
-        async getAll() {
-            const response = await fetch(`${API.getBaseUrl()}/api/comments`);
+        async getAll(pageId = null) {
+            // Get pageId from parameter or URL
+            const currentPageId = pageId || new URLSearchParams(window.location.search).get('pageId') || 'default';
+            const response = await fetch(`${API.getBaseUrl()}/api/comments?pageId=${encodeURIComponent(currentPageId)}`);
             if (!response.ok) throw new Error('Failed to fetch comments');
             return response.json();
         },
 
-        async create(content, parentId = null) {
+        async create(content, parentId = null, pageId = null) {
+            const currentPageId = pageId || new URLSearchParams(window.location.search).get('pageId') || 'default';
             const response = await fetch(`${API.getBaseUrl()}/api/comments`, {
                 method: 'POST',
                 headers: API.getHeaders(),
-                body: JSON.stringify({ content, parent_id: parentId })
+                body: JSON.stringify({ 
+                    content, 
+                    parentId: parentId,  // Note: backend expects camelCase
+                    pageId: currentPageId 
+                })
             });
             
             if (await API.handleAuthError(response)) return null;

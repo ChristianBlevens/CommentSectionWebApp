@@ -4,7 +4,7 @@ const Comments = {
     async loadComments(state) {
         state.loading = true;
         try {
-            const data = await API.comments.getAll();
+            const data = await API.comments.getAll(state.pageId);
             state.comments = data.comments || [];
             state.commentVotes = data.user_votes || {};
             
@@ -128,7 +128,8 @@ const Comments = {
         try {
             const newComment = await API.comments.create(
                 state.newCommentText,
-                state.replyingTo
+                state.replyingTo,
+                state.pageId
             );
             
             if (newComment) {
