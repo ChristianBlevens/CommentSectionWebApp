@@ -247,7 +247,7 @@ const authenticateUser = async (req, res, next) => {
         
         // Fetch user details with ban details and super moderator status
         const userResult = await pgPool.query(
-            'SELECT id, name, is_moderator, is_super_moderator, is_banned, ban_expires_at, ban_reason, banned_at FROM users WHERE id = $1',
+            'SELECT id, name, is_moderator, is_super_moderator, is_banned, ban_expires_at, ban_reason, banned_at, allow_discord_dms FROM users WHERE id = $1',
             [userId]
         );
         
@@ -367,6 +367,11 @@ const initDatabase = async () => {
                 END IF;
                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='last_warning_at') THEN
                     ALTER TABLE users ADD COLUMN last_warning_at TIMESTAMP;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='allow_discord_dms') THEN
+                    ALTER TABLE users ADD COLUMN allow_discord_dms BOOLEAN DEFAULT TRUE;
+                    -- Set existing users to have DMs enabled by default
+                    UPDATE users SET allow_discord_dms = TRUE WHERE allow_discord_dms IS NULL;
                 END IF;
                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='total_comments') THEN
                     ALTER TABLE users ADD COLUMN total_comments INTEGER DEFAULT 0;
@@ -782,7 +787,9 @@ const logModerationAction = async (actionType, moderatorId, moderatorName, targe
 app.get('/api/config', (req, res) => {
     res.json({
         discordClientId: config.discord.clientId,
-        discordRedirectUri: config.discord.redirectUri
+        discordRedirectUri: config.discord.redirectUri,
+        discordServerUrl: process.env.DISCORD_SERVER_URL || '',
+        initialModerators: process.env.INITIAL_MODERATORS || ''
     });
 });
 
@@ -874,7 +881,7 @@ app.post('/api/discord/callback', authLimiter, async (req, res) => {
         
         // Check user permissions and ban status
         const userResult = await pgPool.query(
-            'SELECT is_moderator, is_super_moderator, is_banned, ban_expires_at, ban_reason, banned_at FROM users WHERE id = $1',
+            'SELECT is_moderator, is_super_moderator, is_banned, ban_expires_at, ban_reason, banned_at, allow_discord_dms FROM users WHERE id = $1',
             [user.id]
         );
         
@@ -883,6 +890,7 @@ app.post('/api/discord/callback', authLimiter, async (req, res) => {
             user.is_moderator = userData.is_moderator;
             user.is_super_moderator = userData.is_super_moderator;
             user.is_banned = userData.is_banned;
+            user.allow_discord_dms = userData.allow_discord_dms;
             
             // Handle expired temporary bans
             if (userData.is_banned && userData.ban_expires_at && new Date(userData.ban_expires_at) <= new Date()) {
@@ -2295,6 +2303,26 @@ app.get('/api/users/search', authenticateUser, async (req, res) => {
     } catch (error) {
         console.error('User search error:', error);
         res.status(500).json({ error: 'Failed to search users' });
+    }
+});
+
+// Update Discord DM preference
+app.put('/api/users/discord-dms', authenticateUser, async (req, res) => {
+    const { allow_discord_dms } = req.body;
+    
+    try {
+        await pgPool.query(
+            'UPDATE users SET allow_discord_dms = $1 WHERE id = $2',
+            [allow_discord_dms, req.user.id]
+        );
+        
+        res.json({ 
+            success: true,
+            allow_discord_dms: allow_discord_dms 
+        });
+    } catch (error) {
+        console.error('Update Discord DM preference error:', error);
+        res.status(500).json({ error: 'Failed to update Discord DM preference' });
     }
 });
 

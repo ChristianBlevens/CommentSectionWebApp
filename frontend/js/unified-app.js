@@ -425,6 +425,40 @@ function unifiedApp() {
             await this.loadComments();
         },
         
+        async toggleDiscordDMs() {
+            if (!this.user) return;
+            
+            try {
+                const response = await fetch(`${API_URL}/api/users/discord-dms`, {
+                    method: 'PUT',
+                    headers: getAuthHeaders(),
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        allow_discord_dms: !this.user.allow_discord_dms
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    this.user.allow_discord_dms = data.allow_discord_dms;
+                    
+                    // Update stored user
+                    localStorage.setItem('user', JSON.stringify(this.user));
+                    
+                    if (data.allow_discord_dms) {
+                        alert('Discord DMs enabled! Make sure you\'ve joined our Discord server to receive mention notifications.');
+                    } else {
+                        alert('Discord DMs disabled. You will no longer receive mention notifications via Discord.');
+                    }
+                } else {
+                    throw new Error('Failed to update Discord DM preference');
+                }
+            } catch (error) {
+                console.error('Error toggling Discord DMs:', error);
+                alert('Failed to update Discord DM preference');
+            }
+        },
+        
         // Comment methods
         async loadComments() {
             this.loading = true;
