@@ -9,6 +9,7 @@ const AppState = {
             sortedComments: [],
             filteredComments: [],
             loading: true,
+            pageId: new URLSearchParams(window.location.search).get('pageId') || 'default',
             
             // Comment interaction
             newCommentText: '',
@@ -114,7 +115,18 @@ const AppState = {
             selectedTimeframe: '24h',
             analyticsLoading: false,
             selectedPage: null,
-            selectedDate: null
+            selectedDate: null,
+            analyticsTimeframe: 'day',
+            analyticsDateIndex: 0,
+            selectedPeriodDate: null,
+            analyticsTab: false,
+            bubbleChartData: null,
+            
+            // Theme
+            themeLoaded: false,
+            selectedPreset: null,
+            lastColorChange: null,
+            loadingTheme: false
         };
     },
     

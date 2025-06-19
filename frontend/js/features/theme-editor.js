@@ -3,6 +3,7 @@ const ThemeEditor = {
     // Theme presets
     presets: {
         light: {
+            displayName: 'Light',
             primary: { main: '#3b82f6', hover: '#2563eb', light: '#dbeafe' },
             backgrounds: { main: '#ffffff', secondary: '#f3f4f6', hover: '#f9fafb' },
             text: { primary: '#111827', secondary: '#6b7280', muted: '#9ca3af' },
@@ -10,6 +11,7 @@ const ThemeEditor = {
             accents: { success: '#10b981', warning: '#f59e0b', error: '#ef4444', info: '#3b82f6' }
         },
         dark: {
+            displayName: 'Dark',
             primary: { main: '#60a5fa', hover: '#3b82f6', light: '#1e3a8a' },
             backgrounds: { main: '#111827', secondary: '#1f2937', hover: '#374151' },
             text: { primary: '#f9fafb', secondary: '#d1d5db', muted: '#9ca3af' },
@@ -17,6 +19,7 @@ const ThemeEditor = {
             accents: { success: '#34d399', warning: '#fbbf24', error: '#f87171', info: '#60a5fa' }
         },
         ocean: {
+            displayName: 'Ocean',
             primary: { main: '#06b6d4', hover: '#0891b2', light: '#cffafe' },
             backgrounds: { main: '#ffffff', secondary: '#f0fdfa', hover: '#e6fffa' },
             text: { primary: '#134e4a', secondary: '#0f766e', muted: '#5eead4' },

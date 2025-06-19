@@ -450,6 +450,12 @@ function unifiedApp() {
             this.exportChart('bubble-chart-container');
         },
         
+        // Additional theme methods
+        async loadTheme() {
+            await ThemeEditor.loadTheme(this);
+            this.themeLoaded = true;
+        },
+        
         // Theme presets
         themePresets: ThemeEditor.presets
     };
@@ -457,6 +463,7 @@ function unifiedApp() {
 
 // Global references for compatibility
 window.unifiedApp = unifiedApp;
+window.CommentSectionApp = unifiedApp;  // Make available as CommentSectionApp for Alpine.js
 
 // Initialize markdown
 initializeMarkdown();
