@@ -1183,7 +1183,10 @@ function unifiedApp() {
             try {
                 const response = await fetch(
                     `${API_URL}/api/users/search?q=${encodeURIComponent(this.mentionDropdown.searchTerm)}&limit=5`,
-                    { headers: getAuthHeaders() }
+                    { 
+                        headers: getAuthHeaders(),
+                        credentials: 'include'
+                    }
                 );
                 
                 if (response.ok) {
