@@ -253,8 +253,8 @@ function unifiedApp() {
         periodSummaryData: null,
         selectedPeriodDate: null,
         
-        // Environment configuration
-        env: window.ENV || {},
+        // Discord server URL
+        discordServerUrl: '',
         
         // Setup app on load
         async init() {
@@ -268,29 +268,21 @@ function unifiedApp() {
                 linkify: true
             });
             
-            // Make sure ENV is loaded and reactive
-            if (window.ENV) {
-                this.env = window.ENV;
-            } else {
-                // Wait for ENV to load
-                const checkEnv = setInterval(() => {
-                    if (window.ENV) {
-                        this.env = window.ENV;
-                        clearInterval(checkEnv);
-                    }
-                }, 100);
+            // Load Discord server URL from config
+            try {
+                const response = await fetch('/api/config');
+                if (response.ok) {
+                    const config = await response.json();
+                    this.discordServerUrl = config.discordServerUrl || '';
+                }
+            } catch (error) {
+                console.error('Error loading config:', error);
             }
             
             // Restore user session
             this.user = await Auth.checkExistingSession();
             
-            // Grant super mod permissions
-            if (this.user) {
-                const initialMods = (this.env?.INITIAL_MODERATORS || '').split(',').map(id => id.trim()).filter(Boolean);
-                if (initialMods.includes(this.user.id)) {
-                    this.user.is_super_moderator = true;
-                }
-            }
+            // Super moderator status comes from backend only
             
             // Fetch page comments
             await this.loadComments();

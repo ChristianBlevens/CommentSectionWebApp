@@ -922,8 +922,8 @@
                             </button>
                             
                             <!-- Discord Server Link Button -->
-                            <a x-show="env?.DISCORD_SERVER_URL"
-                               :href="env?.DISCORD_SERVER_URL"
+                            <a :href="discordServerUrl || '#'"
+                               @click="discordServerUrl || $event.preventDefault()"
                                target="_blank"
                                rel="noopener noreferrer"
                                title="Join our Discord server"

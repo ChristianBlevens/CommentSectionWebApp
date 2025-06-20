@@ -795,8 +795,7 @@ app.get('/api/config', (req, res) => {
     res.json({
         discordClientId: config.discord.clientId,
         discordRedirectUri: config.discord.redirectUri,
-        discordServerUrl: process.env.DISCORD_SERVER_URL || '',
-        initialModerators: process.env.INITIAL_MODERATORS || ''
+        discordServerUrl: process.env.DISCORD_SERVER_URL || ''
     });
 });
 

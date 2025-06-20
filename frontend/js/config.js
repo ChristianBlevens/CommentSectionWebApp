@@ -6,12 +6,6 @@ const CONFIG = {
     discordRedirectUri: ''
 };
 
-// Environment variables for frontend
-window.ENV = {
-    DISCORD_SERVER_URL: '',
-    INITIAL_MODERATORS: ''
-};
-
 // Fetch config from API
 async function loadConfig() {
     try {
@@ -22,10 +16,6 @@ async function loadConfig() {
             CONFIG.discordRedirectUri = config.discordRedirectUri;
             CONFIG.backendUrl = window.location.origin;
             CONFIG.moderationUrl = window.location.origin;
-            
-            // Set environment variables
-            window.ENV.DISCORD_SERVER_URL = config.discordServerUrl;
-            window.ENV.INITIAL_MODERATORS = config.initialModerators;
             
             console.log('Configuration loaded:', CONFIG);
         } else {
