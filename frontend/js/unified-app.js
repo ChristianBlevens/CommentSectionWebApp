@@ -306,10 +306,8 @@ function unifiedApp() {
                 window.initializeMarkdown();
             }
             
-            // Initialize theme editor
-            if (this.user?.is_super_moderator) {
-                await this.initThemeEditor();
-            }
+            // Initialize theme for all users
+            await this.initThemeEditor();
             
             // Add resize handler for responsive charts
             let resizeTimeout;
@@ -1845,21 +1843,28 @@ function unifiedApp() {
         
         // Initialize theme editor
         async initThemeEditor() {
-            if (this.user?.is_super_moderator) {
-                await this.loadTheme();
-                this.injectThemeStyles();
-            }
+            // Always load theme, but use different endpoints based on auth status
+            await this.loadTheme();
+            this.injectThemeStyles();
         },
         
         // Load saved theme from backend
         async loadTheme() {
             this.loadingTheme = true;
             try {
-                const response = await fetch(`${API_URL}/api/theme`, {
-                    headers: {
-                        'Authorization': `Bearer ${Auth.getToken()}`
-                    }
-                });
+                let response;
+                
+                // Use authenticated endpoint for super moderators, public endpoint for everyone else
+                if (this.user?.is_super_moderator && Auth.getToken()) {
+                    response = await fetch(`${API_URL}/api/theme`, {
+                        headers: {
+                            'Authorization': `Bearer ${Auth.getToken()}`
+                        }
+                    });
+                } else {
+                    // Use public endpoint that doesn't require authentication
+                    response = await fetch(`${API_URL}/api/theme/public`);
+                }
                 
                 if (response.ok) {
                     const data = await response.json();

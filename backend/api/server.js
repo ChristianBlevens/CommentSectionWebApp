@@ -2573,11 +2573,46 @@ app.post('/api/theme', authenticateUser, requireSuperModerator, async (req, res)
         // Clear any cached theme data
         await safeRedisOp(() => redisClient.del('theme:current'));
         await safeRedisOp(() => redisClient.del('theme:css'));
+        await safeRedisOp(() => redisClient.del('theme:public:data'));
         
         res.json({ success: true });
     } catch (error) {
         console.error('Error saving theme:', error);
         res.status(500).json({ error: 'Failed to save theme' });
+    }
+});
+
+// Public endpoint to fetch theme data (no authentication required)
+app.get('/api/theme/public', async (req, res) => {
+    try {
+        // Try cache first
+        const cached = await safeRedisOp(() => redisClient.get('theme:public:data'));
+        if (cached) {
+            res.json(JSON.parse(cached));
+            return;
+        }
+        
+        // Load from database
+        const result = await pgPool.query(
+            'SELECT theme_data FROM site_settings WHERE id = $1',
+            [1]
+        );
+        
+        let themeData;
+        if (result.rows.length > 0 && result.rows[0].theme_data) {
+            themeData = result.rows[0].theme_data;
+        } else {
+            // Return default theme structure
+            themeData = { colors: getDefaultThemeColors() };
+        }
+        
+        // Cache for 1 hour
+        await safeRedisOp(() => redisClient.setex('theme:public:data', 3600, JSON.stringify(themeData)));
+        
+        res.json(themeData);
+    } catch (error) {
+        console.error('Error fetching public theme:', error);
+        res.status(500).json({ error: 'Failed to fetch theme' });
     }
 });
 
