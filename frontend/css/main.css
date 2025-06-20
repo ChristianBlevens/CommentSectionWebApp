@@ -198,13 +198,13 @@ body {
    ===================================================== */
 .comment-section {
     /* Base padding for all content */
-    padding: 0;
+    padding: 1rem;
     background-color: var(--color-backgrounds-main);
 }
 
 /* Comment Form Styling */
 .comment-form {
-    padding: 1rem; /* Match Tailwind's p-4 */
+    padding: 0 0 1rem 0; /* Only bottom padding for spacing */
     overflow: visible; /* Ensure markdown buttons aren't clipped */
 }
 
@@ -233,7 +233,7 @@ body {
    COMMENT THREAD STYLING
    ===================================================== */
 .comments-container {
-    padding: 0 1rem 1rem 1rem; /* Match p-4 but no top padding since it follows comment-form */
+    padding: 0; /* No padding - parent handles it */
 }
 
 .comment-thread {
@@ -1804,7 +1804,7 @@ html {
     align-items: flex-start;
     gap: clamp(0.5rem, 2vw, 1rem);
     flex-wrap: wrap;
-    padding: 0 1rem; /* Match horizontal padding of comment-form */
+    padding: 0; /* No padding - parent handles it */
 }
 
 /* Sorting buttons container */
