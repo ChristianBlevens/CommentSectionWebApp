@@ -1361,14 +1361,14 @@ a *,
 
 /* Moderation tab - extends btn-base - Mobile First */
 .moderation-tab {
-    padding: clamp(0.5rem, 1.5vw, 1rem) clamp(0.75rem, 2vw, 1.5rem);
+    padding: clamp(0.75rem, 1.5vw, 1rem) clamp(0.75rem, 2vw, 1.5rem);
     font-weight: 500;
-    font-size: clamp(0.75rem, 1.25vw, 1rem);
+    font-size: clamp(0.875rem, 1.25vw, 1.125rem);
     background: none;
     border: none;
     border-bottom: 2px solid transparent;
     border-radius: 0;
-    min-height: var(--touch-target-min);
+    min-height: 3rem;
     position: relative;
     flex: 1 1 0; /* Equal width for all tabs */
     min-width: 0; /* Allow shrinking below content */
@@ -1807,18 +1807,26 @@ html {
     padding: 0 1rem; /* Match horizontal padding of comment-form */
 }
 
-/* Sorting buttons container - Shrinks to fit */
+/* Sorting buttons container */
 .sorting-search-container > div:first-child {
     display: flex;
     gap: clamp(0.125rem, 0.5vw, 0.5rem);
     flex-wrap: nowrap; /* Keep on single row */
     min-width: 0; /* Allow shrinking */
+    flex: 1 1 100%; /* Take full width when wrapped */
 }
 
-/* Search input responsive sizing */
+/* Search input container */
 .sorting-search-container > div:last-child {
-    flex: 1 1 auto;
-    min-width: min(100%, 200px);
+    display: flex;
+    gap: 0.5rem;
+    flex: 1 1 100%; /* Take full width when wrapped */
+    min-width: min(100%, 250px); /* Force wrap at reasonable size */
+}
+
+/* Make search input fill available space in its container */
+.sorting-search-container .search-input {
+    flex: 1;
 }
 
 
