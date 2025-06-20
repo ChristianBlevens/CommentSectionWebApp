@@ -259,6 +259,14 @@ const authenticateUser = async (req, res, next) => {
         
         // Check if user is banned and handle expired bans
         if (user.is_banned) {
+            console.log('User is banned:', {
+                userId: user.id,
+                userName: user.name,
+                banExpiresAt: user.ban_expires_at,
+                banReason: user.ban_reason,
+                bannedAt: user.banned_at
+            });
+            
             if (user.ban_expires_at && new Date(user.ban_expires_at) <= new Date()) {
                 // Auto-unban expired temporary bans
                 await pgPool.query(

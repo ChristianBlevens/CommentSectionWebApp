@@ -1193,6 +1193,21 @@ function unifiedApp() {
                     this.mentionDropdown.selectedIndex = -1;
                 } else {
                     console.error('User search failed:', response.status, response.statusText);
+                    
+                    // Try to get error details
+                    try {
+                        const errorData = await response.json();
+                        console.error('User search error details:', errorData);
+                        
+                        if (response.status === 403 && errorData.ban_info) {
+                            // User is banned - show appropriate message
+                            console.error('User is banned:', errorData.ban_info);
+                            alert('You cannot use mentions while banned. ' + (errorData.ban_info.ban_reason || ''));
+                        }
+                    } catch (e) {
+                        console.error('Could not parse error response');
+                    }
+                    
                     if (response.status === 401) {
                         // Session expired
                         await handleAuthError(response);
