@@ -97,6 +97,11 @@
                                 class="btn-base moderation-tab">
                             <i class="fas fa-history"></i>
                         </button>
+                        <button @click="activeTab = 'pages'; loadPagesData()" 
+                                :class="{'active': activeTab === 'pages'}"
+                                class="btn-base moderation-tab">
+                            <i class="fas fa-book-open"></i>
+                        </button>
                         <button @click="activeTab = 'analytics'; analyticsTab = true; selectedPeriodDate = null; loadAnalyticsData()" 
                                 :class="{'active': activeTab === 'analytics'}"
                                 class="btn-base moderation-tab">
@@ -607,6 +612,44 @@
                                             </div>
                                         </div>
                                     </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Pages Tab Content -->
+                <div x-show="activeTab === 'pages'" class="moderation-content" style="display: none;">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-2xl font-bold">Recent Comments by Page</h2>
+                        <div class="comment-limit-dropdown">
+                            <label for="commentLimit" class="mr-2">Show:</label>
+                            <select id="commentLimit" 
+                                    x-model="pagesCommentLimit" 
+                                    @change="loadPagesData()"
+                                    class="px-3 py-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                                <option value="25">25 comments</option>
+                                <option value="50">50 comments</option>
+                                <option value="75">75 comments</option>
+                                <option value="100">100 comments</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="pages-content">
+                        <template x-for="page in pagesData" :key="page.pageId">
+                            <div class="page-comment-group mb-6">
+                                <div class="page-header mb-3">
+                                    <h3 class="text-lg font-semibold flex items-center">
+                                        <i class="fas fa-file-alt mr-2"></i>
+                                        <span x-text="page.pageId"></span>
+                                        <span class="ml-2 text-sm text-gray-500">
+                                            (<span x-text="page.commentCount"></span> comments)
+                                        </span>
+                                    </h3>
+                                </div>
+                                <div class="comments-container" x-html="renderPageComments(page.comments)">
+                                    <!-- Comments will be rendered here -->
                                 </div>
                             </div>
                         </template>

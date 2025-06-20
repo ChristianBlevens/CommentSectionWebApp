@@ -244,6 +244,12 @@ function unifiedApp() {
         themeLoaded: false,
         lastColorChange: null, // For undo functionality
         
+        // Pages tab state
+        pagesData: [],
+        pagesCommentLimit: 25,
+        pagesLoading: false,
+        pagesComments: [], // Store flat list of comments for updates
+        
         // Analytics state
         analyticsTab: false,
         bubbleChartData: null,
@@ -1489,6 +1495,13 @@ function unifiedApp() {
                     updateCommentInArray(this.sortedComments);
                     updateCommentInArray(this.filteredComments);
                     
+                    // IMPORTANT: Also update in pages comments
+                    if (this.pagesComments && this.pagesComments.length > 0) {
+                        updateCommentInArray(this.pagesComments);
+                        // Rebuild pages data to reflect changes
+                        this.rebuildPagesData();
+                    }
+                    
                     // Force re-render by updating the comments key
                     // This triggers Alpine to re-evaluate x-html
                     this.forceRerender = !this.forceRerender;
@@ -1539,6 +1552,13 @@ function unifiedApp() {
                         markAsDeleted(this.focusedComments);
                         // Force re-render
                         this.focusedComments = [...this.focusedComments];
+                    }
+                    
+                    // IMPORTANT: Also update in pages comments
+                    if (this.pagesComments && this.pagesComments.length > 0) {
+                        markAsDeleted(this.pagesComments);
+                        // Rebuild pages data to reflect changes
+                        this.rebuildPagesData();
                     }
                     
                     // Force re-render
@@ -1615,6 +1635,11 @@ function unifiedApp() {
                 if (response.ok) {
                     this.cancelReply(commentId);
                     await this.loadComments();
+                    
+                    // IMPORTANT: Also reload pages data if we're on the pages tab
+                    if (this.activeTab === 'pages') {
+                        await this.loadPagesData();
+                    }
                 } else {
                     if (await handleAuthError(response)) return;
                     const error = await response.json();
@@ -2533,6 +2558,174 @@ function unifiedApp() {
             };
             
             img.src = url;
+        },
+
+        async loadPagesData() {
+            this.pagesLoading = true;
+            try {
+                // Get the most recent comments with limit
+                const commentsResponse = await fetchWithAuth('/api/comments', {
+                    params: {
+                        limit: this.pagesCommentLimit,
+                        orderBy: 'created_at',
+                        order: 'DESC'
+                    }
+                });
+                
+                if (!commentsResponse.ok) {
+                    throw new Error('Failed to fetch comments');
+                }
+                
+                const allComments = await commentsResponse.json();
+                
+                // IMPORTANT: Include user vote data for proper interaction
+                // The API returns userVote field when authenticated
+                allComments.forEach(comment => {
+                    // Ensure userVote is properly set for vote button display
+                    comment.userVote = comment.user_vote || null;
+                });
+                
+                // Build comment trees maintaining parent-child relationships
+                const commentMap = new Map();
+                const rootComments = [];
+                
+                // First pass: create map of all comments
+                allComments.forEach(comment => {
+                    comment.children = [];
+                    commentMap.set(comment.id, comment);
+                });
+                
+                // Second pass: build tree structure
+                allComments.forEach(comment => {
+                    if (comment.parent_id) {
+                        const parent = commentMap.get(comment.parent_id);
+                        if (parent) {
+                            parent.children.push(comment);
+                        } else {
+                            // Parent not in the fetched set, treat as root
+                            rootComments.push(comment);
+                        }
+                    } else {
+                        rootComments.push(comment);
+                    }
+                });
+                
+                // Group comments by page
+                const pageGroups = new Map();
+                
+                rootComments.forEach(comment => {
+                    const pageId = comment.page_id;
+                    if (!pageGroups.has(pageId)) {
+                        pageGroups.set(pageId, {
+                            pageId: pageId,
+                            comments: [],
+                            totalCount: 0
+                        });
+                    }
+                    pageGroups.get(pageId).comments.push(comment);
+                });
+                
+                // Count total comments including children for each page
+                pageGroups.forEach(page => {
+                    page.totalCount = page.comments.reduce((count, comment) => {
+                        return count + 1 + this.countChildComments(comment);
+                    }, 0);
+                });
+                
+                // Convert to array and sort by total comment count
+                this.pagesData = Array.from(pageGroups.values())
+                    .sort((a, b) => b.totalCount - a.totalCount)
+                    .map(page => ({
+                        ...page,
+                        commentCount: page.totalCount
+                    }));
+                    
+                // IMPORTANT: Store page comments in a searchable structure for updates
+                // This allows vote/delete/report updates to work properly
+                this.pagesComments = allComments;
+                    
+            } catch (error) {
+                console.error('Error loading pages data:', error);
+                this.showNotification('Failed to load pages data', 'error');
+            } finally {
+                this.pagesLoading = false;
+            }
+        },
+
+        // Helper function to count nested comments
+        countChildComments(comment) {
+            let count = comment.children.length;
+            comment.children.forEach(child => {
+                count += this.countChildComments(child);
+            });
+            return count;
+        },
+
+        renderPageComments(comments) {
+            if (!comments || comments.length === 0) {
+                return '<p class="text-gray-500">No comments in this page.</p>';
+            }
+            
+            // Render comments using the existing comment rendering logic
+            // This ensures all interactions (vote, reply, report, delete) work exactly the same
+            return comments.map(comment => this.renderComment(comment, 0)).join('');
+        },
+
+        // Helper function to rebuild pages data after updates
+        rebuildPagesData() {
+            // Build comment trees maintaining parent-child relationships
+            const commentMap = new Map();
+            const rootComments = [];
+            
+            // Reset children arrays
+            this.pagesComments.forEach(comment => {
+                comment.children = [];
+                commentMap.set(comment.id, comment);
+            });
+            
+            // Build tree structure
+            this.pagesComments.forEach(comment => {
+                if (comment.parent_id) {
+                    const parent = commentMap.get(comment.parent_id);
+                    if (parent) {
+                        parent.children.push(comment);
+                    } else {
+                        rootComments.push(comment);
+                    }
+                } else {
+                    rootComments.push(comment);
+                }
+            });
+            
+            // Group comments by page
+            const pageGroups = new Map();
+            
+            rootComments.forEach(comment => {
+                const pageId = comment.page_id;
+                if (!pageGroups.has(pageId)) {
+                    pageGroups.set(pageId, {
+                        pageId: pageId,
+                        comments: [],
+                        totalCount: 0
+                    });
+                }
+                pageGroups.get(pageId).comments.push(comment);
+            });
+            
+            // Count total comments including children for each page
+            pageGroups.forEach(page => {
+                page.totalCount = page.comments.reduce((count, comment) => {
+                    return count + 1 + this.countChildComments(comment);
+                }, 0);
+            });
+            
+            // Convert to array and sort by total comment count
+            this.pagesData = Array.from(pageGroups.values())
+                .sort((a, b) => b.totalCount - a.totalCount)
+                .map(page => ({
+                    ...page,
+                    commentCount: page.totalCount
+                }));
         }
     };
 }

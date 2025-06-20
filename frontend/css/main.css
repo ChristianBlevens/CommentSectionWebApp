@@ -2212,3 +2212,85 @@ input[type="color"].color-input::-moz-color-swatch {
         }
     }
 }
+
+/* Pages Tab Styles */
+.pages-content {
+    max-width: 100%;
+    padding: 1rem;
+}
+
+.page-comment-group {
+    background-color: var(--bg-secondary);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--border-color);
+}
+
+.page-header {
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.page-header h3 {
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+}
+
+.comment-limit-dropdown {
+    display: flex;
+    align-items: center;
+}
+
+.comment-limit-dropdown select {
+    cursor: pointer;
+    transition: border-color 0.2s ease;
+}
+
+.comment-limit-dropdown select:hover {
+    border-color: var(--primary-color);
+}
+
+.comment-limit-dropdown select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
+}
+
+/* Ensure comments in pages tab use same styling as main section */
+.page-comment-group .comments-container {
+    /* Inherits all styles from main .comments-container */
+}
+
+.page-comment-group .comment-thread {
+    /* Maintains same threading structure */
+}
+
+.page-comment-group .comment-container {
+    /* Uses exact same comment styling */
+}
+
+/* Loading state for pages */
+.pages-content.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+    .page-comment-group {
+        padding: 1rem;
+    }
+    
+    .comment-limit-dropdown {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+    
+    .comment-limit-dropdown select {
+        width: 100%;
+    }
+}
