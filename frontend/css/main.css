@@ -2177,42 +2177,6 @@ input[type="color"].color-input::-moz-color-swatch {
     stroke: var(--color-borders-light);
 }
 
-/* Mobile adjustments */
-@media (max-width: 768px) {
-    .controls-section {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    
-    
-    .bubble-chart-container {
-        min-height: 300px;
-        max-height: 60vh;
-        padding: var(--spacing-sm);
-    }
-    
-    .bar-chart-container {
-        height: 50px;
-    }
-    
-    .bar-chart-container .axis {
-        font-size: 8px;
-    }
-    
-    /* Reduce font size in moderation tabs on small screens */
-    .moderation-tab {
-        font-size: var(--text-sm);
-        padding: var(--spacing-xs) var(--spacing-sm);
-    }
-    
-    /* Hide icons in tab buttons on very small screens */
-    @media (max-width: 480px) {
-        .moderation-tab i {
-            display: none;
-        }
-    }
-}
-
 /* Pages Tab Styles */
 .pages-content {
     max-width: 100%;
@@ -2277,21 +2241,4 @@ input[type="color"].color-input::-moz-color-swatch {
 .pages-content.loading {
     opacity: 0.6;
     pointer-events: none;
-}
-
-/* Mobile responsiveness */
-@media (max-width: 768px) {
-    .page-comment-group {
-        padding: 1rem;
-    }
-    
-    .comment-limit-dropdown {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.5rem;
-    }
-    
-    .comment-limit-dropdown select {
-        width: 100%;
-    }
 }
