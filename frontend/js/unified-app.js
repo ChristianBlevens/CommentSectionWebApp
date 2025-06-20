@@ -1476,6 +1476,36 @@ function unifiedApp() {
                 if (response.ok) {
                     const result = await response.json();
                     
+                    // Update visual elements immediately
+                    const commentElement = document.getElementById(`comment-${commentId}`);
+                    if (commentElement) {
+                        // Update like button
+                        const likeBtn = commentElement.querySelector('.comment-action:has(.fa-thumbs-up)');
+                        if (likeBtn) {
+                            const likeCount = likeBtn.querySelector('span');
+                            if (likeCount) likeCount.textContent = result.likes;
+                            
+                            if (result.userVote === 'like') {
+                                likeBtn.classList.add('active-like');
+                            } else {
+                                likeBtn.classList.remove('active-like');
+                            }
+                        }
+                        
+                        // Update dislike button
+                        const dislikeBtn = commentElement.querySelector('.comment-action:has(.fa-thumbs-down)');
+                        if (dislikeBtn) {
+                            const dislikeCount = dislikeBtn.querySelector('span');
+                            if (dislikeCount) dislikeCount.textContent = result.dislikes;
+                            
+                            if (result.userVote === 'dislike') {
+                                dislikeBtn.classList.add('active-dislike');
+                            } else {
+                                dislikeBtn.classList.remove('active-dislike');
+                            }
+                        }
+                    }
+                    
                     // Update the comment in all arrays
                     const updateCommentInArray = (comments) => {
                         for (let i = 0; i < comments.length; i++) {
