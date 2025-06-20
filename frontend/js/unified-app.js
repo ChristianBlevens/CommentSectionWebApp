@@ -2561,16 +2561,33 @@ function unifiedApp() {
         },
 
         async loadPagesData() {
+            // Check if user is moderator
+            if (!this.user || !this.user.is_moderator) {
+                console.log('User is not a moderator, cannot load pages data');
+                return;
+            }
+            
             this.pagesLoading = true;
             try {
-                // Get the most recent comments with limit
-                const commentsResponse = await fetchWithAuth('/api/comments', {
-                    params: {
-                        limit: this.pagesCommentLimit,
-                        orderBy: 'created_at',
-                        order: 'DESC'
-                    }
+                // Build request options with auth headers
+                const options = {
+                    credentials: 'include'
+                };
+                
+                const sessionToken = localStorage.getItem('sessionToken');
+                if (sessionToken) {
+                    options.headers = getAuthHeaders();
+                }
+                
+                // Build URL with parameters
+                const params = new URLSearchParams({
+                    limit: this.pagesCommentLimit,
+                    orderBy: 'created_at',
+                    order: 'DESC'
                 });
+                
+                const url = `${API_URL}/api/comments?${params.toString()}`;
+                const commentsResponse = await fetch(url, options);
                 
                 if (!commentsResponse.ok) {
                     throw new Error('Failed to fetch comments');
@@ -2646,7 +2663,7 @@ function unifiedApp() {
                     
             } catch (error) {
                 console.error('Error loading pages data:', error);
-                this.showNotification('Failed to load pages data', 'error');
+                alert('Failed to load pages data');
             } finally {
                 this.pagesLoading = false;
             }
