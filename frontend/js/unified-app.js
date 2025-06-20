@@ -604,10 +604,10 @@ function unifiedApp() {
         
         getSearchModeIcon() {
             switch (this.searchMode) {
-                case 'and': return '&';
-                case 'or': return '||';
-                case 'not': return '!';
-                default: return '&';
+                case 'and': return 'AND';
+                case 'or': return 'OR';
+                case 'not': return 'NOT';
+                default: return 'AND';
             }
         },
         
