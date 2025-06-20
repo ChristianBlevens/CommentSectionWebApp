@@ -253,6 +253,9 @@ function unifiedApp() {
         periodSummaryData: null,
         selectedPeriodDate: null,
         
+        // Environment configuration
+        env: window.ENV || {},
+        
         // Setup app on load
         async init() {
             // Store app reference globally
@@ -265,12 +268,25 @@ function unifiedApp() {
                 linkify: true
             });
             
+            // Make sure ENV is loaded and reactive
+            if (window.ENV) {
+                this.env = window.ENV;
+            } else {
+                // Wait for ENV to load
+                const checkEnv = setInterval(() => {
+                    if (window.ENV) {
+                        this.env = window.ENV;
+                        clearInterval(checkEnv);
+                    }
+                }, 100);
+            }
+            
             // Restore user session
             this.user = await Auth.checkExistingSession();
             
             // Grant super mod permissions
             if (this.user) {
-                const initialMods = (window.ENV?.INITIAL_MODERATORS || '').split(',').map(id => id.trim()).filter(Boolean);
+                const initialMods = (this.env?.INITIAL_MODERATORS || '').split(',').map(id => id.trim()).filter(Boolean);
                 if (initialMods.includes(this.user.id)) {
                     this.user.is_super_moderator = true;
                 }
