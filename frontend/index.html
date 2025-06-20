@@ -76,12 +76,12 @@
                         <button @click="activeTab = 'comments'" 
                                 :class="{'active': activeTab === 'comments'}"
                                 class="btn-base moderation-tab">
-                            <i class="fas fa-comments mr-2"></i>Comments
+                            <i class="fas fa-comments" :class="showNavText ? 'mr-2' : ''"></i><span x-show="showNavText">Comments</span>
                         </button>
                         <button @click="activeTab = 'reports'; $nextTick(() => { if (user && user.is_moderator) { loadReports() } })" 
                                 :class="{'active': activeTab === 'reports'}"
                                 class="btn-base moderation-tab relative">
-                            <i class="fas fa-flag mr-2"></i>Reports
+                            <i class="fas fa-flag" :class="showNavText ? 'mr-2' : ''"></i><span x-show="showNavText">Reports</span>
                             <span x-show="totalPendingReports > 0" 
                                   class="absolute -top-1 -right-1 bg-error text-inverse px-2 py-1 rounded-full text-xs">
                                 <span x-text="totalPendingReports"></span>
@@ -90,23 +90,23 @@
                         <button @click="activeTab = 'users'; $nextTick(() => { if (user && user.is_moderator) { loadUsers() } })" 
                                 :class="{'active': activeTab === 'users'}"
                                 class="btn-base moderation-tab">
-                            <i class="fas fa-users mr-2"></i>Users
+                            <i class="fas fa-users" :class="showNavText ? 'mr-2' : ''"></i><span x-show="showNavText">Users</span>
                         </button>
                         <button @click="activeTab = 'logs'; logsLoaded = false; $nextTick(() => { if (user && user.is_moderator) { loadModerationLogs() } })" 
                                 :class="{'active': activeTab === 'logs'}"
                                 class="btn-base moderation-tab">
-                            <i class="fas fa-history mr-2"></i>Logs
+                            <i class="fas fa-history" :class="showNavText ? 'mr-2' : ''"></i><span x-show="showNavText">Logs</span>
                         </button>
                         <button @click="activeTab = 'analytics'; analyticsTab = true; selectedPeriodDate = null; loadAnalyticsData()" 
                                 :class="{'active': activeTab === 'analytics'}"
                                 class="btn-base moderation-tab">
-                            <i class="fas fa-chart-line mr-2"></i>Analytics
+                            <i class="fas fa-chart-line" :class="showNavText ? 'mr-2' : ''"></i><span x-show="showNavText">Analytics</span>
                         </button>
                         <button @click="activeTab = 'theme'; $nextTick(() => { if (user && user.is_super_moderator && !themeLoaded) { loadTheme() } })"
                                 :class="{'active': activeTab === 'theme'}"
                                 class="btn-base moderation-tab"
                                 x-show="user && user.is_super_moderator">
-                            <i class="fas fa-palette mr-2"></i>Theme
+                            <i class="fas fa-palette" :class="showNavText ? 'mr-2' : ''"></i><span x-show="showNavText">Theme</span>
                         </button>
                     </nav>
                 </div>

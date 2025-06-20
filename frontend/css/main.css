@@ -845,10 +845,7 @@ a *,
 
 /* Search mode toggle button */
 .search-mode-btn {
-    width: 40px;
-    min-width: 40px;
-    height: 40px;
-    min-height: 40px;
+    min-height: clamp(4rem, 3rem + 3vw, 6rem);
     aspect-ratio: 1 / 1;
     padding: 0;
     display: flex;

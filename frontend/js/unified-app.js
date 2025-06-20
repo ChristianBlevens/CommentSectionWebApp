@@ -256,6 +256,9 @@ function unifiedApp() {
         // Discord server URL
         discordServerUrl: '',
         
+        // Navigation text visibility
+        showNavText: true,
+        
         // Setup app on load
         async init() {
             // Store app reference globally
@@ -359,6 +362,57 @@ function unifiedApp() {
                     }
                 }
             });
+            
+            // Check navigation button overlaps
+            this.checkNavOverlap();
+            window.addEventListener('resize', () => this.checkNavOverlap());
+            
+            // Also check on tab changes (might affect layout)
+            this.$watch('activeTab', () => {
+                this.$nextTick(() => this.checkNavOverlap());
+            });
+        },
+        
+        // Check if navigation buttons are overlapping
+        checkNavOverlap() {
+            const nav = document.querySelector('nav.flex.-mb-px');
+            if (!nav) return;
+            
+            const buttons = nav.querySelectorAll('.moderation-tab');
+            if (buttons.length < 2) return;
+            
+            // Check if buttons are wrapping or overlapping
+            let isOverlapping = false;
+            let prevRight = 0;
+            
+            buttons.forEach((btn, index) => {
+                const rect = btn.getBoundingClientRect();
+                if (index > 0) {
+                    // Check if this button starts before the previous one ends
+                    if (rect.left < prevRight - 1) { // -1 for minor overlap tolerance
+                        isOverlapping = true;
+                    }
+                    // Also check if buttons are on different lines (wrapped)
+                    const prevRect = buttons[index - 1].getBoundingClientRect();
+                    if (Math.abs(rect.top - prevRect.top) > 5) {
+                        isOverlapping = true;
+                    }
+                }
+                prevRight = rect.right;
+            });
+            
+            // Also check if nav container is too narrow
+            const navWidth = nav.offsetWidth;
+            let totalButtonWidth = 0;
+            buttons.forEach(btn => {
+                totalButtonWidth += btn.offsetWidth;
+            });
+            
+            if (totalButtonWidth > navWidth - 10) { // 10px buffer
+                isOverlapping = true;
+            }
+            
+            this.showNavText = !isOverlapping;
         },
         
         // Fetch unread warnings
