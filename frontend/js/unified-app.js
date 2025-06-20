@@ -2579,18 +2579,16 @@ function unifiedApp() {
                     options.headers = getAuthHeaders();
                 }
                 
-                // Build URL with parameters
+                // Use the new optimized endpoint for recent comments
                 const params = new URLSearchParams({
-                    limit: this.pagesCommentLimit,
-                    orderBy: 'created_at',
-                    order: 'DESC'
+                    limit: this.pagesCommentLimit
                 });
                 
-                const url = `${API_URL}/api/comments?${params.toString()}`;
+                const url = `${API_URL}/api/pages/recent-comments?${params.toString()}`;
                 const commentsResponse = await fetch(url, options);
                 
                 if (!commentsResponse.ok) {
-                    throw new Error('Failed to fetch comments');
+                    throw new Error('Failed to fetch recent comments');
                 }
                 
                 const allComments = await commentsResponse.json();

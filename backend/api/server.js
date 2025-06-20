@@ -2003,6 +2003,40 @@ app.get('/api/pages', authenticateUser, requireModerator, async (req, res) => {
     }
 });
 
+// Get recent comments grouped by page with proper tree structure
+app.get('/api/pages/recent-comments', authenticateUser, requireModerator, async (req, res) => {
+    try {
+        const limit = Math.min(parseInt(req.query.limit) || 25, 100);
+        
+        // Get the most recent comments with user info
+        const recentComments = await pgPool.query(`
+            SELECT 
+                c.id,
+                c.page_id,
+                c.user_id,
+                c.parent_id,
+                c.content,
+                c.likes,
+                c.dislikes,
+                c.created_at,
+                c.updated_at,
+                u.name as user_name,
+                u.picture as user_picture,
+                v.vote_type as user_vote
+            FROM comments c
+            JOIN users u ON c.user_id = u.id
+            LEFT JOIN votes v ON c.id = v.comment_id AND v.user_id = $2
+            ORDER BY c.created_at DESC
+            LIMIT $1
+        `, [limit, req.user?.id || null]);
+        
+        res.json(recentComments.rows);
+    } catch (error) {
+        console.error('Error fetching recent comments:', error);
+        res.status(500).json({ error: 'Failed to fetch recent comments' });
+    }
+});
+
 
 // Get users with filters
 app.get('/api/users', authenticateUser, requireModerator, async (req, res) => {
