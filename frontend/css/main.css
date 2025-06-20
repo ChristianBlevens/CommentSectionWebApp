@@ -2228,16 +2228,6 @@ input[type="color"].color-input::-moz-color-swatch {
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-/* Fix thread lines - hide for comments without children */
-.comment-container.no-children > .comment-line {
-    display: none;
-}
-
-/* For the last child in a thread, limit the line height */
-.comment-children > .comment-wrapper:last-child > .comment-container > .comment-line {
-    height: 3rem; /* Stop at the comment header */
-}
-
 .page-header {
     border-bottom: 2px solid var(--border-color);
     padding-bottom: 0.75rem;
