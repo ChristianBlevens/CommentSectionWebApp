@@ -1291,9 +1291,11 @@ function unifiedApp() {
             const processed = isDeleted ? '' : window.MarkdownProcessor?.preprocessMarkdown(displayContent) || displayContent;
             const content = isDeleted ? '' : window.md?.render(processed) || displayContent;
             
+            const hasChildren = comment.children && comment.children.length > 0;
+            
             let html = `
                 <div class="comment-wrapper">
-                    <div class="comment-container ${depth > 0 ? 'comment-depth-' + depth : ''}" 
+                    <div class="comment-container ${depth > 0 ? 'comment-depth-' + depth : ''} ${!hasChildren ? 'no-children' : ''}" 
                          data-comment-id="${comment.id}">
                         <div class="comment-line" onclick="window.unifiedAppInstance.toggleCollapse(event)"></div>
                         
@@ -2593,10 +2595,17 @@ function unifiedApp() {
                 
                 const allComments = await commentsResponse.json();
                 
-                // IMPORTANT: Include user vote data for proper interaction
-                // The API returns userVote field when authenticated
+                // IMPORTANT: Normalize field names from snake_case to camelCase
+                // The API returns snake_case but renderComment expects camelCase
                 allComments.forEach(comment => {
-                    // Ensure userVote is properly set for vote button display
+                    // Normalize field names
+                    comment.userName = comment.user_name;
+                    comment.userPicture = comment.user_picture;
+                    comment.createdAt = comment.created_at;
+                    comment.updatedAt = comment.updated_at;
+                    comment.parentId = comment.parent_id;
+                    comment.pageId = comment.page_id;
+                    comment.userId = comment.user_id;
                     comment.userVote = comment.user_vote || null;
                 });
                 

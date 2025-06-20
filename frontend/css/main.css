@@ -2221,10 +2221,21 @@ input[type="color"].color-input::-moz-color-swatch {
 
 .page-comment-group {
     background-color: var(--bg-secondary);
-    border-radius: 8px;
+    border-radius: 12px;
     padding: 1.5rem;
     margin-bottom: 1.5rem;
-    border: 1px solid var(--border-color);
+    border: 2px solid var(--border-color);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Fix thread lines - hide for comments without children */
+.comment-container.no-children > .comment-line {
+    display: none;
+}
+
+/* For the last child in a thread, limit the line height */
+.comment-children > .comment-wrapper:last-child > .comment-container > .comment-line {
+    height: 3rem; /* Stop at the comment header */
 }
 
 .page-header {
