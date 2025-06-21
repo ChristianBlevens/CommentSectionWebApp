@@ -34,14 +34,14 @@ class AnalyticsCalculator {
         
         // Query for total comments across ALL pages
         const totalQuery = `
-            SELECT COUNT(DISTINCT c.id) as total_count
+            SELECT COUNT(*) as total_count
             FROM comments c
             WHERE c.created_at >= $1
                 AND c.created_at <= $2
         `;
         
         const totalResult = await this.pool.query(totalQuery, [yesterday, endDate]);
-        const totalComments = parseInt(totalResult.rows[0].total_count) || 0;
+        const totalComments = parseInt(totalResult.rows[0]?.total_count || 0);
         
         const pages = result.rows.map(row => ({
             pageId: row.page_id,
@@ -360,14 +360,14 @@ class AnalyticsCalculator {
         
         // Query for total comments across ALL pages
         const totalQuery = `
-            SELECT COUNT(DISTINCT c.id) as total_count
+            SELECT COUNT(*) as total_count
             FROM comments c
             WHERE c.created_at >= $1
                 AND c.created_at <= $2
         `;
         
         const totalResult = await this.pool.query(totalQuery, [startDate, endDate]);
-        const totalComments = parseInt(totalResult.rows[0].total_count) || 0;
+        const totalComments = parseInt(totalResult.rows[0]?.total_count || 0);
         
         const pages = result.rows.map(row => ({
             pageId: row.page_id,

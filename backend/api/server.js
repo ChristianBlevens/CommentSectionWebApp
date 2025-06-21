@@ -2861,6 +2861,71 @@ app.get('/api/analytics/period-summary', authenticateUser, requireModerator, asy
     }
 });
 
+// Diagnostic endpoint to check analytics data integrity
+app.get('/api/analytics/diagnostic', authenticateUser, requireModerator, async (req, res) => {
+    try {
+        // Check total comments in database
+        const totalComments = await pgPool.query(
+            'SELECT COUNT(*) as total FROM comments'
+        );
+        
+        // Check comments by date
+        const commentsByDate = await pgPool.query(`
+            SELECT 
+                DATE(created_at) as date,
+                COUNT(*) as count
+            FROM comments
+            WHERE created_at >= NOW() - INTERVAL '30 days'
+            GROUP BY DATE(created_at)
+            ORDER BY date DESC
+            LIMIT 10
+        `);
+        
+        // Check analytics cache data
+        const analyticsData = await pgPool.query(`
+            SELECT 
+                period_type,
+                period_date,
+                data->>'totalComments' as total_comments,
+                jsonb_array_length(data->'pages') as page_count,
+                generated_at
+            FROM analytics_cache
+            WHERE period_type = 'day'
+            ORDER BY period_date DESC
+            LIMIT 10
+        `);
+        
+        // Check for data inconsistencies
+        const inconsistencies = await pgPool.query(`
+            SELECT 
+                period_type,
+                COUNT(*) as entries,
+                SUM((data->>'totalComments')::int) as sum_total_comments,
+                COUNT(CASE WHEN (data->>'totalComments')::int = 0 THEN 1 END) as zero_entries,
+                COUNT(CASE WHEN (data->>'totalComments')::int > 0 THEN 1 END) as non_zero_entries
+            FROM analytics_cache
+            GROUP BY period_type
+        `);
+        
+        res.json({
+            totalCommentsInDB: parseInt(totalComments.rows[0].total),
+            recentCommentsByDate: commentsByDate.rows,
+            recentAnalyticsData: analyticsData.rows,
+            analyticsSummary: inconsistencies.rows,
+            diagnostic: {
+                hasComments: parseInt(totalComments.rows[0].total) > 0,
+                hasAnalyticsData: analyticsData.rows.length > 0,
+                zeroTotalIssue: analyticsData.rows.some(row => 
+                    parseInt(row.page_count) > 0 && parseInt(row.total_comments) === 0
+                )
+            }
+        });
+    } catch (error) {
+        console.error('Diagnostic error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Temporary endpoint to manually trigger analytics recalculation
 app.post('/api/analytics/recalculate', authenticateUser, requireModerator, async (req, res) => {
     try {
