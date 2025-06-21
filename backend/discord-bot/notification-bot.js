@@ -84,7 +84,9 @@ async function handleMention(data) {
         }
         
         const discordId = user.id.replace('discord_', '');
-        const deepLink = `${process.env.FRONTEND_URL}/?pageId=${pageId}#comment-${commentId}`;
+        // Remove oauth-callback.html from the URL if present
+        const baseUrl = process.env.FRONTEND_URL.replace('/oauth-callback.html', '');
+        const deepLink = `${baseUrl}/?pageId=${pageId}#comment-${commentId}`;
         
         const embed = new EmbedBuilder()
             .setColor(0x5865F2)
