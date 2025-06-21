@@ -2306,7 +2306,7 @@ app.post('/api/users/warnings/acknowledge', authenticateUser, async (req, res) =
 });
 
 // Search users for mentions
-app.get('/api/users/search', authenticateUser, async (req, res) => {
+app.get('/api/users/mentions', authenticateUser, async (req, res) => {
     const { q = '', limit = 5 } = req.query;
     
     console.log('User search request:', {

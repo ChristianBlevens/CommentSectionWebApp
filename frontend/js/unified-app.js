@@ -1188,7 +1188,7 @@ function unifiedApp() {
                 console.log('Mention search - API URL:', API_URL);
                 
                 const response = await fetch(
-                    `${API_URL}/api/users/search?q=${encodeURIComponent(this.mentionDropdown.searchTerm)}&limit=5`,
+                    `${API_URL}/api/users/mentions?q=${encodeURIComponent(this.mentionDropdown.searchTerm)}&limit=5`,
                     { 
                         headers: headers,
                         credentials: 'include'
@@ -2835,9 +2835,9 @@ function unifiedApp() {
             }
             
             // Test 4: Test broken endpoint (user search)
-            console.log('\n--- Testing BROKEN endpoint (user search) ---');
+            console.log('\n--- Testing BROKEN endpoint (user mentions) ---');
             try {
-                const searchResponse = await fetch(`${API_URL}/api/users/search?q=&limit=5`, {
+                const searchResponse = await fetch(`${API_URL}/api/users/mentions?q=&limit=5`, {
                     headers: headers,
                     credentials: 'include'
                 });
@@ -2861,7 +2861,7 @@ function unifiedApp() {
             // Test 5: Direct API test with minimal setup
             console.log('\n--- Testing with XMLHttpRequest ---');
             const xhr = new XMLHttpRequest();
-            xhr.open('GET', `${API_URL}/api/users/search?q=&limit=5`, true);
+            xhr.open('GET', `${API_URL}/api/users/mentions?q=&limit=5`, true);
             xhr.setRequestHeader('Authorization', headers.Authorization);
             xhr.withCredentials = true;
             xhr.onload = function() {
