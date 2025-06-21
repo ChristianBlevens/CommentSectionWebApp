@@ -43,7 +43,6 @@
     --color-info: var(--color-primary-main);
     --color-info-hover: var(--color-primary-hover);
     --color-report-bg: #fee2e2;
-    --color-report-border: #fecaca;
     --color-ban: #7f1d1d;
     --color-ban-hover: #991b1b;
     --color-bg-primary: var(--color-backgrounds-main);
@@ -394,7 +393,7 @@ body {
 /* Reported Comment Styling */
 .comment-content.reported,
 .comment-content.reported-comment {
-    outline: 2px solid var(--color-report-border);
+    outline: 3px solid var(--color-danger);
     outline-offset: 2px;
 }
 
@@ -1266,7 +1265,7 @@ a *,
     border-radius: var(--radius-lg);
     box-shadow: 0 2px 8px var(--color-shadow-md);
     padding: var(--space-lg);
-    border-left: 4px solid var(--color-report);
+    border-left: 4px solid var(--color-danger);
     margin-bottom: var(--space-md);
 }
 

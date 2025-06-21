@@ -1840,6 +1840,7 @@ function unifiedApp() {
         
         viewReportedComment(commentId) {
             // Set a flag that we're viewing from reports
+            console.log('viewReportedComment called with:', commentId);
             this.pendingReportedCommentId = commentId;
             window.location.hash = `comment-${commentId}`;
         },
