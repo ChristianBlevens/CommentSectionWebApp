@@ -79,8 +79,22 @@ document.addEventListener('click', (event) => {
 // Handle Discord login callbacks
 Auth.setupOAuthListener((user, data) => {
     if (window.unifiedAppInstance) {
-        window.unifiedAppInstance.user = user;
-        window.unifiedAppInstance.loadComments();
+        // Ensure user object has all required properties
+        window.unifiedAppInstance.user = {
+            ...user,
+            // Ensure both naming conventions are supported
+            username: user.username || user.name,
+            avatar: user.avatar || user.picture,
+            // Set defaults if properties are missing
+            allow_discord_dms: user.allow_discord_dms !== undefined ? user.allow_discord_dms : true,
+            is_banned: user.is_banned || false
+        };
+        
+        // Force Alpine.js to update the UI
+        window.unifiedAppInstance.$nextTick(() => {
+            // Re-render components that depend on user state
+            window.unifiedAppInstance.loadComments();
+        });
     }
 });
 
@@ -290,7 +304,21 @@ function unifiedApp() {
             }
             
             // Restore user session
-            this.user = await Auth.checkExistingSession();
+            const sessionUser = await Auth.checkExistingSession();
+            if (sessionUser) {
+                // Ensure user object has all required properties
+                this.user = {
+                    ...sessionUser,
+                    // Ensure both naming conventions are supported
+                    username: sessionUser.username || sessionUser.name,
+                    avatar: sessionUser.avatar || sessionUser.picture,
+                    // Set defaults if properties are missing
+                    allow_discord_dms: sessionUser.allow_discord_dms !== undefined ? sessionUser.allow_discord_dms : true,
+                    is_banned: sessionUser.is_banned || false
+                };
+            } else {
+                this.user = null;
+            }
             
             // Super moderator status comes from backend only
             

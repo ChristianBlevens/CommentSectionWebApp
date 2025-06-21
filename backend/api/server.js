@@ -174,9 +174,14 @@ function sanitizeUser(user) {
     return {
         id: getPublicId(user.id),
         name: user.name,
+        username: user.name || user.username, // Support both field names
         picture: user.picture,
+        avatar: user.picture || user.avatar, // Support both field names
+        email: user.email,
         is_moderator: user.is_moderator,
-        is_super_moderator: user.is_super_moderator
+        is_super_moderator: user.is_super_moderator,
+        is_banned: user.is_banned,
+        allow_discord_dms: user.allow_discord_dms !== undefined ? user.allow_discord_dms : true // Default to true if not set
     };
 }
 
@@ -938,6 +943,8 @@ app.post('/api/discord/callback', authLimiter, async (req, res) => {
         
         if (userResult.rows.length > 0) {
             const userData = userResult.rows[0];
+            user.name = user.username; // Add name property for consistency
+            user.picture = user.avatar; // Add picture property for consistency
             user.is_moderator = userData.is_moderator;
             user.is_super_moderator = userData.is_super_moderator;
             user.is_banned = userData.is_banned;
