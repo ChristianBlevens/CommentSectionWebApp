@@ -144,6 +144,52 @@ app.use(generalLimiter);
 // Utility functions
 const generateSessionToken = () => crypto.randomBytes(32).toString('hex');
 
+// Generate a public ID from Discord ID using hash
+function generatePublicId(discordId) {
+    if (!discordId) return null;
+    return crypto.createHash('sha256')
+        .update(discordId + process.env.SESSION_SECRET)
+        .digest('hex')
+        .substring(0, 16); // 16 char public ID
+}
+
+// Cache for performance
+const publicIdCache = new Map();
+
+function getPublicId(discordId) {
+    if (!discordId) return null;
+    
+    if (publicIdCache.has(discordId)) {
+        return publicIdCache.get(discordId);
+    }
+    
+    const publicId = generatePublicId(discordId);
+    publicIdCache.set(discordId, publicId);
+    return publicId;
+}
+
+// Sanitize user object to hide Discord ID
+function sanitizeUser(user) {
+    if (!user) return null;
+    return {
+        id: getPublicId(user.id),
+        name: user.name,
+        picture: user.picture,
+        is_moderator: user.is_moderator,
+        is_super_moderator: user.is_super_moderator
+    };
+}
+
+// Sanitize comment to hide Discord ID
+function sanitizeComment(comment, currentUserId = null) {
+    return {
+        ...comment,
+        userId: getPublicId(comment.user_id),
+        user_id: undefined, // Remove original
+        isOwner: currentUserId && comment.user_id === currentUserId
+    };
+}
+
 const safeRedisOp = async (operation) => {
     try {
         if (!redisClient.isReady) return null;
@@ -937,7 +983,13 @@ app.post('/api/discord/callback', authLimiter, async (req, res) => {
             redisClient.setEx(`session:${sessionToken}`, config.session.duration, user.id)
         );
         
-        res.json({ user, sessionToken });
+        res.json({ 
+            user: {
+                ...sanitizeUser(user),
+                _internalId: user.id // Add real ID only for current user
+            }, 
+            sessionToken 
+        });
     } catch (error) {
         console.error('Discord OAuth error:', error.response?.data || error.message);
         if (error.response?.status === 401) {
@@ -1035,14 +1087,15 @@ app.get('/api/session/validate', async (req, res) => {
         
         const user = userResult.rows[0];
         res.json({
-            id: user.id,
+            id: getPublicId(user.id),
             username: user.name,
             email: user.email,
             avatar: user.picture,
             is_moderator: user.is_moderator,
             is_super_moderator: user.is_super_moderator,
             is_banned: user.is_banned,
-            allow_discord_dms: user.allow_discord_dms
+            allow_discord_dms: user.allow_discord_dms,
+            _internalId: user.id // Add real ID only for current user
         });
     } catch (error) {
         console.error('Session validation error:', error);
@@ -1061,15 +1114,19 @@ app.post('/api/logout', authenticateUser, async (req, res) => {
 app.get('/api/users/:userId', authenticateUser, async (req, res) => {
     const { userId } = req.params;
     
+    // Check if it's a public ID or Discord ID
+    const requestedPublicId = userId.startsWith('discord_') ? getPublicId(userId) : userId;
+    const currentUserPublicId = getPublicId(req.user.id);
+    
     // Restrict to own profile only
-    if (userId !== req.user.id) {
+    if (requestedPublicId !== currentUserPublicId) {
         return res.status(403).json({ error: 'Unauthorized' });
     }
     
     try {
         const result = await pgPool.query(
             'SELECT id, email, name, picture, is_moderator, is_super_moderator, is_banned FROM users WHERE id = $1',
-            [userId]
+            [req.user.id]
         );
         
         if (result.rows.length === 0) {
@@ -1078,13 +1135,14 @@ app.get('/api/users/:userId', authenticateUser, async (req, res) => {
         
         const user = result.rows[0];
         res.json({
-            id: user.id,
+            id: getPublicId(user.id),
             username: user.name,
             email: user.email,
             avatar: user.picture,
             is_moderator: user.is_moderator,
             is_super_moderator: user.is_super_moderator,
-            is_banned: user.is_banned
+            is_banned: user.is_banned,
+            _internalId: user.id // Add real ID only for current user
         });
     } catch (error) {
         console.error('Get user error:', error);
@@ -1159,7 +1217,7 @@ app.get('/api/comments', optionalAuth, async (req, res) => {
         const comments = result.rows.map(row => ({
             id: row.id,
             pageId: row.page_id,
-            userId: row.user_id,
+            userId: getPublicId(row.user_id),
             parentId: row.parent_id,
             content: row.content,
             likes: row.likes,
@@ -1168,7 +1226,8 @@ app.get('/api/comments', optionalAuth, async (req, res) => {
             updatedAt: row.updated_at,
             userName: row.user_name,
             userPicture: row.user_picture,
-            userVote: row.user_vote
+            userVote: row.user_vote,
+            isOwner: req.user && row.user_id === req.user.id
         }));
         
         // Disable browser caching
@@ -1395,7 +1454,7 @@ app.post('/api/comments', authenticateUser, async (req, res) => {
         res.json({
             id: comment.id,
             pageId: comment.page_id,
-            userId: comment.user_id,
+            userId: getPublicId(comment.user_id),
             parentId: comment.parent_id,
             content: comment.content,
             likes: 0,
@@ -1403,7 +1462,8 @@ app.post('/api/comments', authenticateUser, async (req, res) => {
             createdAt: comment.created_at,
             updatedAt: comment.updated_at,
             userName: user.name,
-            userPicture: user.picture
+            userPicture: user.picture,
+            isOwner: true // Always true for the comment creator
         });
     } catch (error) {
         await client.query('ROLLBACK');
@@ -1829,9 +1889,15 @@ app.get('/api/reports', authenticateUser, requireModerator, async (req, res) => 
         
         console.log(`Found ${reportsResult.rows.length} reports`);
         
-        // Prepare API response
+        // Prepare API response with sanitized IDs
+        const sanitizedReports = reportsResult.rows.map(report => ({
+            ...report,
+            reporter_id: getPublicId(report.reporter_id),
+            comment_user_id: getPublicId(report.comment_user_id)
+        }));
+        
         const response = {
-            reports: reportsResult.rows
+            reports: sanitizedReports
         };
         
         // Add page statistics if needed
@@ -2021,7 +2087,11 @@ app.get('/api/moderators', authenticateUser, requireModerator, async (req, res) 
         const moderators = await pgPool.query(
             'SELECT id, name, picture, email FROM users WHERE is_moderator = TRUE ORDER BY name'
         );
-        res.json(moderators.rows);
+        const sanitizedModerators = moderators.rows.map(mod => ({
+            ...sanitizeUser(mod),
+            email: mod.email // Keep email for moderator view
+        }));
+        res.json(sanitizedModerators);
     } catch (error) {
         console.error('Get moderators error:', error);
         res.status(500).json({ error: 'Failed to get moderators' });
@@ -2300,11 +2370,27 @@ app.get('/api/users', authenticateUser, requireModerator, async (req, res) => {
         
         const result = await pgPool.query(query, queryParams);
         
+        // Sanitize user IDs before returning
+        const sanitizedUsers = result.rows.map(user => ({
+            ...sanitizeUser(user),
+            // Keep additional fields for moderator view
+            email: user.email,
+            is_banned: user.is_banned,
+            ban_expires_at: user.ban_expires_at,
+            ban_reason: user.ban_reason,
+            warning_count: user.warning_count,
+            total_comments: user.total_comments,
+            total_reports_made: user.total_reports_made,
+            total_reports_received: user.total_reports_received,
+            trust_score: user.trust_score,
+            created_at: user.created_at
+        }));
+        
         // Return single object for user details
-        if (userId && includeDetails === 'true' && result.rows.length > 0) {
-            res.json(result.rows[0]);
+        if (userId && includeDetails === 'true' && sanitizedUsers.length > 0) {
+            res.json(sanitizedUsers[0]);
         } else {
-            res.json(result.rows);
+            res.json(sanitizedUsers);
         }
     } catch (error) {
         console.error('Get users error:', error);
@@ -2627,9 +2713,19 @@ app.get('/api/moderation-logs', authenticateUser, requireModerator, async (req, 
             'Expires': '0'
         });
         
+        // Sanitize IDs in logs
+        const sanitizedLogs = result.rows.map(log => ({
+            ...log,
+            moderator_id: getPublicId(log.moderator_id),
+            target_user_id: log.target_user_id ? getPublicId(log.target_user_id) : null
+        }));
+        
+        // Sanitize moderator IDs
+        const sanitizedModerators = moderatorsResult.rows.map(mod => sanitizeUser(mod));
+        
         res.json({
-            logs: result.rows,
-            moderators: moderatorsResult.rows
+            logs: sanitizedLogs,
+            moderators: sanitizedModerators
         });
     } catch (error) {
         console.error('Get moderation logs error:', error);

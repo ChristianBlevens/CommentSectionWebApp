@@ -586,8 +586,8 @@ function unifiedApp() {
                 
                 // Then, move current user's comments to the top while maintaining their relative order
                 if (this.user) {
-                    const userComments = sorted.filter(comment => comment.userId === this.user.id);
-                    const otherComments = sorted.filter(comment => comment.userId !== this.user.id);
+                    const userComments = sorted.filter(comment => comment.isOwner);
+                    const otherComments = sorted.filter(comment => !comment.isOwner);
                     sorted = [...userComments, ...otherComments];
                 }
                 
@@ -1342,7 +1342,7 @@ function unifiedApp() {
                                                 <i class="fas fa-flag"></i>
                                                 Report
                                             </button>
-                                            ${(comment.userId === this.user.id || this.user.is_moderator) ? `
+                                            ${(comment.isOwner || this.user.is_moderator) ? `
                                                 <button onclick="window.unifiedAppInstance.deleteComment('${comment.id}')" 
                                                         class="dropdown-item-base comment-dropdown-item">
                                                     <i class="fas fa-trash"></i>

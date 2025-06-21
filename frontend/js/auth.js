@@ -28,6 +28,13 @@ const Auth = {
             if (response.ok) {
                 const validatedUser = await response.json();
                 console.log('Session validated, user:', validatedUser);
+                
+                // Store internal ID separately for current user actions
+                if (validatedUser._internalId) {
+                    sessionStorage.setItem('_uid', validatedUser._internalId);
+                    delete validatedUser._internalId;
+                }
+                
                 // Save fresh user data
                 localStorage.setItem('user', JSON.stringify(validatedUser));
                 return validatedUser;
@@ -113,6 +120,7 @@ const Auth = {
         
         localStorage.removeItem('user');
         localStorage.removeItem('sessionToken');
+        sessionStorage.removeItem('_uid');
     },
 
     // Handle OAuth callback messages
@@ -120,6 +128,13 @@ const Auth = {
         window.addEventListener('message', (event) => {
             if (event.data?.type === 'discord-login-success') {
                 const user = event.data.user;
+                
+                // Extract and store internal ID
+                if (user._internalId) {
+                    sessionStorage.setItem('_uid', user._internalId);
+                    delete user._internalId;
+                }
+                
                 localStorage.setItem('user', JSON.stringify(user));
                 if (event.data.sessionToken) {
                     localStorage.setItem('sessionToken', event.data.sessionToken);
