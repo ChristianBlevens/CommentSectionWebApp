@@ -9,7 +9,7 @@ function getRelativeTime(dateString) {
 function renderMarkdown(text) {
     if (!window.md) {
         window.md = window.markdownit({
-            html: false,
+            html: true,
             breaks: true,
             linkify: true
         });
@@ -56,7 +56,7 @@ function showCustomBanInput(userId, userName) {
 function initializeMarkdown() {
     if (!window.md) {
         window.md = window.markdownit({
-            html: false,
+            html: true,
             breaks: true,
             linkify: true
         });

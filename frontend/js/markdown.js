@@ -5,7 +5,7 @@ const MarkdownProcessor = {
         const md = window.markdownit({
             html: true,
             breaks: true,
-            linkify: false
+            linkify: true
         });
 
         // Make images clickable
@@ -27,7 +27,8 @@ const MarkdownProcessor = {
     // Add custom syntax support
     preprocessMarkdown(text) {
         // Convert @username mentions to highlighted spans
-        text = text.replace(/@(\w+)(?=\s|$|[^\w])/g, '<span class="mention">@$1</span>');
+        // Match @username followed by space, punctuation, or end of string
+        text = text.replace(/@([a-zA-Z0-9_]+)(?=\s|$|[^a-zA-Z0-9_])/g, '<span class="mention">@$1</span>');
         
         // Convert ||text|| to spoilers
         text = text.replace(/\|\|([^|]+)\|\|/g, '<span class="spoiler">$1</span>');
