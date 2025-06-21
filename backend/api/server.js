@@ -85,13 +85,12 @@ redisClient.connect().catch(err => {
 // Parse mentions from comment content
 function parseMentions(content) {
     const mentions = [];
-    const mentionRegex = /@(\w+)\[(\d+)\]/g;
+    const mentionRegex = /@([a-zA-Z0-9_]+)(?=\s|$|[^a-zA-Z0-9_])/g;
     let match;
     
     while ((match = mentionRegex.exec(content)) !== null) {
         mentions.push({
-            username: match[1],
-            userId: parseInt(match[2])
+            username: match[1]
         });
     }
     
@@ -1252,14 +1251,16 @@ app.post('/api/comments', authenticateUser, async (req, res) => {
             await redisPublisher.connect();
             
             for (const mention of mentions.slice(0, 5)) {
-                const user = await client.query(
-                    'SELECT id, name FROM users WHERE id = $1 AND is_banned = false',
-                    [mention.userId]
+                // Look up user by username instead of ID
+                const userResult = await client.query(
+                    'SELECT id, name, discord_id FROM users WHERE LOWER(name) = LOWER($1) AND is_banned = false',
+                    [mention.username]
                 );
                 
-                if (user.rows.length > 0) {
+                if (userResult.rows.length > 0) {
+                    const mentionedUser = userResult.rows[0];
                     await redisPublisher.publish('comment:mentions', JSON.stringify({
-                        mentionedUserId: mention.userId,
+                        mentionedUserId: mentionedUser.id,
                         commentId: comment.id,
                         pageId,
                         authorName: req.user.name,

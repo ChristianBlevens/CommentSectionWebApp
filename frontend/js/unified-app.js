@@ -272,7 +272,7 @@ function unifiedApp() {
             
             // Create markdown parser
             window.md = window.markdownit({
-                html: false,
+                html: true,  // Changed from false to allow HTML passthrough
                 breaks: true,
                 linkify: true
             });
