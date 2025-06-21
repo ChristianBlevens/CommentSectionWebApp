@@ -159,7 +159,6 @@ Users can self-host the comment webapp and point to it:
 
 - **[Deployment Guide](DEPLOYMENT.md)** - Complete deployment instructions for home servers and VPS
 - **[Detailed Guide](DETAILED_GUIDE.md)** - In-depth feature documentation, architecture details, and file reference
-- **[Embed Guide](COMMENT_IFRAME_EMBEDDING_GUIDE.md)** - Advanced iframe embedding documentation
 
 ## License
 

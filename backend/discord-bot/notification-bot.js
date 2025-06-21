@@ -59,18 +59,31 @@ async function handleMention(data) {
     
     try {
         const result = await pgPool.query(
-            'SELECT discord_id, name, notification_preferences FROM users WHERE id = $1',
+            'SELECT id, name, notification_preferences, allow_discord_dms FROM users WHERE id = $1',
             [mentionedUserId]
         );
         
         if (!result.rows.length) return;
         
         const user = result.rows[0];
+        
+        // Check if user allows Discord DMs
+        if (!user.allow_discord_dms) {
+            console.log(`User ${user.name} has disabled Discord DMs`);
+            return;
+        }
+        
         const prefs = user.notification_preferences || { mentions: true };
         
         if (!prefs.mentions) return;
         
-        const discordId = user.discord_id.replace('discord_', '');
+        // Extract Discord ID from user ID (format: discord_123456789)
+        if (!user.id.startsWith('discord_')) {
+            console.log(`User ${user.name} is not a Discord user`);
+            return;
+        }
+        
+        const discordId = user.id.replace('discord_', '');
         const deepLink = `${process.env.FRONTEND_URL}/?pageId=${pageId}#comment-${commentId}`;
         
         const embed = new EmbedBuilder()
