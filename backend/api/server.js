@@ -1253,7 +1253,7 @@ app.post('/api/comments', authenticateUser, async (req, res) => {
             for (const mention of mentions.slice(0, 5)) {
                 // Look up user by username instead of ID
                 const userResult = await client.query(
-                    'SELECT id, name, discord_id FROM users WHERE LOWER(name) = LOWER($1) AND is_banned = false',
+                    'SELECT id, name FROM users WHERE LOWER(name) = LOWER($1) AND is_banned = false',
                     [mention.username]
                 );
                 
@@ -2601,7 +2601,7 @@ app.get('/api/theme/public', async (req, res) => {
         }
         
         // Cache for 1 hour
-        await safeRedisOp(() => redisClient.setex('theme:public:data', 3600, JSON.stringify(themeData)));
+        await safeRedisOp(() => redisClient.setEx('theme:public:data', 3600, JSON.stringify(themeData)));
         
         res.json(themeData);
     } catch (error) {
@@ -2634,7 +2634,7 @@ app.get('/theme.css', async (req, res) => {
         }
         
         // Cache for 1 hour
-        await safeRedisOp(() => redisClient.setex('theme:css', 3600, css));
+        await safeRedisOp(() => redisClient.setEx('theme:css', 3600, css));
         
         res.type('text/css').send(css);
     } catch (error) {
