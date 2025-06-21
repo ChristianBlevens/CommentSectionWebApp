@@ -196,7 +196,7 @@
                                 
                                 <!-- Actions -->
                                 <div class="report-actions">
-                                    <button @click="window.location.hash = `comment-${report.comment_id}`" 
+                                    <button @click="viewReportedComment(report.comment_id)" 
                                             class="btn-base report-action-btn view">
                                         <i class="fas fa-eye"></i>View Comment
                                     </button>

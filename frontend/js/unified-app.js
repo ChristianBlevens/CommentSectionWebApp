@@ -126,6 +126,7 @@ function unifiedApp() {
         focusedCommentId: null,
         focusedComments: [],
         highlightedCommentId: null,
+        pendingReportedCommentId: null,
         commentVotes: {},
         commentSearchQuery: '',
         searchMode: 'and', // 'and', 'or', 'not'
@@ -1765,6 +1766,10 @@ function unifiedApp() {
                 const commentId = parseInt(hash.substring(9));
                 
                 if (!isNaN(commentId)) {
+                    // Check if this is a reported comment view
+                    const isFromReport = this.pendingReportedCommentId === commentId;
+                    this.pendingReportedCommentId = null; // Clear the flag
+                    
                     // First try to find comment in current page's comments
                     let comment = this.findComment(commentId, this.comments);
                     
@@ -1775,7 +1780,7 @@ function unifiedApp() {
                     
                     if (comment) {
                         // Build focus mode view from scratch
-                        await this.buildFocusMode(comment);
+                        await this.buildFocusMode(comment, isFromReport);
                     }
                 }
             } else if (!hash && this.focusedCommentId) {
@@ -1796,7 +1801,7 @@ function unifiedApp() {
             return null;
         },
         
-        async buildFocusMode(comment) {
+        async buildFocusMode(comment, isFromReport = false) {
             // Clear current focus
             this.focusedComments = [];
             
@@ -1816,8 +1821,8 @@ function unifiedApp() {
                 this.focusedCommentId = comment.id;
             }
             
-            // Highlight the target comment if it's a reply
-            this.highlightedCommentId = comment.parentId ? comment.id : null;
+            // Only highlight if viewing from reports
+            this.highlightedCommentId = isFromReport ? comment.id : null;
             
             // Update URL to reflect focus mode
             if (window.location.hash !== `#comment-${comment.id}`) {
@@ -1831,6 +1836,12 @@ function unifiedApp() {
                     focusedContent.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }
             });
+        },
+        
+        viewReportedComment(commentId) {
+            // Set a flag that we're viewing from reports
+            this.pendingReportedCommentId = commentId;
+            window.location.hash = `comment-${commentId}`;
         },
         
         insertMarkdownForReply(commentId, before, after) {
