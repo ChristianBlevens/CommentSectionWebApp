@@ -296,6 +296,9 @@ function unifiedApp() {
             // Fetch page comments
             await this.loadComments();
             
+            // Set up hash navigation
+            this.setupHashNavigation();
+            
             // Get pending report count
             if (this.user?.is_moderator) {
                 await this.loadReportCount();
@@ -1247,11 +1250,6 @@ function unifiedApp() {
             return getRelativeTime(dateString);
         },
         
-        jumpToComment(commentId) {
-            // Enter focus mode on the reported comment
-            this.enterFocusMode(commentId, true);
-        },
-        
         toggleBanDropdown(id, event) {
             if (event) {
                 event.stopPropagation();
@@ -1404,7 +1402,7 @@ function unifiedApp() {
                             comment.children.map(child => this.renderComment(child, depth + 1)).join('') : 
                             (depth >= MAX_DEPTH && comment.children?.length > 0 ? `
                                 <div class="ml-4 mt-2">
-                                    <button onclick="window.unifiedAppInstance.viewReplies('${comment.id}')" 
+                                    <button onclick="window.location.hash = 'comment-${comment.id}'" 
                                             class="btn-base btn btn-primary text-sm">
                                         <i class="fas fa-comments mr-1"></i>
                                         View ${comment.children.length} ${comment.children.length === 1 ? 'reply' : 'replies'}
@@ -1736,60 +1734,103 @@ function unifiedApp() {
             }
         },
         
-        viewReplies(commentId) {
-            this.enterFocusMode(commentId);
-        },
-        
         enterFocusMode(commentId, isFromReport = false) {
-            const comment = this.findComment(commentId, this.comments);
-            if (!comment) return;
-            
-            // Store whether we're highlighting a reported comment
-            this.highlightedCommentId = isFromReport ? commentId : null;
-            
-            // If the comment has a parent, show the parent as the root
-            if (comment.parentId) {
-                const parent = this.findComment(comment.parentId, this.comments);
-                if (parent) {
-                    this.focusedCommentId = parent.id;
-                    this.focusedComments = [parent];
-                } else {
-                    // Parent not found, just show the comment
-                    this.focusedCommentId = commentId;
-                    this.focusedComments = [comment];
-                }
-            } else {
-                // No parent, show the comment as root
-                this.focusedCommentId = commentId;
-                this.focusedComments = [comment];
-            }
-            
-            // Wait for DOM to update, then scroll to the focused content
-            setTimeout(() => {
-                // Try to find the focus mode header first
-                const focusHeader = document.querySelector('[x-show="focusedCommentId"]');
-                if (focusHeader && focusHeader.offsetParent !== null) {
-                    // Scroll to focus mode header with some offset
-                    const offset = 20; // Small offset from top
-                    const elementTop = focusHeader.getBoundingClientRect().top + window.pageYOffset;
-                    window.scrollTo({
-                        top: elementTop - offset,
-                        behavior: 'smooth'
-                    });
-                } else {
-                    // Fallback to comments container
-                    const commentsContainer = document.querySelector('.comments-container');
-                    if (commentsContainer) {
-                        commentsContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    }
-                }
-            }, 100); // Small delay to ensure DOM is updated
+            // Simply update the hash and let the hash navigation handler do the work
+            window.location.hash = `comment-${commentId}`;
         },
         
         exitFocusMode() {
             this.focusedCommentId = null;
             this.focusedComments = [];
             this.highlightedCommentId = null;
+            
+            // Clear hash from URL
+            if (window.location.hash) {
+                history.pushState(null, null, window.location.pathname + window.location.search);
+            }
+        },
+        
+        setupHashNavigation() {
+            // Handle initial hash on page load
+            this.handleHashNavigation();
+            
+            // Listen for hash changes
+            window.addEventListener('hashchange', () => this.handleHashNavigation());
+        },
+        
+        async handleHashNavigation() {
+            const hash = window.location.hash;
+            
+            if (hash && hash.startsWith('#comment-')) {
+                const commentId = parseInt(hash.substring(9));
+                
+                if (!isNaN(commentId)) {
+                    // First try to find comment in current page's comments
+                    let comment = this.findComment(commentId, this.comments);
+                    
+                    if (!comment) {
+                        // Comment not on current page - fetch it from API
+                        comment = await this.fetchCommentById(commentId);
+                    }
+                    
+                    if (comment) {
+                        // Build focus mode view from scratch
+                        await this.buildFocusMode(comment);
+                    }
+                }
+            } else if (!hash && this.focusedCommentId) {
+                // No hash means exit focus mode
+                this.exitFocusMode();
+            }
+        },
+        
+        async fetchCommentById(commentId) {
+            try {
+                const response = await fetch(`/api/comments/${commentId}`);
+                if (response.ok) {
+                    return await response.json();
+                }
+            } catch (error) {
+                console.error('Failed to fetch comment:', error);
+            }
+            return null;
+        },
+        
+        async buildFocusMode(comment) {
+            // Clear current focus
+            this.focusedComments = [];
+            
+            // If comment has a parent, fetch and add it first
+            if (comment.parentId) {
+                let parent = this.findComment(comment.parentId, this.comments);
+                if (!parent) {
+                    parent = await this.fetchCommentById(comment.parentId);
+                }
+                if (parent) {
+                    this.focusedComments.push(parent);
+                    this.focusedCommentId = parent.id;
+                }
+            } else {
+                // No parent, comment is the root
+                this.focusedComments.push(comment);
+                this.focusedCommentId = comment.id;
+            }
+            
+            // Highlight the target comment if it's a reply
+            this.highlightedCommentId = comment.parentId ? comment.id : null;
+            
+            // Update URL to reflect focus mode
+            if (window.location.hash !== `#comment-${comment.id}`) {
+                history.replaceState(null, null, `#comment-${comment.id}`);
+            }
+            
+            // Scroll to focused content after render
+            this.$nextTick(() => {
+                const focusedContent = document.getElementById('focused-content');
+                if (focusedContent) {
+                    focusedContent.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
         },
         
         insertMarkdownForReply(commentId, before, after) {

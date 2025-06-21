@@ -1185,6 +1185,122 @@ app.get('/api/comments', optionalAuth, async (req, res) => {
     }
 });
 
+// Get single comment by ID
+app.get('/api/comments/:commentId', optionalAuth, async (req, res) => {
+    const { commentId } = req.params;
+    const userId = req.user?.id;
+    
+    try {
+        // Get the comment with user info and nested replies
+        const result = await pgPool.query(`
+            WITH RECURSIVE comment_tree AS (
+                -- Get the target comment
+                SELECT 
+                    c.id,
+                    c.page_id,
+                    c.user_id,
+                    c.content,
+                    c.parent_id,
+                    c.created_at,
+                    c.updated_at,
+                    u.username,
+                    u.display_name,
+                    u.avatar_url,
+                    0 as depth,
+                    ARRAY[c.created_at] as path
+                FROM comments c
+                JOIN users u ON c.user_id = u.id
+                WHERE c.id = $1
+                
+                UNION ALL
+                
+                -- Get all replies recursively
+                SELECT 
+                    c.id,
+                    c.page_id,
+                    c.user_id,
+                    c.content,
+                    c.parent_id,
+                    c.created_at,
+                    c.updated_at,
+                    u.username,
+                    u.display_name,
+                    u.avatar_url,
+                    ct.depth + 1,
+                    ct.path || c.created_at
+                FROM comments c
+                JOIN users u ON c.user_id = u.id
+                JOIN comment_tree ct ON c.parent_id = ct.id
+                WHERE ct.depth < 50  -- Prevent infinite recursion
+            )
+            SELECT 
+                ct.*,
+                COALESCE(v.vote, 0) as user_vote,
+                COALESCE(vote_counts.upvotes, 0) as upvotes,
+                COALESCE(vote_counts.downvotes, 0) as downvotes
+            FROM comment_tree ct
+            LEFT JOIN votes v ON ct.id = v.comment_id AND v.user_id = $2
+            LEFT JOIN (
+                SELECT 
+                    comment_id,
+                    SUM(CASE WHEN vote = 1 THEN 1 ELSE 0 END) as upvotes,
+                    SUM(CASE WHEN vote = -1 THEN 1 ELSE 0 END) as downvotes
+                FROM votes
+                GROUP BY comment_id
+            ) vote_counts ON ct.id = vote_counts.comment_id
+            ORDER BY ct.path
+        `, [commentId, userId]);
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Comment not found' });
+        }
+        
+        // Build the comment tree structure
+        const commentMap = new Map();
+        let rootComment = null;
+        
+        result.rows.forEach(row => {
+            const comment = {
+                id: row.id,
+                pageId: row.page_id,
+                userId: row.user_id,
+                content: row.content,
+                parentId: row.parent_id,
+                createdAt: row.created_at,
+                updatedAt: row.updated_at,
+                username: row.username,
+                displayName: row.display_name,
+                avatarUrl: row.avatar_url,
+                upvotes: row.upvotes,
+                downvotes: row.downvotes,
+                userVote: row.user_vote,
+                children: []
+            };
+            
+            commentMap.set(comment.id, comment);
+            
+            if (comment.id === parseInt(commentId)) {
+                rootComment = comment;
+            }
+        });
+        
+        // Build parent-child relationships
+        result.rows.forEach(row => {
+            if (row.parent_id && row.id !== parseInt(commentId)) {
+                const parent = commentMap.get(row.parent_id);
+                const child = commentMap.get(row.id);
+                if (parent && child) {
+                    parent.children.push(child);
+                }
+            }
+        });
+        
+        res.json(rootComment);
+    } catch (error) {
+        console.error('Error fetching comment:', error);
+        res.status(500).json({ error: 'Failed to fetch comment' });
+    }
+});
 
 // Create comment
 app.post('/api/comments', authenticateUser, async (req, res) => {

@@ -196,17 +196,10 @@
                                 
                                 <!-- Actions -->
                                 <div class="report-actions">
-                                    <button @click="jumpToComment(report.comment_id)" 
-                                            x-show="report.page_id === pageId"
+                                    <button @click="window.location.hash = `comment-${report.comment_id}`" 
                                             class="btn-base report-action-btn view">
                                         <i class="fas fa-eye"></i>View Comment
                                     </button>
-                                    <a :href="`index.html?pageId=${report.page_id}#comment-${report.comment_id}`" 
-                                       x-show="report.page_id !== pageId"
-                                       target="_blank"
-                                       class="btn-base report-action-btn view">
-                                        <i class="fas fa-external-link-alt"></i>View in Context
-                                    </a>
                                     <button @click="deleteReportedComment(report)" 
                                             class="btn-base report-action-btn delete">
                                         <i class="fas fa-trash"></i>Delete Comment
@@ -447,11 +440,10 @@
                                                         </p>
                                                         <p class="mt-1" x-text="comment.content"></p>
                                                         <div class="mt-1 flex gap-2">
-                                                            <a :href="`index.html?pageId=${comment.page_id}#comment-${comment.id}`" 
-                                                               target="_blank"
-                                                               class="btn-base markdown-btn text-xs">
-                                                                <i class="fas fa-external-link-alt"></i>
-                                                            </a>
+                                                            <button @click="window.location.hash = `comment-${comment.id}`"
+                                                                    class="btn-base markdown-btn text-xs">
+                                                                <i class="fas fa-eye"></i>
+                                                            </button>
                                                             <button @click="deleteUserComment(comment.id)" 
                                                                     class="btn-base markdown-btn text-xs">
                                                                 <i class="fas fa-trash"></i>
