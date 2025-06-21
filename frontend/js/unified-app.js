@@ -1211,12 +1211,12 @@ function unifiedApp() {
             const before = this.newCommentText.substring(0, this.mentionDropdown.mentionStart - 1);
             const after = this.newCommentText.substring(textarea.selectionStart);
             
-            this.newCommentText = before + `@${user.name}[${user.id}] ` + after;
+            this.newCommentText = before + `@${user.name} ` + after;
             this.updatePreview();
             this.mentionDropdown.show = false;
             
             this.$nextTick(() => {
-                const newPosition = this.mentionDropdown.mentionStart - 1 + `@${user.name}[${user.id}] `.length;
+                const newPosition = this.mentionDropdown.mentionStart - 1 + `@${user.name} `.length;
                 textarea.setSelectionRange(newPosition, newPosition);
                 textarea.focus();
             });

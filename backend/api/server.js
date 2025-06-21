@@ -2315,7 +2315,7 @@ app.get('/api/mention-users', authenticateUser, async (req, res) => {
         
         if (q.length >= 2) {
             // Search by name prefix
-            query = `SELECT id, name, picture 
+            query = `SELECT name, picture 
                      FROM users 
                      WHERE LOWER(name) LIKE LOWER($1)
                      AND is_banned = false
@@ -2324,7 +2324,7 @@ app.get('/api/mention-users', authenticateUser, async (req, res) => {
             params = [`${q}%`, parseInt(limit)];
         } else {
             // Return all users when query is short
-            query = `SELECT id, name, picture 
+            query = `SELECT name, picture 
                      FROM users 
                      WHERE is_banned = false
                      ORDER BY name

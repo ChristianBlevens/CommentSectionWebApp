@@ -999,8 +999,8 @@
                                  x-transition
                                  @click.away="mentionDropdown.show = false"
                                  class="mention-dropdown"
-                                 style="bottom: 100%; margin-bottom: 4px;">
-                                <template x-for="(user, index) in mentionDropdown.users" :key="user.id">
+                                 style="top: 100%; margin-top: 4px;">
+                                <template x-for="(user, index) in mentionDropdown.users" :key="user.name">
                                     <div @click="insertMention(user)"
                                          :class="{'selected': mentionDropdown.selectedIndex === index}"
                                          class="mention-dropdown-item">
