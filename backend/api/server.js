@@ -2305,23 +2305,16 @@ app.post('/api/users/warnings/acknowledge', authenticateUser, async (req, res) =
     }
 });
 
-// Search users for mentions
-app.get('/api/users/mentions', authenticateUser, async (req, res) => {
+// Get users for mention suggestions
+app.get('/api/mention-users', authenticateUser, async (req, res) => {
     const { q = '', limit = 5 } = req.query;
-    
-    console.log('User search request:', {
-        user: req.user?.name,
-        userId: req.user?.id,
-        query: q,
-        limit: limit
-    });
     
     try {
         let query;
         let params;
         
         if (q.length >= 2) {
-            // Search by name prefix if query is 2+ characters
+            // Search by name prefix
             query = `SELECT id, name, picture 
                      FROM users 
                      WHERE LOWER(name) LIKE LOWER($1)
@@ -2330,7 +2323,7 @@ app.get('/api/users/mentions', authenticateUser, async (req, res) => {
                      LIMIT $2`;
             params = [`${q}%`, parseInt(limit)];
         } else {
-            // Show all users when no query or less than 2 characters
+            // Return all users when query is short
             query = `SELECT id, name, picture 
                      FROM users 
                      WHERE is_banned = false
@@ -2342,8 +2335,8 @@ app.get('/api/users/mentions', authenticateUser, async (req, res) => {
         const result = await pgPool.query(query, params);
         res.json({ users: result.rows });
     } catch (error) {
-        console.error('User search error:', error);
-        res.status(500).json({ error: 'Failed to search users' });
+        console.error('Get mention users error:', error);
+        res.status(500).json({ error: 'Failed to get users' });
     }
 });
 

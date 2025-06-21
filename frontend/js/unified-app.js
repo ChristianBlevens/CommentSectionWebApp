@@ -110,7 +110,7 @@ async function handleAuthError(response) {
 }
 
 function unifiedApp() {
-    const app = {
+    return {
         // Main app data
         user: null,
         comments: [],
@@ -493,12 +493,9 @@ function unifiedApp() {
                 const sessionToken = localStorage.getItem('sessionToken');
                 if (sessionToken) {
                     options.headers = getAuthHeaders();
-                    console.log('LoadComments - Auth headers:', options.headers);
                 }
                 
                 const url = `${API_URL}/api/comments?pageId=${encodeURIComponent(pageId)}`;
-                console.log('LoadComments - URL:', url);
-                console.log('LoadComments - Options:', options);
                 const response = await fetch(url, options);
                 
                 if (response.ok) {
@@ -1183,14 +1180,10 @@ function unifiedApp() {
         
         async searchMentionUsers() {
             try {
-                const headers = getAuthHeaders();
-                console.log('Mention search - Auth headers:', headers);
-                console.log('Mention search - API URL:', API_URL);
-                
                 const response = await fetch(
-                    `${API_URL}/api/users/mentions?q=${encodeURIComponent(this.mentionDropdown.searchTerm)}&limit=5`,
+                    `${API_URL}/api/mention-users?q=${encodeURIComponent(this.mentionDropdown.searchTerm)}&limit=5`,
                     { 
-                        headers: headers,
+                        headers: getAuthHeaders(),
                         credentials: 'include'
                     }
                 );
@@ -1201,23 +1194,10 @@ function unifiedApp() {
                     this.mentionDropdown.show = this.mentionDropdown.users.length > 0;
                     this.mentionDropdown.selectedIndex = -1;
                 } else {
-                    console.error('User search failed:', response.status, response.statusText);
-                    
-                    // Try to get error details
-                    try {
-                        const errorData = await response.json();
-                        console.error('Error details:', errorData);
-                        
-                        if (response.status === 401) {
-                            // Session expired
-                            await handleAuthError(response);
-                        } else if (response.status === 403 && errorData.ban_info) {
-                            console.error('User is banned:', errorData.ban_info);
-                        }
-                    } catch (e) {
-                        console.error('Could not parse error response');
+                    if (response.status === 401) {
+                        // Session expired
+                        await handleAuthError(response);
                     }
-                    
                     this.mentionDropdown.show = false;
                 }
             } catch (error) {
@@ -2806,79 +2786,6 @@ function unifiedApp() {
                     ...page,
                     commentCount: page.totalCount
                 }));
-        },
-        
-        // Debug method to test endpoints
-        async debugMentionSystem() {
-            console.log('=== DEBUGGING MENTION SYSTEM ===');
-            
-            // Test 1: Check current auth status
-            const sessionToken = localStorage.getItem('sessionToken');
-            console.log('Session token exists:', !!sessionToken);
-            console.log('Session token:', sessionToken ? sessionToken.substring(0, 20) + '...' : 'none');
-            
-            // Test 2: Compare headers
-            const headers = getAuthHeaders();
-            console.log('Auth headers from getAuthHeaders():', headers);
-            
-            // Test 3: Test working endpoint (comments)
-            console.log('\n--- Testing WORKING endpoint (comments) ---');
-            try {
-                const commentsResponse = await fetch(`${API_URL}/api/comments?pageId=default`, {
-                    headers: headers,
-                    credentials: 'include'
-                });
-                console.log('Comments endpoint status:', commentsResponse.status);
-                console.log('Comments endpoint headers:', Object.fromEntries(commentsResponse.headers));
-            } catch (error) {
-                console.error('Comments endpoint error:', error);
-            }
-            
-            // Test 4: Test broken endpoint (user search)
-            console.log('\n--- Testing BROKEN endpoint (user mentions) ---');
-            try {
-                const searchResponse = await fetch(`${API_URL}/api/users/mentions?q=&limit=5`, {
-                    headers: headers,
-                    credentials: 'include'
-                });
-                console.log('Search endpoint status:', searchResponse.status);
-                console.log('Search endpoint headers:', Object.fromEntries(searchResponse.headers));
-                
-                if (!searchResponse.ok) {
-                    const errorText = await searchResponse.text();
-                    console.log('Search endpoint error response:', errorText);
-                    try {
-                        const errorJson = JSON.parse(errorText);
-                        console.log('Parsed error:', errorJson);
-                    } catch (e) {
-                        console.log('Error response is not JSON');
-                    }
-                }
-            } catch (error) {
-                console.error('Search endpoint error:', error);
-            }
-            
-            // Test 5: Direct API test with minimal setup
-            console.log('\n--- Testing with XMLHttpRequest ---');
-            const xhr = new XMLHttpRequest();
-            xhr.open('GET', `${API_URL}/api/users/mentions?q=&limit=5`, true);
-            xhr.setRequestHeader('Authorization', headers.Authorization);
-            xhr.withCredentials = true;
-            xhr.onload = function() {
-                console.log('XHR Status:', xhr.status);
-                console.log('XHR Response:', xhr.responseText);
-            };
-            xhr.onerror = function() {
-                console.error('XHR Error');
-            };
-            xhr.send();
-            
-            console.log('\n=== END DEBUG ===');
         }
     };
-    
-    // Make debug function globally accessible
-    window.debugMentionSystem = app.debugMentionSystem.bind(app);
-    
-    return app;
 }
