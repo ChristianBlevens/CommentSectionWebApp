@@ -29,7 +29,7 @@ const BanHandler = {
 
     // Execute ban request
     async banUser(apiUrl, userId, userName, duration, reason, deleteComments = false) {
-        const sessionToken = localStorage.getItem('sessionToken');
+        const sessionToken = localStorage.getItem('auth_token');
         if (!sessionToken) {
             alert('Session expired. Please sign in again.');
             return { success: false, expired: true };

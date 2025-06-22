@@ -91,16 +91,21 @@ Auth.setupOAuthListener((user, data) => {
         };
         
         // Force Alpine.js to update the UI
-        window.unifiedAppInstance.$nextTick(() => {
+        window.unifiedAppInstance.$nextTick(async () => {
             // Re-render components that depend on user state
             window.unifiedAppInstance.loadComments();
+            
+            // Check for warnings after successful OAuth login
+            if (window.unifiedAppInstance.user) {
+                await window.unifiedAppInstance.checkWarnings();
+            }
         });
     }
 });
 
 // Build request headers with auth
 function getAuthHeaders() {
-    const sessionToken = localStorage.getItem('sessionToken');
+    const sessionToken = localStorage.getItem('auth_token');
     const headers = {
         'Content-Type': 'application/json'
     };
@@ -333,6 +338,11 @@ function unifiedApp() {
                 await this.loadReportCount();
             }
             
+            // Check for warnings if user is authenticated
+            if (this.user) {
+                await this.checkWarnings();
+            }
+            
             // Setup markdown renderer
             if (window.initializeMarkdown) {
                 window.initializeMarkdown();
@@ -406,6 +416,10 @@ function unifiedApp() {
         
         // Fetch unread warnings
         async checkWarnings() {
+            if (!this.user) {
+                return; // Don't check warnings if not logged in
+            }
+            
             try {
                 const response = await fetch(`${API_URL}/api/users/warnings/unread`, {
                     headers: getAuthHeaders(),
@@ -415,13 +429,22 @@ function unifiedApp() {
                 if (response.ok) {
                     const warnings = await response.json();
                     if (warnings.length > 0) {
-                        // Show the most recent warning
-                        const warning = warnings[0];
+                        // Combine all warning messages
+                        const messages = warnings.map(w => 
+                            `Reason: ${w.reason}${w.message ? '\n' + w.message : ''}`
+                        ).join('\n\n');
+                        
                         this.warningNotification = {
                             show: true,
-                            message: warning.message || warning.reason || 'You have received a warning from a moderator.'
+                            message: messages,
+                            count: warnings.length
                         };
                     }
+                } else if (response.status === 401) {
+                    // User is not authenticated, ignore
+                    console.debug('User not authenticated for warning check');
+                } else {
+                    console.error('Failed to check warnings:', response.status);
                 }
             } catch (error) {
                 console.error('Error checking warnings:', error);
@@ -1028,7 +1051,10 @@ function unifiedApp() {
             try {
                 const response = await fetch(`${API_URL}/api/users/${userId}/moderator`, {
                     method: 'PUT',
-                    headers: getAuthHeaders(),
+                    headers: {
+                        ...getAuthHeaders(),
+                        'Content-Type': 'application/json'
+                    },
                     credentials: 'include',
                     body: JSON.stringify({ is_moderator: makeMod })
                 });
@@ -1197,13 +1223,15 @@ function unifiedApp() {
                 this.mentionDropdown.searchTerm = mentionMatch[1];
                 this.mentionDropdown.mentionStart = mentionMatch.index + 1;
                 
-                if (this.mentionDropdown.searchTerm.length >= 2) {
+                // Debug logging
+                console.debug('Mention detected:', {
+                    searchTerm: this.mentionDropdown.searchTerm,
+                    length: this.mentionDropdown.searchTerm.length
+                });
+                
+                if (this.mentionDropdown.searchTerm.length >= 0) {
+                    // Search for users for any length of search term (including empty string and single characters)
                     this.searchMentionUsers();
-                } else if (this.mentionDropdown.searchTerm.length === 0) {
-                    // Show all users when just "@" is typed
-                    this.searchMentionUsers();
-                } else {
-                    this.mentionDropdown.show = false;
                 }
             } else {
                 this.mentionDropdown.show = false;
@@ -1306,7 +1334,7 @@ function unifiedApp() {
         },
         
         // Comment rendering methods
-        renderComment(comment, depth = 0) {
+        renderComment(comment, depth = 0, context = 'main') {
             if (!comment) return '';
             
             const MAX_DEPTH = 5;
@@ -1319,13 +1347,16 @@ function unifiedApp() {
             
             const hasChildren = comment.children && comment.children.length > 0;
             
+            // Add prefix to IDs when rendering in pages context to avoid duplicates
+            const idPrefix = context === 'pages' ? 'pages-' : '';
+            
             let html = `
                 <div class="comment-wrapper">
                     <div class="comment-container ${depth > 0 ? 'comment-depth-' + depth : ''} ${!hasChildren ? 'no-children' : ''}" 
                          data-comment-id="${comment.id}">
                         <div class="comment-line" onclick="window.unifiedAppInstance.toggleCollapse(event)"></div>
                         
-                        <div class="comment-content ${this.highlightedCommentId == comment.id ? 'reported-comment' : ''}" id="comment-${comment.id}">
+                        <div class="comment-content ${this.highlightedCommentId == comment.id ? 'reported-comment' : ''}" id="${idPrefix}comment-${comment.id}">
                         
                         <div class="comment-header">
                             ${!isDeleted ? `<img src="${comment.userPicture}" class="comment-avatar">` : '<div class="comment-avatar bg-gray-300"></div>'}
@@ -1341,37 +1372,37 @@ function unifiedApp() {
                         
                         ${!isDeleted ? `
                             <div class="comment-actions">
-                                <button onclick="if(window.unifiedAppInstance) window.unifiedAppInstance.voteComment('${comment.id}', 'like')" 
+                                <button onclick="if(window.unifiedAppInstance) window.unifiedAppInstance.voteComment('${comment.id}', 'like', '${context}')" 
                                         class="comment-action ${comment.userVote === 'like' ? 'active-like' : ''}">
                                     <i class="fas fa-thumbs-up"></i>
                                     <span>${comment.likes}</span>
                                 </button>
-                                <button onclick="if(window.unifiedAppInstance) window.unifiedAppInstance.voteComment('${comment.id}', 'dislike')" 
+                                <button onclick="if(window.unifiedAppInstance) window.unifiedAppInstance.voteComment('${comment.id}', 'dislike', '${context}')" 
                                         class="comment-action ${comment.userVote === 'dislike' ? 'active-dislike' : ''}">
                                     <i class="fas fa-thumbs-down"></i>
                                     <span>${comment.dislikes}</span>
                                 </button>
-                                <button onclick="window.unifiedAppInstance.showReplyForm('${comment.id}')" 
+                                <button onclick="window.unifiedAppInstance.showReplyForm('${comment.id}', '${context}')" 
                                         class="comment-action">
                                     <i class="fas fa-comment"></i>
                                     Reply
                                 </button>
                                 ${this.user ? `
                                     <div class="comment-dropdown-container">
-                                        <button onclick="window.unifiedAppInstance.toggleCommentDropdown('${comment.id}')" 
-                                                class="btn-base comment-options-btn" id="options-btn-${comment.id}">
+                                        <button onclick="window.unifiedAppInstance.toggleCommentDropdown('${comment.id}', '${context}')" 
+                                                class="btn-base comment-options-btn" id="${idPrefix}options-btn-${comment.id}">
                                             <i class="fas fa-ellipsis-v"></i>
                                         </button>
-                                        <div id="dropdown-${comment.id}" 
+                                        <div id="${idPrefix}dropdown-${comment.id}" 
                                              class="dropdown-base comment-dropdown"
                                              style="top: 100%; left: 0; margin-top: 5px;">
-                                            <button onclick="window.unifiedAppInstance.reportComment('${comment.id}')" 
+                                            <button onclick="window.unifiedAppInstance.reportComment('${comment.id}', '${context}')" 
                                                     class="dropdown-item-base comment-dropdown-item">
                                                 <i class="fas fa-flag"></i>
                                                 Report
                                             </button>
                                             ${(comment.isOwner || this.user.is_moderator) ? `
-                                                <button onclick="window.unifiedAppInstance.deleteComment('${comment.id}')" 
+                                                <button onclick="window.unifiedAppInstance.deleteComment('${comment.id}', '${context}')" 
                                                         class="dropdown-item-base comment-dropdown-item">
                                                     <i class="fas fa-trash"></i>
                                                     Delete
@@ -1384,40 +1415,40 @@ function unifiedApp() {
                         ` : ''}
                         
                         <!-- Reply form -->
-                        <div id="reply-form-${comment.id}" style="display: none;" class="reply-form">
-                            <textarea id="reply-textarea-${comment.id}" 
+                        <div id="${idPrefix}reply-form-${comment.id}" style="display: none;" class="reply-form">
+                            <textarea id="${idPrefix}reply-textarea-${comment.id}" 
                                       placeholder="Write a reply..."
                                       class="textarea-base reply-textarea"></textarea>
                             <div class="reply-toolbar">
                                 <div class="markdown-buttons">
-                                    <button onclick="window.unifiedAppInstance.insertMarkdownForReply('${comment.id}', '**', '**')" class="btn-base markdown-btn">
+                                    <button onclick="window.unifiedAppInstance.insertMarkdownForReply('${comment.id}', '**', '**', '${context}')" class="btn-base markdown-btn">
                                         <i class="fas fa-bold"></i>
                                     </button>
-                                    <button onclick="window.unifiedAppInstance.insertMarkdownForReply('${comment.id}', '*', '*')" class="btn-base markdown-btn">
+                                    <button onclick="window.unifiedAppInstance.insertMarkdownForReply('${comment.id}', '*', '*', '${context}')" class="btn-base markdown-btn">
                                         <i class="fas fa-italic"></i>
                                     </button>
-                                    <button onclick="window.unifiedAppInstance.insertMarkdownForReply('${comment.id}', '~~', '~~')" class="btn-base markdown-btn">
+                                    <button onclick="window.unifiedAppInstance.insertMarkdownForReply('${comment.id}', '~~', '~~', '${context}')" class="btn-base markdown-btn">
                                         <i class="fas fa-strikethrough"></i>
                                     </button>
-                                    <button onclick="window.unifiedAppInstance.insertMarkdownForReply('${comment.id}', '## ', '')" class="btn-base markdown-btn">
+                                    <button onclick="window.unifiedAppInstance.insertMarkdownForReply('${comment.id}', '## ', '', '${context}')" class="btn-base markdown-btn">
                                         <i class="fas fa-heading"></i>
                                     </button>
-                                    <button onclick="window.unifiedAppInstance.insertMarkdownForReply('${comment.id}', '||', '||')" class="btn-base markdown-btn">
+                                    <button onclick="window.unifiedAppInstance.insertMarkdownForReply('${comment.id}', '||', '||', '${context}')" class="btn-base markdown-btn">
                                         <i class="fas fa-eye-slash"></i>
                                     </button>
-                                    <button onclick="window.unifiedAppInstance.insertImageForReply('${comment.id}')" class="btn-base markdown-btn">
+                                    <button onclick="window.unifiedAppInstance.insertImageForReply('${comment.id}', '${context}')" class="btn-base markdown-btn">
                                         <i class="fas fa-image"></i>
                                     </button>
-                                    <button onclick="window.unifiedAppInstance.insertVideoForReply('${comment.id}')" class="btn-base markdown-btn">
+                                    <button onclick="window.unifiedAppInstance.insertVideoForReply('${comment.id}', '${context}')" class="btn-base markdown-btn">
                                         <i class="fas fa-video"></i>
                                     </button>
                                 </div>
                                 <div class="reply-actions">
-                                    <button onclick="window.unifiedAppInstance.cancelReply('${comment.id}')" 
+                                    <button onclick="window.unifiedAppInstance.cancelReply('${comment.id}', '${context}')" 
                                             class="btn-base btn btn-secondary">
                                         Cancel
                                     </button>
-                                    <button onclick="window.unifiedAppInstance.submitReply('${comment.id}')" 
+                                    <button onclick="window.unifiedAppInstance.submitReply('${comment.id}', '${context}')" 
                                             class="btn-base btn btn-primary">
                                         Reply
                                     </button>
@@ -1428,10 +1459,10 @@ function unifiedApp() {
                     
                     <div class="comment-children">
                         ${depth < MAX_DEPTH && comment.children?.length > 0 ? 
-                            comment.children.map(child => this.renderComment(child, depth + 1)).join('') : 
+                            comment.children.map(child => this.renderComment(child, depth + 1, context)).join('') : 
                             (depth >= MAX_DEPTH && comment.children?.length > 0 ? `
                                 <div class="ml-4 mt-2">
-                                    <button onclick="window.location.hash = 'comment-${comment.id}'" 
+                                    <button onclick="window.location.hash = '${idPrefix}comment-${comment.id}'" 
                                             class="btn-base btn btn-primary text-sm">
                                         <i class="fas fa-comments mr-1"></i>
                                         View ${comment.children.length} ${comment.children.length === 1 ? 'reply' : 'replies'}
@@ -1485,7 +1516,7 @@ function unifiedApp() {
         },
         
         // Comment interaction methods
-        async voteComment(commentId, voteType) {
+        async voteComment(commentId, voteType, context = 'main') {
             if (!this.user) {
                 alert('Please sign in to vote');
                 return;
@@ -1572,7 +1603,7 @@ function unifiedApp() {
             }
         },
         
-        async deleteComment(commentId) {
+        async deleteComment(commentId, context = 'main') {
             if (!confirm('Delete this comment?')) return;
             
             try {
@@ -1636,7 +1667,7 @@ function unifiedApp() {
             }
         },
         
-        async reportComment(commentId) {
+        async reportComment(commentId, context = 'main') {
             const reason = prompt('Please provide a reason for reporting this comment:');
             if (!reason) return;
             
@@ -1656,22 +1687,25 @@ function unifiedApp() {
             }
         },
         
-        showReplyForm(commentId) {
-            const form = document.getElementById(`reply-form-${commentId}`);
+        showReplyForm(commentId, context = 'main') {
+            const idPrefix = context === 'pages' ? 'pages-' : '';
+            const form = document.getElementById(`${idPrefix}reply-form-${commentId}`);
             if (form) {
                 form.style.display = form.style.display === 'none' ? 'block' : 'none';
             }
         },
         
-        cancelReply(commentId) {
-            const form = document.getElementById(`reply-form-${commentId}`);
-            const textarea = document.getElementById(`reply-textarea-${commentId}`);
+        cancelReply(commentId, context = 'main') {
+            const idPrefix = context === 'pages' ? 'pages-' : '';
+            const form = document.getElementById(`${idPrefix}reply-form-${commentId}`);
+            const textarea = document.getElementById(`${idPrefix}reply-textarea-${commentId}`);
             if (form) form.style.display = 'none';
             if (textarea) textarea.value = '';
         },
         
-        async submitReply(commentId) {
-            const textarea = document.getElementById(`reply-textarea-${commentId}`);
+        async submitReply(commentId, context = 'main') {
+            const idPrefix = context === 'pages' ? 'pages-' : '';
+            const textarea = document.getElementById(`${idPrefix}reply-textarea-${commentId}`);
             if (!textarea || !textarea.value.trim()) return;
             
             const requestBody = {
@@ -1691,7 +1725,7 @@ function unifiedApp() {
                 });
                 
                 if (response.ok) {
-                    this.cancelReply(commentId);
+                    this.cancelReply(commentId, context);
                     await this.loadComments();
                     
                     // IMPORTANT: Also reload pages data if we're on the pages tab
@@ -1729,8 +1763,9 @@ function unifiedApp() {
             }
         },
         
-        toggleCommentDropdown(commentId) {
-            const dropdown = document.getElementById(`dropdown-${commentId}`);
+        toggleCommentDropdown(commentId, context = 'main') {
+            const idPrefix = context === 'pages' ? 'pages-' : '';
+            const dropdown = document.getElementById(`${idPrefix}dropdown-${commentId}`);
             const allDropdowns = document.querySelectorAll('.comment-dropdown');
             const allComments = document.querySelectorAll('.comment-content');
             
@@ -1880,19 +1915,19 @@ function unifiedApp() {
             }
         },
         
-        insertImageForReply(commentId) {
+        insertImageForReply(commentId, context = 'main') {
             const url = prompt('Enter image URL:');
             if (url) {
-                this.insertMarkdownForReply(commentId, `![Image](${url})`, '');
+                this.insertMarkdownForReply(commentId, `![Image](${url})`, '', context);
             }
         },
         
-        insertVideoForReply(commentId) {
+        insertVideoForReply(commentId, context = 'main') {
             const url = prompt('Enter YouTube video URL:');
             if (url) {
                 const videoId = window.extractYouTubeId(url);
                 if (videoId) {
-                    this.insertMarkdownForReply(commentId, `[youtube:${videoId}]`, '');
+                    this.insertMarkdownForReply(commentId, `[youtube:${videoId}]`, '', context);
                 } else {
                     alert('Invalid YouTube URL');
                 }
@@ -2807,9 +2842,9 @@ function unifiedApp() {
                 return '<p class="text-gray-500">No comments in this page.</p>';
             }
             
-            // Render comments using the existing comment rendering logic
-            // This ensures all interactions (vote, reply, report, delete) work exactly the same
-            return comments.map(comment => this.renderComment(comment, 0)).join('');
+            // Render comments using the existing comment rendering logic with 'pages' context
+            // This ensures all interactions work correctly by using unique IDs for pages tab
+            return comments.map(comment => this.renderComment(comment, 0, 'pages')).join('');
         },
 
         // Helper function to rebuild pages data after updates

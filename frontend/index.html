@@ -56,7 +56,12 @@
                         <i class="fas fa-exclamation-triangle text-2xl"></i>
                     </div>
                     <div class="ml-3 flex-1">
-                        <p class="text-sm font-medium">Warning from Moderator</p>
+                        <p class="text-sm font-medium">
+                            <span x-show="warningNotification.count === 1">Warning from Moderator</span>
+                            <span x-show="warningNotification.count > 1">
+                                <span x-text="warningNotification.count"></span> Warnings from Moderators
+                            </span>
+                        </p>
                         <p class="text-sm mt-1 whitespace-pre-line" x-text="warningNotification.message"></p>
                     </div>
                     <button @click="acknowledgeWarning()" 

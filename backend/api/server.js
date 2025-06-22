@@ -2523,8 +2523,8 @@ app.get('/api/mention-users', authenticateUser, async (req, res) => {
         let query;
         let params;
         
-        if (q.length >= 2) {
-            // Search by name prefix
+        if (q.length >= 1) {
+            // Search by name prefix for any non-empty query
             query = `SELECT name, picture 
                      FROM users 
                      WHERE LOWER(name) LIKE LOWER($1)
@@ -2533,7 +2533,7 @@ app.get('/api/mention-users', authenticateUser, async (req, res) => {
                      LIMIT $2`;
             params = [`${q}%`, parseInt(limit)];
         } else {
-            // Return all users when query is short
+            // Return all users when query is empty (just "@" typed)
             query = `SELECT name, picture 
                      FROM users 
                      WHERE is_banned = false

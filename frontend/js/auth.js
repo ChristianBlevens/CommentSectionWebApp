@@ -3,7 +3,7 @@ const Auth = {
     // Validate stored session
     async checkExistingSession() {
         const savedUser = localStorage.getItem('user');
-        const sessionToken = localStorage.getItem('sessionToken');
+        const sessionToken = localStorage.getItem('auth_token');
         
         console.log('Checking existing session:', {
             hasUser: !!savedUser,
@@ -13,7 +13,7 @@ const Auth = {
         
         if (!savedUser || !sessionToken) {
             localStorage.removeItem('user');
-            localStorage.removeItem('sessionToken');
+            localStorage.removeItem('auth_token');
             return null;
         }
         
@@ -41,7 +41,7 @@ const Auth = {
             } else {
                 console.log('Session invalid, clearing localStorage');
                 localStorage.removeItem('user');
-                localStorage.removeItem('sessionToken');
+                localStorage.removeItem('auth_token');
                 return null;
             }
         } catch (e) {
@@ -53,7 +53,7 @@ const Auth = {
                 return user;
             } catch (parseError) {
                 localStorage.removeItem('user');
-                localStorage.removeItem('sessionToken');
+                localStorage.removeItem('auth_token');
                 return null;
             }
         }
@@ -104,7 +104,7 @@ const Auth = {
 
     // Logout user
     async signOut(apiUrl = window.location.origin) {
-        const sessionToken = localStorage.getItem('sessionToken');
+        const sessionToken = localStorage.getItem('auth_token');
         if (sessionToken) {
             try {
                 await fetch(`${apiUrl}/api/logout`, {
@@ -119,7 +119,7 @@ const Auth = {
         }
         
         localStorage.removeItem('user');
-        localStorage.removeItem('sessionToken');
+        localStorage.removeItem('auth_token');
         sessionStorage.removeItem('_uid');
     },
 
@@ -137,7 +137,7 @@ const Auth = {
                 
                 localStorage.setItem('user', JSON.stringify(user));
                 if (event.data.sessionToken) {
-                    localStorage.setItem('sessionToken', event.data.sessionToken);
+                    localStorage.setItem('auth_token', event.data.sessionToken);
                 }
                 callback(user, event.data);
             }
@@ -146,6 +146,6 @@ const Auth = {
     
     // Get current session token
     getToken() {
-        return localStorage.getItem('sessionToken');
+        return localStorage.getItem('auth_token');
     }
 };
