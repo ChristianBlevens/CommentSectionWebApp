@@ -22,7 +22,7 @@ A **production-ready** comment system with Discord OAuth authentication, AI-powe
 Add this single line wherever you want comments:
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/yourusername/comments@latest/embed.js" 
+<script src="https://cdn.jsdelivr.net/gh/ChristianBlevens/CommentSectionWebApp@main/embed.js" 
         data-instance="https://mycomments.duckdns.org" 
         data-page-id="unique-page-id"></script>
 ```
@@ -32,6 +32,34 @@ Replace:
 - `data-instance` with your comment webapp URL (or use the default)
 - `data-page-id` with a unique identifier for each page
 
+### Embed Configuration
+
+The embed script currently accepts the following data attributes:
+
+| Attribute | Required | Description |
+|-----------|----------|-------------|
+| `data-instance` | Yes | The URL of your comment webapp instance (e.g., `https://mycomments.duckdns.org`) |
+| `data-page-id` | Yes | A unique identifier for each page where comments appear. This separates comments between different pages. |
+
+### Automatic Theme Detection
+
+The embed script automatically detects and inherits your website's theme colors and styles without requiring any additional configuration. This includes:
+
+- **Primary colors** from buttons and links
+- **Background colors** from your site  
+- **Text colors** for proper contrast
+- **Dark mode** detection and support
+- **WordPress theme** compatibility (especially Madara theme)
+
+The theme detection works by:
+1. Analyzing your site's CSS variables and computed styles
+2. Detecting common WordPress theme patterns
+3. Extracting colors from key UI elements
+4. Monitoring for theme changes (like dark mode toggles)
+5. Automatically updating the comment section to match
+
+The comment section will blend seamlessly with your site's design - no manual theme configuration needed!
+
 ## WordPress Integration
 
 ### Method 1: Direct Theme Edit
@@ -40,7 +68,7 @@ Add to your theme where comments should appear:
 <?php
 $page_id = get_the_ID() . '-' . ($_GET['chapter'] ?? '');
 ?>
-<script src="https://cdn.jsdelivr.net/gh/yourusername/comments@latest/embed.js" 
+<script src="https://cdn.jsdelivr.net/gh/ChristianBlevens/CommentSectionWebApp@main/embed.js" 
         data-instance="https://mycomments.duckdns.org" 
         data-page-id="<?php echo esc_attr($page_id); ?>"></script>
 ```
@@ -51,7 +79,7 @@ Add to `functions.php`:
 // Remove Disqus and add Open Comments
 add_filter('disqus_embed_code', function($code) {
   $page_id = get_the_ID() . '-' . ($_GET['chapter'] ?? '');
-  return '<script src="https://cdn.jsdelivr.net/gh/yourusername/comments@latest/embed.js" 
+  return '<script src="https://cdn.jsdelivr.net/gh/ChristianBlevens/CommentSectionWebApp@main/embed.js" 
                   data-instance="https://mycomments.duckdns.org" 
                   data-page-id="' . esc_attr($page_id) . '"></script>';
 });
@@ -62,7 +90,7 @@ Add to `functions.php`:
 ```php
 function open_comments_shortcode($atts) {
   $atts = shortcode_atts(['id' => get_the_ID()], $atts);
-  return '<script src="https://cdn.jsdelivr.net/gh/yourusername/comments@latest/embed.js" 
+  return '<script src="https://cdn.jsdelivr.net/gh/ChristianBlevens/CommentSectionWebApp@main/embed.js" 
                   data-instance="https://mycomments.duckdns.org" 
                   data-page-id="' . esc_attr($atts['id']) . '"></script>';
 }
@@ -117,7 +145,7 @@ Usage: `[comments id="chapter-123"]`
 
 Users can self-host the comment webapp and point to it:
 ```html
-<script src="https://cdn.jsdelivr.net/gh/yourusername/comments@latest/embed.js" 
+<script src="https://cdn.jsdelivr.net/gh/ChristianBlevens/CommentSectionWebApp@main/embed.js" 
         data-instance="https://comments.yourdomain.com" 
         data-page-id="unique-page-id"></script>
 ```
@@ -134,7 +162,7 @@ Users can self-host the comment webapp and point to it:
     <p>Content here...</p>
     
     <!-- Comments -->
-    <script src="https://cdn.jsdelivr.net/gh/yourusername/comments@latest/embed.js" 
+    <script src="https://cdn.jsdelivr.net/gh/ChristianBlevens/CommentSectionWebApp@main/embed.js" 
             data-instance="https://mycomments.duckdns.org" 
             data-page-id="blog-post-1"></script>
   </article>
@@ -150,7 +178,7 @@ Users can self-host the comment webapp and point to it:
 </div>
 
 <!-- Comments for this chapter -->
-<script src="https://cdn.jsdelivr.net/gh/yourusername/comments@latest/embed.js" 
+<script src="https://cdn.jsdelivr.net/gh/ChristianBlevens/CommentSectionWebApp@main/embed.js" 
         data-instance="https://mycomments.duckdns.org" 
         data-page-id="manga-123-chapter-45"></script>
 ```
