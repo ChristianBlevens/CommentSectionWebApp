@@ -1372,12 +1372,12 @@ function unifiedApp() {
                         
                         ${!isDeleted ? `
                             <div class="comment-actions">
-                                <button onclick="if(window.unifiedAppInstance) window.unifiedAppInstance.voteComment('${comment.id}', 'like', '${context}')" 
+                                <button onclick="if(window.unifiedAppInstance) window.unifiedAppInstance.voteComment('${comment.id}', 'like', '${context}', event)" 
                                         class="comment-action ${comment.userVote === 'like' ? 'active-like' : ''}">
                                     <i class="fas fa-thumbs-up"></i>
                                     <span>${comment.likes}</span>
                                 </button>
-                                <button onclick="if(window.unifiedAppInstance) window.unifiedAppInstance.voteComment('${comment.id}', 'dislike', '${context}')" 
+                                <button onclick="if(window.unifiedAppInstance) window.unifiedAppInstance.voteComment('${comment.id}', 'dislike', '${context}', event)" 
                                         class="comment-action ${comment.userVote === 'dislike' ? 'active-dislike' : ''}">
                                     <i class="fas fa-thumbs-down"></i>
                                     <span>${comment.dislikes}</span>
@@ -1389,7 +1389,7 @@ function unifiedApp() {
                                 </button>
                                 ${this.user ? `
                                     <div class="comment-dropdown-container">
-                                        <button onclick="window.unifiedAppInstance.toggleCommentDropdown('${comment.id}', '${context}')" 
+                                        <button onclick="window.unifiedAppInstance.toggleCommentDropdown('${comment.id}', '${context}', event)" 
                                                 class="btn-base comment-options-btn" id="${idPrefix}options-btn-${comment.id}">
                                             <i class="fas fa-ellipsis-v"></i>
                                         </button>
@@ -1516,7 +1516,11 @@ function unifiedApp() {
         },
         
         // Comment interaction methods
-        async voteComment(commentId, voteType, context = 'main') {
+        async voteComment(commentId, voteType, context = 'main', event = null) {
+            if (event) {
+                event.stopPropagation();
+            }
+            
             if (!this.user) {
                 alert('Please sign in to vote');
                 return;
@@ -1763,7 +1767,11 @@ function unifiedApp() {
             }
         },
         
-        toggleCommentDropdown(commentId, context = 'main') {
+        toggleCommentDropdown(commentId, context = 'main', event = null) {
+            if (event) {
+                event.stopPropagation();
+            }
+            
             const idPrefix = context === 'pages' ? 'pages-' : '';
             const dropdown = document.getElementById(`${idPrefix}dropdown-${commentId}`);
             const allDropdowns = document.querySelectorAll('.comment-dropdown');
@@ -1908,8 +1916,9 @@ function unifiedApp() {
             window.location.hash = `comment-${commentId}`;
         },
         
-        insertMarkdownForReply(commentId, before, after) {
-            const textarea = document.getElementById(`reply-textarea-${commentId}`);
+        insertMarkdownForReply(commentId, before, after, context = 'main') {
+            const idPrefix = context === 'pages' ? 'pages-' : '';
+            const textarea = document.getElementById(`${idPrefix}reply-textarea-${commentId}`);
             if (textarea) {
                 window.insertMarkdown(textarea, before, after);
             }
