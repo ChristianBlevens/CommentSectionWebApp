@@ -1,29 +1,5 @@
 // Markdown text formatter
 const MarkdownProcessor = {
-    // Create markdown parser
-    createInstance() {
-        const md = window.markdownit({
-            html: true,
-            breaks: true,
-            linkify: true
-        });
-
-        // Make images clickable
-        md.renderer.rules.image = (tokens, idx) => {
-            const token = tokens[idx];
-            const src = token.attrGet('src');
-            const alt = token.attrGet('alt') || '';
-            const title = token.attrGet('title') || '';
-            
-            return `<a href="${src}" target="_blank" rel="noopener noreferrer">
-                      <img src="${src}" alt="${alt}" title="${title}" 
-                           class="max-w-full h-auto rounded cursor-pointer hover:opacity-90 transition-opacity" />
-                    </a>`;
-        };
-
-        return md;
-    },
-
     // Add custom syntax support
     preprocessMarkdown(text) {
         // Convert @username mentions to highlighted spans
