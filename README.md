@@ -28,8 +28,7 @@ Add this single line wherever you want comments:
 ```
 
 Replace:
-- `yourusername/comments` with your GitHub repo
-- `data-instance` with your comment webapp URL (or use the default)
+- `data-instance` with your comment webapp URL (or use the comments that I host to try it out, but you won't be able to moderate anything until you host the comment section yourself)
 - `data-page-id` with a unique identifier for each page
 
 ### Embed Configuration
