@@ -120,7 +120,7 @@ async function handleAuthError(response) {
     if (response.status === 401) {
         console.log('Session expired, clearing localStorage');
         localStorage.removeItem('user');
-        localStorage.removeItem('sessionToken');
+        localStorage.removeItem('auth_token');
         // Refresh page to clear state
         window.location.reload();
         return true;
@@ -545,7 +545,7 @@ function unifiedApp() {
                     credentials: 'include'
                 };
                 
-                const sessionToken = localStorage.getItem('sessionToken');
+                const sessionToken = localStorage.getItem('auth_token');
                 if (sessionToken) {
                     options.headers = getAuthHeaders();
                 }
@@ -2737,7 +2737,7 @@ function unifiedApp() {
                     credentials: 'include'
                 };
                 
-                const sessionToken = localStorage.getItem('sessionToken');
+                const sessionToken = localStorage.getItem('auth_token');
                 if (sessionToken) {
                     options.headers = getAuthHeaders();
                 }
