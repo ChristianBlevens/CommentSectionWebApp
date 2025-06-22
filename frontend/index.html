@@ -429,8 +429,27 @@
                                 </div>
 
                                 <!-- Expanded Content -->
-                                <div x-show="expandedUsers.includes(userItem.id)" x-transition class="mt-4 border-t pt-4">
-                                    <div class="space-y-4">
+                                <div x-show="expandedUsers.includes(userItem.id)" 
+                                     x-transition:enter="transition ease-out duration-300"
+                                     x-transition:enter-start="opacity-0 transform scale-95"
+                                     x-transition:enter-end="opacity-100 transform scale-100"
+                                     x-transition:leave="transition ease-in duration-200"
+                                     x-transition:leave-start="opacity-100 transform scale-100"
+                                     x-transition:leave-end="opacity-0 transform scale-95"
+                                     class="mt-4 border-t pt-4">
+                                    
+                                    <!-- Loading State -->
+                                    <div x-show="!userItem.detailsLoaded" class="text-center py-4">
+                                        <i class="fas fa-spinner fa-spin"></i> Loading user details...
+                                    </div>
+                                    
+                                    <!-- Error State -->
+                                    <div x-show="userItem.detailsError" class="text-center py-4 text-danger">
+                                        <i class="fas fa-exclamation-circle"></i> Failed to load user details
+                                    </div>
+                                    
+                                    <!-- Content (show only when loaded and no error) -->
+                                    <div x-show="userItem.detailsLoaded && !userItem.detailsError" class="space-y-4">
                                         <!-- Recent Comments -->
                                         <div>
                                             <h4 class="font-semibold mb-2">Recent Comments</h4>
@@ -510,6 +529,15 @@
                                                     </div>
                                                 </template>
                                             </div>
+                                        </div>
+                                        
+                                        <!-- No Data Message -->
+                                        <div x-show="(!userItem.comments || userItem.comments.length === 0) && 
+                                                     (!userItem.warnings || userItem.warnings.length === 0) && 
+                                                     (!userItem.reports_received || userItem.reports_received.length === 0) && 
+                                                     (!userItem.ban_history || userItem.ban_history.length === 0)"
+                                             class="text-center py-4 text-muted">
+                                            No activity data available for this user
                                         </div>
                                     </div>
                                 </div>

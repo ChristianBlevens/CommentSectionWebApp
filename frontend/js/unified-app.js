@@ -978,37 +978,81 @@ function unifiedApp() {
                 if (response.ok) {
                     const details = await response.json();
                     console.log('Loaded user details:', details);
+                    
+                    // Handle both single user object and array response
+                    const userDetails = Array.isArray(details) ? details[0] : details;
+                    
                     const userIndex = this.users.findIndex(u => u.id === userId);
                     if (userIndex !== -1) {
-                        // Ensure we properly merge the details including comments
-                        // Sort comments by created_at in descending order (most recent first)
-                        const sortedComments = details.comments ? 
-                            [...details.comments].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)) : 
+                        // Ensure comments is always an array
+                        const comments = userDetails.comments || [];
+                        const sortedComments = Array.isArray(comments) ? 
+                            [...comments].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)) : 
                             [];
                         
-                        // Sort reports by created_at in descending order (most recent first)
-                        const sortedReports = details.reports_received ? 
-                            [...details.reports_received].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)) : 
-                            [];
+                        // Ensure other arrays exist
+                        const warnings = userDetails.warnings || [];
+                        const reports = userDetails.reports_received || [];
+                        const banHistory = userDetails.ban_history || [];
                         
-                        this.users[userIndex] = { 
-                            ...this.users[userIndex], 
-                            ...details,
+                        // Create new user object to ensure reactivity
+                        const updatedUser = {
+                            ...this.users[userIndex],
+                            ...userDetails,
                             comments: sortedComments,
-                            ban_history: details.ban_history || [],
-                            warnings: details.warnings || [],
-                            reports_received: sortedReports
+                            warnings: warnings,
+                            reports_received: reports,
+                            ban_history: banHistory,
+                            detailsLoaded: true,
+                            detailsError: false
                         };
-                        // Initialize comments display count to 5 if not set
-                        if (!this.userCommentsDisplayCount[userId] && details.comments && details.comments.length > 0) {
+                        
+                        // Use array splice for reactivity
+                        this.users.splice(userIndex, 1, updatedUser);
+                        
+                        // Initialize display count
+                        if (!this.userCommentsDisplayCount[userId]) {
                             this.userCommentsDisplayCount[userId] = 5;
                         }
+                        
+                        // Force Alpine.js update
+                        this.$nextTick && this.$nextTick();
+                        
+                        // Debug the loaded data
+                        this.debugUserData(userId);
+                        
                         this.filterUsers();
                     }
+                } else {
+                    throw new Error(`Failed to load user details: ${response.status}`);
                 }
             } catch (error) {
                 console.error('Error loading user details:', error);
+                // Mark error state
+                const userIndex = this.users.findIndex(u => u.id === userId);
+                if (userIndex !== -1) {
+                    const updatedUser = {
+                        ...this.users[userIndex],
+                        detailsError: true,
+                        detailsLoaded: true
+                    };
+                    this.users.splice(userIndex, 1, updatedUser);
+                }
             }
+        },
+        
+        debugUserData(userId) {
+            const user = this.users.find(u => u.id === userId);
+            console.log('User data for', userId, ':', {
+                user: user,
+                hasComments: user?.comments?.length > 0,
+                hasWarnings: user?.warnings?.length > 0,
+                hasReports: user?.reports_received?.length > 0,
+                hasBanHistory: user?.ban_history?.length > 0,
+                detailsLoaded: user?.detailsLoaded,
+                detailsError: user?.detailsError,
+                isExpanded: this.expandedUsers.includes(userId)
+            });
         },
         
         async warnUser(userId, userName, reportId = null) {
