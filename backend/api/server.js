@@ -2206,8 +2206,21 @@ app.post('/api/users/:targetUserId/ban', authenticateUser, requireModerator, asy
         
         await client.query('COMMIT');
         
-        // Flush Redis cache
-        await safeRedisOp(() => redisClient.flushDb());
+        // Invalidate all sessions for the banned user
+        await safeRedisOp(async () => {
+            // Get all sessions for the banned user
+            const sessions = await redisClient.sMembers(`user_sessions:${discordId}`);
+            
+            // Delete all session keys
+            if (sessions.length > 0) {
+                await redisClient.del(...sessions.map(token => `session:${token}`));
+            }
+            
+            // Clear the user's session set
+            await redisClient.del(`user_sessions:${discordId}`);
+            
+            console.log(`Invalidated ${sessions.length} sessions for banned user ${discordId}`);
+        });
         
         // Format ban details
         const banInfo = {
