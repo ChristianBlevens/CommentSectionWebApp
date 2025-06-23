@@ -1127,10 +1127,15 @@ function unifiedApp() {
                     }
                 }, 5000);
                 
+                // Hide dropdown
+                this.showBanDropdown = null;
+                
                 // Reload data if in reports or users tab
                 if (this.activeTab === 'reports') {
+                    this.reportsLoaded = false;
                     await this.loadReports();
                 } else if (this.activeTab === 'users') {
+                    this.usersLoaded = false;
                     await this.loadUsers();
                 }
             }
@@ -1138,6 +1143,7 @@ function unifiedApp() {
         
         showCustomBanInput(userId, userName) {
             BanHandler.showCustomBanInput(userId, userName, this.banUserWithDuration.bind(this));
+            this.showBanDropdown = null;
         },
         
         async deleteUserComment(commentId) {
@@ -1368,24 +1374,6 @@ function unifiedApp() {
             this.showBanDropdown = this.showBanDropdown === id ? null : id;
         },
         
-        async banUserWithDuration(userId, userName, duration) {
-            await window.banUserWithDuration(userId, userName, duration);
-            this.showBanDropdown = null;
-            
-            // Reset loaded flags to force refresh
-            if (this.activeTab === 'reports') {
-                this.reportsLoaded = false;
-                await this.loadReports();
-            } else if (this.activeTab === 'users') {
-                this.usersLoaded = false;
-                await this.loadUsers();
-            }
-        },
-        
-        showCustomBanInput(userId, userName) {
-            window.showCustomBanInput(userId, userName);
-            this.showBanDropdown = null;
-        },
         
         // Comment rendering methods
         renderComment(comment, depth = 0, context = 'main') {
@@ -1592,7 +1580,8 @@ function unifiedApp() {
                     const result = await response.json();
                     
                     // Update visual elements immediately
-                    const commentElement = document.getElementById(`comment-${commentId}`);
+                    const idPrefix = context === 'pages' ? 'pages-' : '';
+                    const commentElement = document.getElementById(`${idPrefix}comment-${commentId}`);
                     if (commentElement) {
                         // Update like button
                         const likeBtn = commentElement.querySelector('.comment-action:has(.fa-thumbs-up)');
@@ -1849,7 +1838,7 @@ function unifiedApp() {
                 dropdown.classList.toggle('show');
                 
                 // Add/remove has-open-dropdown class to the comment
-                const commentElement = document.querySelector(`#comment-${commentId}`);
+                const commentElement = document.querySelector(`#${idPrefix}comment-${commentId}`);
                 if (commentElement) {
                     if (!isShowing) {
                         commentElement.classList.add('has-open-dropdown');
