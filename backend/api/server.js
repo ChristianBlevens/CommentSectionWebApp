@@ -1314,9 +1314,9 @@ app.get('/api/comments/:commentId', optionalAuth, async (req, res) => {
                     c.parent_id,
                     c.created_at,
                     c.updated_at,
-                    u.username,
-                    u.display_name,
-                    u.avatar_url,
+                    u.name as username,
+                    u.name as display_name,
+                    u.picture as avatar_url,
                     0 as depth,
                     ARRAY[c.created_at] as path
                 FROM comments c
@@ -1334,9 +1334,9 @@ app.get('/api/comments/:commentId', optionalAuth, async (req, res) => {
                     c.parent_id,
                     c.created_at,
                     c.updated_at,
-                    u.username,
-                    u.display_name,
-                    u.avatar_url,
+                    u.name as username,
+                    u.name as display_name,
+                    u.picture as avatar_url,
                     ct.depth + 1,
                     ct.path || c.created_at
                 FROM comments c
@@ -1346,7 +1346,7 @@ app.get('/api/comments/:commentId', optionalAuth, async (req, res) => {
             )
             SELECT 
                 ct.*,
-                COALESCE(v.vote, 0) as user_vote,
+                COALESCE(v.vote_type, 0) as user_vote,
                 COALESCE(vote_counts.upvotes, 0) as upvotes,
                 COALESCE(vote_counts.downvotes, 0) as downvotes
             FROM comment_tree ct
@@ -1354,8 +1354,8 @@ app.get('/api/comments/:commentId', optionalAuth, async (req, res) => {
             LEFT JOIN (
                 SELECT 
                     comment_id,
-                    SUM(CASE WHEN vote = 1 THEN 1 ELSE 0 END) as upvotes,
-                    SUM(CASE WHEN vote = -1 THEN 1 ELSE 0 END) as downvotes
+                    SUM(CASE WHEN vote_type = 1 THEN 1 ELSE 0 END) as upvotes,
+                    SUM(CASE WHEN vote_type = -1 THEN 1 ELSE 0 END) as downvotes
                 FROM votes
                 GROUP BY comment_id
             ) vote_counts ON ct.id = vote_counts.comment_id
@@ -1374,7 +1374,7 @@ app.get('/api/comments/:commentId', optionalAuth, async (req, res) => {
             const comment = {
                 id: row.id,
                 pageId: row.page_id,
-                userId: row.user_id,
+                userId: getPublicId(row.user_id),
                 content: row.content,
                 parentId: row.parent_id,
                 createdAt: row.created_at,
@@ -1385,7 +1385,8 @@ app.get('/api/comments/:commentId', optionalAuth, async (req, res) => {
                 upvotes: row.upvotes,
                 downvotes: row.downvotes,
                 userVote: row.user_vote,
-                children: []
+                children: [],
+                isOwner: userId && row.user_id === userId
             };
             
             commentMap.set(comment.id, comment);
