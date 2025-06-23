@@ -146,6 +146,12 @@ class MentionHandler {
         
         this.dropdown.style.display = 'block';
         this.positionDropdown();
+        
+        // Add has-open-dropdown class to the comment container
+        const commentContent = this.textarea.closest('.comment-content');
+        if (commentContent) {
+            commentContent.classList.add('has-open-dropdown');
+        }
     }
     
     positionDropdown() {
@@ -164,6 +170,12 @@ class MentionHandler {
         this.dropdown.style.display = 'none';
         this.users = [];
         this.selectedIndex = -1;
+        
+        // Remove has-open-dropdown class from the comment container
+        const commentContent = this.textarea.closest('.comment-content');
+        if (commentContent) {
+            commentContent.classList.remove('has-open-dropdown');
+        }
     }
     
     handleKeydown(event) {

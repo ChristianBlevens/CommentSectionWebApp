@@ -2220,6 +2220,21 @@ input[type="color"].color-input::-moz-color-swatch {
     z-index: auto; /* Don't create unnecessary stacking context */
 }
 
+/* Fix mention dropdown z-index issues in pages tab */
+.pages-content .mention-dropdown {
+    z-index: 10005; /* Higher than comment dropdowns to ensure visibility */
+}
+
+/* Ensure mention dropdown stays visible on hover */
+.pages-content .comment-content:hover .mention-dropdown {
+    z-index: 10006; /* Keep mention dropdown above everything when parent is hovered */
+}
+
+/* Boost z-index when mention dropdown is active */
+.pages-content .comment-content.has-open-dropdown .mention-dropdown {
+    z-index: 10007; /* Highest priority for active mention dropdown */
+}
+
 /* Mention dropdown styles */
 .mention-dropdown {
     background: var(--color-backgrounds-main);
