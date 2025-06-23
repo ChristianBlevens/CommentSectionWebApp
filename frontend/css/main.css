@@ -653,6 +653,10 @@ a *,
     border-radius: var(--radius-md);
     box-shadow: 0 4px 12px var(--color-shadow-lg);
     z-index: 10000;
+}
+
+/* For non-Alpine controlled dropdowns */
+.dropdown-base:not([x-show]) {
     display: none;
 }
 
