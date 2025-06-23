@@ -1358,7 +1358,7 @@ app.get('/api/comments/:commentId', optionalAuth, async (req, res) => {
                 GROUP BY comment_id
             ) vote_counts ON ct.id = vote_counts.comment_id
             ORDER BY ct.path
-        `, [commentId, userId]);
+        `, [commentId, userId || null]);
         
         if (result.rows.length === 0) {
             return res.status(404).json({ error: 'Comment not found' });
