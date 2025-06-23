@@ -1,61 +1,76 @@
 // User authentication handler
 const Auth = {
+    // Debounce flag to prevent duplicate session checks
+    checkingSession: false,
+    
     // Validate stored session
     async checkExistingSession() {
-        const savedUser = localStorage.getItem('user');
-        const sessionToken = localStorage.getItem('auth_token');
-        
-        console.log('Checking existing session:', {
-            hasUser: !!savedUser,
-            hasToken: !!sessionToken,
-            token: sessionToken ? sessionToken.substring(0, 10) + '...' : null
-        });
-        
-        if (!savedUser || !sessionToken) {
-            localStorage.removeItem('user');
-            localStorage.removeItem('auth_token');
+        // Prevent duplicate simultaneous checks
+        if (this.checkingSession) {
+            console.log('Session check already in progress, skipping duplicate call');
             return null;
         }
+        this.checkingSession = true;
         
-        // Verify token with API
         try {
-            const response = await fetch(`${window.location.origin}/api/session/validate`, {
-                headers: {
-                    'Authorization': `Bearer ${sessionToken}`
-                }
+            const savedUser = localStorage.getItem('user');
+            const sessionToken = localStorage.getItem('auth_token');
+            
+            console.log('Checking existing session:', {
+                hasUser: !!savedUser,
+                hasToken: !!sessionToken,
+                token: sessionToken ? sessionToken.substring(0, 10) + '...' : null
             });
             
-            if (response.ok) {
-                const validatedUser = await response.json();
-                console.log('Session validated, user:', validatedUser);
-                
-                // Store internal ID separately for current user actions
-                if (validatedUser._internalId) {
-                    sessionStorage.setItem('_uid', validatedUser._internalId);
-                    delete validatedUser._internalId;
-                }
-                
-                // Save fresh user data
-                localStorage.setItem('user', JSON.stringify(validatedUser));
-                return validatedUser;
-            } else {
-                console.log('Session invalid, clearing localStorage');
+            if (!savedUser || !sessionToken) {
                 localStorage.removeItem('user');
                 localStorage.removeItem('auth_token');
                 return null;
             }
-        } catch (e) {
-            console.error('Session validation failed:', e);
-            // Use cached data offline
+            
+            // Verify token with API
             try {
-                const user = JSON.parse(savedUser);
-                console.log('Using cached user due to network error:', user);
-                return user;
-            } catch (parseError) {
-                localStorage.removeItem('user');
-                localStorage.removeItem('auth_token');
-                return null;
+                const response = await fetch(`${window.location.origin}/api/session/validate`, {
+                    headers: {
+                        'Authorization': `Bearer ${sessionToken}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const validatedUser = await response.json();
+                    console.log('Session validated, user:', validatedUser);
+                    
+                    // Store internal ID separately for current user actions
+                    if (validatedUser._internalId) {
+                        sessionStorage.setItem('_uid', validatedUser._internalId);
+                        delete validatedUser._internalId;
+                    }
+                    
+                    // Save fresh user data
+                    localStorage.setItem('user', JSON.stringify(validatedUser));
+                    return validatedUser;
+                } else {
+                    console.log('Session invalid, clearing localStorage');
+                    localStorage.removeItem('user');
+                    localStorage.removeItem('auth_token');
+                    return null;
+                }
+            } catch (e) {
+                console.error('Session validation failed:', e);
+                // Use cached data offline
+                try {
+                    const user = JSON.parse(savedUser);
+                    console.log('Using cached user due to network error:', user);
+                    return user;
+                } catch (parseError) {
+                    localStorage.removeItem('user');
+                    localStorage.removeItem('auth_token');
+                    return null;
+                }
             }
+        } finally {
+            // Ensure flag is always reset
+            this.checkingSession = false;
         }
     },
 
