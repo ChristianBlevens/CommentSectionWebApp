@@ -524,7 +524,7 @@
 
                                         <!-- Ban History -->
                                         <div x-show="userItem.ban_history && userItem.ban_history.length > 0">
-                                            <h4 class="font-semibold mb-2">Ban History (Last 5)</h4>
+                                            <h4 class="font-semibold mb-2">Ban History</h4>
                                             <div class="space-y-2">
                                                 <template x-for="(ban, index) in userItem.ban_history.slice(0, 5)" :key="ban.banned_at || `ban-${index}`">
                                                     <div class="text-sm p-2 rounded" style="background-color: var(--color-backgrounds-secondary); border: 1px solid var(--color-borders-light);">
@@ -1031,34 +1031,12 @@
                         <!-- Textarea container with relative positioning for dropdown -->
                         <div class="relative">
                             <textarea x-model="newCommentText" 
-                                      @input="updatePreview(); handleCommentInput()"
-                                      @keydown="handleMentionKeydown($event)"
+                                      @input="updatePreview()"
                                       x-ref="commentTextarea"
                                       :placeholder="user?.is_banned ? 'You are banned from commenting' : 'Write your comment... (Markdown supported)'"
                                       :disabled="user?.is_banned"
                                       class="textarea-base comment-textarea"
                                       rows="3"></textarea>
-                            
-                            <!-- Mention dropdown positioned relative to textarea -->
-                            <div x-show="mentionDropdown.show" 
-                                 x-transition
-                                 @click.away="mentionDropdown.show = false"
-                                 class="mention-dropdown"
-                                 style="top: 100%; margin-top: 4px;">
-                                <template x-for="(user, index) in mentionDropdown.users" :key="user.name">
-                                    <div @click="insertMention(user)"
-                                         :class="{'selected': mentionDropdown.selectedIndex === index}"
-                                         class="mention-dropdown-item">
-                                        <img :src="user.picture || 'https://cdn.discordapp.com/embed/avatars/1.png'" 
-                                             alt="User avatar">
-                                        <span x-text="user.name"></span>
-                                    </div>
-                                </template>
-                                <div x-show="mentionDropdown.users.length === 0 && mentionDropdown.searchTerm !== ''" 
-                                     class="mention-dropdown-item">
-                                    <span class="text-muted">No users found</span>
-                                </div>
-                            </div>
                         </div>
                         
                         <!-- Preview -->
@@ -1192,6 +1170,7 @@
     <script src="js/utils.js"></script>
     <script src="js/ban-handler.js"></script>
     <script src="js/markdown.js"></script>
+    <script src="js/mention-handler.js"></script>
     <script src="js/unified-app.js"></script>
     <script src="js/service-worker-register.js"></script>
 </body>

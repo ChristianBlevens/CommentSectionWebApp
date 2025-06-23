@@ -2670,27 +2670,28 @@ app.get('/api/mention-users', authenticateUser, async (req, res) => {
         let query;
         let params;
         
-        if (q.length >= 1) {
-            // Search by name prefix for any non-empty query
-            query = `SELECT name, picture 
+        if (q.length === 0) {
+            // Return all users for empty search
+            query = `SELECT id, name, picture as avatar 
+                     FROM users 
+                     WHERE is_banned = false
+                     ORDER BY name
+                     LIMIT $1`;
+            params = [parseInt(limit)];
+        } else {
+            // Use case-insensitive search for any length
+            query = `SELECT id, name, picture as avatar 
                      FROM users 
                      WHERE LOWER(name) LIKE LOWER($1)
                      AND is_banned = false
                      ORDER BY name
                      LIMIT $2`;
             params = [`${q}%`, parseInt(limit)];
-        } else {
-            // Return all users when query is empty (just "@" typed)
-            query = `SELECT name, picture 
-                     FROM users 
-                     WHERE is_banned = false
-                     ORDER BY name
-                     LIMIT $1`;
-            params = [parseInt(limit)];
         }
         
         const result = await pgPool.query(query, params);
-        res.json({ users: result.rows });
+        // Return array directly for consistency
+        res.json(result.rows);
     } catch (error) {
         console.error('Get mention users error:', error);
         res.status(500).json({ error: 'Failed to get users' });

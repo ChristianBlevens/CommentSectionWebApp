@@ -131,14 +131,6 @@ function unifiedApp() {
         searchMode: 'and', // 'and', 'or', 'not'
         forceRerender: false,
         
-        // Mention dropdown state
-        mentionDropdown: {
-            show: false,
-            users: [],
-            selectedIndex: -1,
-            searchTerm: '',
-            mentionStart: 0
-        },
         
         // Moderator dashboard state
         activeTab: 'comments',
@@ -316,6 +308,16 @@ function unifiedApp() {
             
             // Fetch page comments
             await this.loadComments();
+            
+            // Initialize mention handler for main comment textarea
+            this.$nextTick(() => {
+                const mainTextarea = this.$refs.commentTextarea;
+                if (mainTextarea && !mainTextarea.mentionHandler) {
+                    mainTextarea.mentionHandler = new MentionHandler(mainTextarea, (user) => {
+                        console.log('User mentioned in main comment:', user.name);
+                    });
+                }
+            });
             
             // Set up hash navigation
             this.setupHashNavigation();
@@ -1367,95 +1369,6 @@ function unifiedApp() {
             this.commentPreview = renderMarkdown(this.newCommentText);
         },
         
-        handleCommentInput() {
-            const textarea = this.$refs.commentTextarea;
-            const { value, selectionStart } = textarea;
-            const textBeforeCursor = value.substring(0, selectionStart);
-            const mentionMatch = textBeforeCursor.match(/@(\w*)$/);
-            
-            if (mentionMatch) {
-                this.mentionDropdown.searchTerm = mentionMatch[1];
-                this.mentionDropdown.mentionStart = mentionMatch.index + 1;
-                
-                // Debug logging
-                console.debug('Mention detected:', {
-                    searchTerm: this.mentionDropdown.searchTerm,
-                    length: this.mentionDropdown.searchTerm.length
-                });
-                
-                if (this.mentionDropdown.searchTerm.length >= 0) {
-                    // Search for users for any length of search term (including empty string and single characters)
-                    this.searchMentionUsers();
-                }
-            } else {
-                this.mentionDropdown.show = false;
-            }
-        },
-        
-        async searchMentionUsers() {
-            try {
-                const response = await fetch(
-                    `${API_URL}/api/mention-users?q=${encodeURIComponent(this.mentionDropdown.searchTerm)}&limit=5`,
-                    { 
-                        headers: getAuthHeaders(),
-                        credentials: 'include'
-                    }
-                );
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    this.mentionDropdown.users = data.users || [];
-                    this.mentionDropdown.show = this.mentionDropdown.users.length > 0;
-                    this.mentionDropdown.selectedIndex = -1;
-                } else {
-                    if (response.status === 401) {
-                        // Session expired
-                        await handleAuthError(response);
-                    }
-                    this.mentionDropdown.show = false;
-                }
-            } catch (error) {
-                console.error('User search error:', error);
-                this.mentionDropdown.show = false;
-            }
-        },
-        
-        insertMention(user) {
-            const textarea = this.$refs.commentTextarea;
-            const before = this.newCommentText.substring(0, this.mentionDropdown.mentionStart - 1);
-            const after = this.newCommentText.substring(textarea.selectionStart);
-            
-            this.newCommentText = before + `@${user.name} ` + after;
-            this.updatePreview();
-            this.mentionDropdown.show = false;
-            
-            this.$nextTick(() => {
-                const newPosition = this.mentionDropdown.mentionStart - 1 + `@${user.name} `.length;
-                textarea.setSelectionRange(newPosition, newPosition);
-                textarea.focus();
-            });
-        },
-        
-        handleMentionKeydown(event) {
-            if (!this.mentionDropdown.show) return;
-            
-            const { key } = event;
-            if (key === 'ArrowDown') {
-                event.preventDefault();
-                this.mentionDropdown.selectedIndex = Math.min(
-                    this.mentionDropdown.selectedIndex + 1, 
-                    this.mentionDropdown.users.length - 1
-                );
-            } else if (key === 'ArrowUp') {
-                event.preventDefault();
-                this.mentionDropdown.selectedIndex = Math.max(this.mentionDropdown.selectedIndex - 1, -1);
-            } else if (key === 'Enter' && this.mentionDropdown.selectedIndex >= 0) {
-                event.preventDefault();
-                this.insertMention(this.mentionDropdown.users[this.mentionDropdown.selectedIndex]);
-            } else if (key === 'Escape') {
-                this.mentionDropdown.show = false;
-            }
-        },
         
         getRelativeTime(dateString) {
             return getRelativeTime(dateString);
@@ -1552,9 +1465,11 @@ function unifiedApp() {
                         
                         <!-- Reply form -->
                         <div id="${idPrefix}reply-form-${comment.id}" style="display: none;" class="reply-form">
-                            <textarea id="${idPrefix}reply-textarea-${comment.id}" 
-                                      placeholder="Write a reply..."
-                                      class="textarea-base reply-textarea"></textarea>
+                            <div class="reply-input-container">
+                                <textarea id="${idPrefix}reply-textarea-${comment.id}" 
+                                          placeholder="Write a reply..."
+                                          class="textarea-base reply-textarea"></textarea>
+                            </div>
                             <div class="reply-toolbar">
                                 <div class="markdown-buttons">
                                     <button onclick="window.unifiedAppInstance.insertMarkdownForReply('${comment.id}', '**', '**', '${context}')" class="btn-base markdown-btn">
@@ -1833,6 +1748,18 @@ function unifiedApp() {
             const form = document.getElementById(`${idPrefix}reply-form-${commentId}`);
             if (form) {
                 form.style.display = form.style.display === 'none' ? 'block' : 'none';
+                
+                // Initialize mention handler for reply textarea when shown
+                if (form.style.display === 'block') {
+                    setTimeout(() => {
+                        const textarea = document.getElementById(`${idPrefix}reply-textarea-${commentId}`);
+                        if (textarea && !textarea.mentionHandler) {
+                            textarea.mentionHandler = new MentionHandler(textarea, (user) => {
+                                console.log('User mentioned in reply:', user.name);
+                            });
+                        }
+                    }, 100);
+                }
             }
         },
         
@@ -1840,6 +1767,13 @@ function unifiedApp() {
             const idPrefix = context === 'pages' ? 'pages-' : '';
             const form = document.getElementById(`${idPrefix}reply-form-${commentId}`);
             const textarea = document.getElementById(`${idPrefix}reply-textarea-${commentId}`);
+            
+            // Clean up mention handler
+            if (textarea && textarea.mentionHandler) {
+                textarea.mentionHandler.destroy();
+                delete textarea.mentionHandler;
+            }
+            
             if (form) form.style.display = 'none';
             if (textarea) textarea.value = '';
         },

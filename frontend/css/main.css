@@ -2219,3 +2219,49 @@ input[type="color"].color-input::-moz-color-swatch {
     position: relative;
     z-index: auto; /* Don't create unnecessary stacking context */
 }
+
+/* Mention dropdown styles */
+.mention-dropdown {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+}
+
+.mention-dropdown-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.mention-dropdown-item:hover,
+.mention-dropdown-item.selected {
+    background-color: #f3f4f6;
+}
+
+.mention-avatar {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    margin-right: 8px;
+    object-fit: cover;
+}
+
+.mention-name {
+    font-size: 14px;
+    color: #1f2937;
+}
+
+/* Position mention dropdown relative to textarea container */
+.comment-input-container {
+    position: relative;
+}
+
+.reply-input-container {
+    position: relative;
+}
