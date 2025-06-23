@@ -262,6 +262,7 @@ function unifiedApp() {
         
         // Setup app on load
         async init() {
+            console.log('[BAN DEBUG] UnifiedApp initializing...');
             // Store app reference globally
             window.unifiedAppInstance = this;
             
@@ -1110,10 +1111,19 @@ function unifiedApp() {
         },
         
         async banUserWithDuration(userId, userName, duration) {
-            const reason = prompt(`Why are you banning ${userName}?`);
-            if (!reason) return;
+            console.log('[BAN DEBUG] banUserWithDuration called:', { userId, userName, duration });
             
+            const reason = prompt(`Why are you banning ${userName}?`);
+            console.log('[BAN DEBUG] Ban reason:', reason);
+            if (!reason) {
+                console.log('[BAN DEBUG] No reason provided, cancelling ban');
+                return;
+            }
+            
+            console.log('[BAN DEBUG] Calling BanHandler.banUser with:', { API_URL, userId, userName, duration, reason });
             const response = await BanHandler.banUser(API_URL, userId, userName, duration, reason);
+            console.log('[BAN DEBUG] BanHandler response:', response);
+            
             if (response.success) {
                 // Display ban success message
                 this.banNotification = {
@@ -1368,10 +1378,12 @@ function unifiedApp() {
         },
         
         toggleBanDropdown(id, event) {
+            console.log('[BAN DEBUG] toggleBanDropdown called:', { id, currentDropdown: this.showBanDropdown });
             if (event) {
                 event.stopPropagation();
             }
             this.showBanDropdown = this.showBanDropdown === id ? null : id;
+            console.log('[BAN DEBUG] showBanDropdown after toggle:', this.showBanDropdown);
         },
         
         

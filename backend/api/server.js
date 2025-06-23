@@ -320,8 +320,10 @@ const optionalAuth = async (req, res, next) => {
 
 // Require user to be logged in
 const authenticateUser = async (req, res, next) => {
+    console.log('[BAN DEBUG] authenticateUser middleware called for:', req.method, req.path);
     const authHeader = req.headers.authorization;
     if (!authHeader?.startsWith('Bearer ')) {
+        console.log('[BAN DEBUG] No auth header or invalid format');
         return res.status(401).json({ error: 'Authentication required' });
     }
     
@@ -395,7 +397,10 @@ const authenticateUser = async (req, res, next) => {
 
 // Require user to be a moderator
 const requireModerator = (req, res, next) => {
+    console.log('[BAN DEBUG] requireModerator middleware called');
+    console.log('[BAN DEBUG] User is moderator:', req.user?.is_moderator);
     if (!req.user?.is_moderator) {
+        console.log('[BAN DEBUG] User is not a moderator, blocking request');
         return res.status(403).json({ error: 'Moderator access required' });
     }
     next();
@@ -2044,6 +2049,11 @@ app.put('/api/reports/:reportId/resolve', authenticateUser, requireModerator, as
 
 // Block user from commenting
 app.post('/api/users/:targetUserId/ban', authenticateUser, requireModerator, async (req, res) => {
+    console.log('[BAN DEBUG] Ban endpoint called');
+    console.log('[BAN DEBUG] Request params:', req.params);
+    console.log('[BAN DEBUG] Request body:', req.body);
+    console.log('[BAN DEBUG] User:', req.user);
+    
     const { targetUserId } = req.params;
     const { duration, reason, deleteComments = true } = req.body;
     const userId = req.user.id;
