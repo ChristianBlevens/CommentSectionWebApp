@@ -169,6 +169,7 @@ function unifiedApp() {
         showBanDropdown: null,
         banNotification: { show: false, message: '', expired: false },
         warningNotification: { show: false, message: '' },
+        hasShownUnbanNotification: false, // Track if we've shown the unban message
         
         // Moderation logs data
         moderationLogs: [],
@@ -262,7 +263,6 @@ function unifiedApp() {
         
         // Setup app on load
         async init() {
-            console.log('[BAN DEBUG] UnifiedApp initializing...');
             // Store app reference globally
             window.unifiedAppInstance = this;
             
@@ -314,9 +314,10 @@ function unifiedApp() {
                 await this.loadReportCount();
             }
             
-            // Check for warnings if user is authenticated
+            // Check for warnings and ban status if user is authenticated
             if (this.user) {
                 await this.checkWarnings();
+                await this.checkBanStatus();
             }
             
             // Setup markdown renderer
@@ -438,6 +439,74 @@ function unifiedApp() {
                 this.warningNotification = null;
             } catch (error) {
                 console.error('Error acknowledging warning:', error);
+            }
+        },
+        
+        // Check ban status and show appropriate notification
+        async checkBanStatus() {
+            if (!this.user) return;
+            
+            // Check if user is currently banned
+            if (this.user.is_banned && this.user.ban_expires_at) {
+                const banExpiresAt = new Date(this.user.ban_expires_at);
+                const now = new Date();
+                
+                if (banExpiresAt > now) {
+                    // User is still banned
+                    const timeLeft = this.getTimeUntilUnban(banExpiresAt);
+                    this.banNotification = {
+                        show: true,
+                        message: `You are currently banned.\nReason: ${this.user.ban_reason || 'No reason provided'}\nTime remaining: ${timeLeft}`,
+                        expired: false
+                    };
+                    return;
+                }
+            }
+            
+            // Check if user was recently unbanned
+            const lastBanCheck = localStorage.getItem('lastBanCheck');
+            const userBanKey = `user_${this.user.id}_ban_status`;
+            const wasBanned = localStorage.getItem(userBanKey) === 'true';
+            
+            // Update ban status in localStorage
+            localStorage.setItem(userBanKey, this.user.is_banned ? 'true' : 'false');
+            localStorage.setItem('lastBanCheck', new Date().toISOString());
+            
+            // Show unban notification if user was banned but is no longer banned
+            if (wasBanned && !this.user.is_banned && !this.hasShownUnbanNotification) {
+                this.hasShownUnbanNotification = true;
+                this.banNotification = {
+                    show: true,
+                    message: "Welcome back! Your ban has expired.\nPlease remember to be respectful and follow the community rules.",
+                    expired: true
+                };
+                
+                // Auto-hide after 10 seconds
+                setTimeout(() => {
+                    if (this.banNotification && this.banNotification.expired) {
+                        this.banNotification.show = false;
+                    }
+                }, 10000);
+            }
+        },
+        
+        // Calculate time remaining until unban
+        getTimeUntilUnban(banExpiresAt) {
+            const now = new Date();
+            const diff = banExpiresAt - now;
+            
+            if (diff <= 0) return 'Expired';
+            
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            
+            if (days > 0) {
+                return `${days} day${days > 1 ? 's' : ''}, ${hours} hour${hours !== 1 ? 's' : ''}`;
+            } else if (hours > 0) {
+                return `${hours} hour${hours !== 1 ? 's' : ''}, ${minutes} minute${minutes !== 1 ? 's' : ''}`;
+            } else {
+                return `${minutes} minute${minutes !== 1 ? 's' : ''}`;
             }
         },
         
@@ -1111,19 +1180,10 @@ function unifiedApp() {
         },
         
         async banUserWithDuration(userId, userName, duration) {
-            console.log('[BAN DEBUG] banUserWithDuration called:', { userId, userName, duration });
-            
             const reason = prompt(`Why are you banning ${userName}?`);
-            console.log('[BAN DEBUG] Ban reason:', reason);
-            if (!reason) {
-                console.log('[BAN DEBUG] No reason provided, cancelling ban');
-                return;
-            }
+            if (!reason) return;
             
-            console.log('[BAN DEBUG] Calling BanHandler.banUser with:', { API_URL, userId, userName, duration, reason });
             const response = await BanHandler.banUser(API_URL, userId, userName, duration, reason);
-            console.log('[BAN DEBUG] BanHandler response:', response);
-            
             if (response.success) {
                 // Display ban success message
                 this.banNotification = {
@@ -1378,12 +1438,10 @@ function unifiedApp() {
         },
         
         toggleBanDropdown(id, event) {
-            console.log('[BAN DEBUG] toggleBanDropdown called:', { id, currentDropdown: this.showBanDropdown });
             if (event) {
                 event.stopPropagation();
             }
             this.showBanDropdown = this.showBanDropdown === id ? null : id;
-            console.log('[BAN DEBUG] showBanDropdown after toggle:', this.showBanDropdown);
         },
         
         

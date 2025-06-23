@@ -215,7 +215,7 @@
                                         <i class="fas fa-exclamation-triangle"></i>Warn User
                                     </button>
                                     <div x-show="!report.comment_user_is_moderator && !report.comment_user_is_super_moderator" class="ban-dropdown-container">
-                                        <button @click="console.log('[BAN DEBUG] Ban button clicked for report:', report.id); toggleBanDropdown(report.id, $event)" 
+                                        <button @click="toggleBanDropdown(report.id, $event)" 
                                                 class="btn-base report-action-btn ban">
                                             <i class="fas fa-ban"></i>Ban User
                                         </button>
@@ -223,7 +223,7 @@
                                              @click.away="showBanDropdown = null"
                                              class="dropdown-base ban-dropdown">
                                             <div class="ban-dropdown-inner">
-                                                <button @click="console.log('[BAN DEBUG] 30m ban clicked for:', report.comment_user_name); banUserWithDuration(report.comment_user_id, report.comment_user_name, '30m')" 
+                                                <button @click="banUserWithDuration(report.comment_user_id, report.comment_user_name, '30m')" 
                                                         class="dropdown-item-base ban-dropdown-item">
                                                     30 minutes
                                                 </button>
@@ -379,7 +379,7 @@
                                         <i class="fas fa-exclamation-triangle mr-1"></i>Warn
                                     </button>
                                     <div x-show="!userItem.is_moderator && !userItem.is_super_moderator" class="relative">
-                                        <button @click="console.log('[BAN DEBUG] Ban button clicked for user:', userItem.id, userItem.name); toggleBanDropdown(userItem.id, $event)" 
+                                        <button @click="toggleBanDropdown(userItem.id, $event)" 
                                                 :disabled="userItem.is_banned"
                                                 class="btn-base btn btn-danger text-sm">
                                             <i class="fas fa-ban mr-1"></i>Ban
@@ -388,7 +388,7 @@
                                              @click.away="showBanDropdown = null"
                                              class="dropdown-base ban-dropdown">
                                             <div class="ban-dropdown-inner">
-                                                <button @click="console.log('[BAN DEBUG] 30m ban clicked for user:', userItem.name); banUserWithDuration(userItem.id, userItem.name, '30m')" 
+                                                <button @click="banUserWithDuration(userItem.id, userItem.name, '30m')" 
                                                         class="dropdown-item-base ban-dropdown-item">30 minutes</button>
                                                 <button @click="banUserWithDuration(userItem.id, userItem.name, '6h')" 
                                                         class="dropdown-item-base ban-dropdown-item">6 hours</button>

@@ -209,7 +209,7 @@ async function populateIdCaches() {
 // Sanitize user object to hide Discord ID
 function sanitizeUser(user) {
     if (!user) return null;
-    return {
+    const sanitized = {
         id: getPublicId(user.id),
         name: user.name,
         username: user.name || user.username, // Support both field names
@@ -221,6 +221,16 @@ function sanitizeUser(user) {
         is_banned: user.is_banned,
         allow_discord_dms: user.allow_discord_dms !== undefined ? user.allow_discord_dms : true // Default to true if not set
     };
+    
+    // Include ban information if user is banned
+    if (user.is_banned || user.ban_info) {
+        sanitized.ban_expires_at = user.ban_expires_at || user.ban_info?.ban_expires_at;
+        sanitized.ban_reason = user.ban_reason || user.ban_info?.ban_reason;
+        sanitized.banned_at = user.banned_at || user.ban_info?.banned_at;
+        sanitized.ban_expired = user.ban_expired;
+    }
+    
+    return sanitized;
 }
 
 // Sanitize comment to hide Discord ID
@@ -320,10 +330,8 @@ const optionalAuth = async (req, res, next) => {
 
 // Require user to be logged in
 const authenticateUser = async (req, res, next) => {
-    console.log('[BAN DEBUG] authenticateUser middleware called for:', req.method, req.path);
     const authHeader = req.headers.authorization;
     if (!authHeader?.startsWith('Bearer ')) {
-        console.log('[BAN DEBUG] No auth header or invalid format');
         return res.status(401).json({ error: 'Authentication required' });
     }
     
@@ -397,10 +405,7 @@ const authenticateUser = async (req, res, next) => {
 
 // Require user to be a moderator
 const requireModerator = (req, res, next) => {
-    console.log('[BAN DEBUG] requireModerator middleware called');
-    console.log('[BAN DEBUG] User is moderator:', req.user?.is_moderator);
     if (!req.user?.is_moderator) {
-        console.log('[BAN DEBUG] User is not a moderator, blocking request');
         return res.status(403).json({ error: 'Moderator access required' });
     }
     next();
@@ -1125,9 +1130,9 @@ app.get('/api/session/validate', async (req, res) => {
             return res.status(401).json({ error: 'Invalid or expired session' });
         }
         
-        // Fetch user details
+        // Fetch user details including ban information
         const userResult = await pgPool.query(
-            'SELECT id, email, name, picture, is_moderator, is_super_moderator, is_banned, allow_discord_dms FROM users WHERE id = $1',
+            'SELECT id, email, name, picture, is_moderator, is_super_moderator, is_banned, ban_expires_at, ban_reason, banned_at, allow_discord_dms FROM users WHERE id = $1',
             [userId]
         );
         
@@ -1144,6 +1149,9 @@ app.get('/api/session/validate', async (req, res) => {
             is_moderator: user.is_moderator,
             is_super_moderator: user.is_super_moderator,
             is_banned: user.is_banned,
+            ban_expires_at: user.ban_expires_at,
+            ban_reason: user.ban_reason,
+            banned_at: user.banned_at,
             allow_discord_dms: user.allow_discord_dms,
             _internalId: user.id // Add real ID only for current user
         });
@@ -2049,11 +2057,6 @@ app.put('/api/reports/:reportId/resolve', authenticateUser, requireModerator, as
 
 // Block user from commenting
 app.post('/api/users/:targetUserId/ban', authenticateUser, requireModerator, async (req, res) => {
-    console.log('[BAN DEBUG] Ban endpoint called');
-    console.log('[BAN DEBUG] Request params:', req.params);
-    console.log('[BAN DEBUG] Request body:', req.body);
-    console.log('[BAN DEBUG] User:', req.user);
-    
     const { targetUserId } = req.params;
     const { duration, reason, deleteComments = true } = req.body;
     const userId = req.user.id;
