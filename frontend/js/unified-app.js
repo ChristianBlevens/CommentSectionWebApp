@@ -1421,22 +1421,22 @@ function unifiedApp() {
                         
                         ${!isDeleted ? `
                             <div class="comment-actions">
-                                <button onclick="if(window.unifiedAppInstance) window.unifiedAppInstance.voteComment('${comment.id}', 'like', '${context}', event)" 
-                                        class="comment-action ${comment.userVote === 'like' ? 'active-like' : ''}">
-                                    <i class="fas fa-thumbs-up"></i>
-                                    <span>${comment.likes}</span>
-                                </button>
-                                <button onclick="if(window.unifiedAppInstance) window.unifiedAppInstance.voteComment('${comment.id}', 'dislike', '${context}', event)" 
-                                        class="comment-action ${comment.userVote === 'dislike' ? 'active-dislike' : ''}">
-                                    <i class="fas fa-thumbs-down"></i>
-                                    <span>${comment.dislikes}</span>
-                                </button>
-                                <button onclick="window.unifiedAppInstance.showReplyForm('${comment.id}', '${context}')" 
-                                        class="comment-action">
-                                    <i class="fas fa-comment"></i>
-                                    Reply
-                                </button>
                                 ${this.user ? `
+                                    <button onclick="if(window.unifiedAppInstance) window.unifiedAppInstance.voteComment('${comment.id}', 'like', '${context}', event)" 
+                                            class="comment-action ${comment.userVote === 'like' ? 'active-like' : ''}">
+                                        <i class="fas fa-thumbs-up"></i>
+                                        <span>${comment.likes}</span>
+                                    </button>
+                                    <button onclick="if(window.unifiedAppInstance) window.unifiedAppInstance.voteComment('${comment.id}', 'dislike', '${context}', event)" 
+                                            class="comment-action ${comment.userVote === 'dislike' ? 'active-dislike' : ''}">
+                                        <i class="fas fa-thumbs-down"></i>
+                                        <span>${comment.dislikes}</span>
+                                    </button>
+                                    <button onclick="window.unifiedAppInstance.showReplyForm('${comment.id}', '${context}')" 
+                                            class="comment-action">
+                                        <i class="fas fa-comment"></i>
+                                        Reply
+                                    </button>
                                     <div class="comment-dropdown-container">
                                         <button onclick="window.unifiedAppInstance.toggleCommentDropdown('${comment.id}', '${context}', event)" 
                                                 class="btn-base comment-options-btn" id="${idPrefix}options-btn-${comment.id}">
