@@ -2222,10 +2222,10 @@ input[type="color"].color-input::-moz-color-swatch {
 
 /* Mention dropdown styles */
 .mention-dropdown {
-    background: white;
-    border: 1px solid #e5e7eb;
-    border-radius: 8px;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    background: var(--color-backgrounds-main);
+    border: 1px solid var(--color-borders-light);
+    border-radius: var(--radius-md);
+    box-shadow: 0 4px 12px var(--color-shadow-lg);
     max-height: 200px;
     overflow-y: auto;
     z-index: 1000;
@@ -2234,14 +2234,14 @@ input[type="color"].color-input::-moz-color-swatch {
 .mention-dropdown-item {
     display: flex;
     align-items: center;
-    padding: 8px 12px;
+    padding: var(--space-sm) var(--space-md);
     cursor: pointer;
     transition: background-color 0.2s;
 }
 
 .mention-dropdown-item:hover,
 .mention-dropdown-item.selected {
-    background-color: #f3f4f6;
+    background-color: var(--color-backgrounds-secondary);
 }
 
 .mention-avatar {
