@@ -1298,8 +1298,13 @@ app.get('/api/comments', optionalAuth, async (req, res) => {
 
 // Get single comment by ID
 app.get('/api/comments/:commentId', optionalAuth, async (req, res) => {
-    const { commentId } = req.params;
+    const commentId = parseInt(req.params.commentId, 10);
     const userId = req.user?.id;
+    
+    // Validate commentId is a valid number
+    if (isNaN(commentId)) {
+        return res.status(400).json({ error: 'Invalid comment ID' });
+    }
     
     try {
         // Get the comment with user info and nested replies
@@ -1320,7 +1325,7 @@ app.get('/api/comments/:commentId', optionalAuth, async (req, res) => {
                     ARRAY[c.created_at] as path
                 FROM comments c
                 JOIN users u ON c.user_id = u.id
-                WHERE c.id = $1
+                WHERE c.id = $1::INTEGER
                 
                 UNION ALL
                 
@@ -1348,7 +1353,7 @@ app.get('/api/comments/:commentId', optionalAuth, async (req, res) => {
                 COALESCE(vote_counts.upvotes, 0) as upvotes,
                 COALESCE(vote_counts.downvotes, 0) as downvotes
             FROM comment_tree ct
-            LEFT JOIN votes v ON ct.id = v.comment_id AND v.user_id = $2
+            LEFT JOIN votes v ON ct.id = v.comment_id AND v.user_id = $2::TEXT
             LEFT JOIN (
                 SELECT 
                     comment_id,
