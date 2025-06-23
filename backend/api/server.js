@@ -2412,6 +2412,7 @@ app.get('/api/users', authenticateUser, requireModerator, async (req, res) => {
                             DISTINCT jsonb_build_object(
                                 'id', r.id,
                                 'reason', r.reason,
+                                'comment_content', r.comment_content,
                                 'created_at', r.created_at,
                                 'status', r.status,
                                 'resolved_at', r.resolved_at,
@@ -2431,7 +2432,41 @@ app.get('/api/users', authenticateUser, requireModerator, async (req, res) => {
                                 'is_active', u.is_banned
                             )
                         ELSE NULL
-                    END as current_ban
+                    END as current_ban,
+                    
+                    -- Ban history from moderation logs
+                    COALESCE(
+                        (
+                            SELECT json_agg(ban_entry ORDER BY ban_entry->>'banned_at' DESC)
+                            FROM (
+                                SELECT jsonb_build_object(
+                                    'action_type', ml.action_type,
+                                    'banned_at', ml.created_at,
+                                    'banned_by_name', ml.moderator_name,
+                                    'moderator_name', ml.moderator_name,
+                                    'ban_duration', COALESCE(ml.details->>'duration', 'unknown'),
+                                    'ban_reason', COALESCE(ml.details->>'reason', ''),
+                                    'is_active', CASE 
+                                        WHEN ml.action_type = 'ban_user' 
+                                        AND ml.created_at = (
+                                            SELECT MAX(created_at) 
+                                            FROM moderation_logs 
+                                            WHERE target_user_id = u.id 
+                                            AND action_type IN ('ban_user', 'unban_user')
+                                        )
+                                        AND u.is_banned = true
+                                        THEN true 
+                                        ELSE false 
+                                    END
+                                ) as ban_entry
+                                FROM moderation_logs ml
+                                WHERE ml.target_user_id = u.id 
+                                AND ml.action_type = 'ban_user'
+                                ORDER BY ml.created_at DESC
+                                LIMIT 5
+                            ) AS ban_data
+                        ), '[]'::json
+                    ) as ban_history
             `;
         }
         
@@ -2495,7 +2530,8 @@ app.get('/api/users', authenticateUser, requireModerator, async (req, res) => {
             comments: user.comments || [],
             warnings: user.warnings || [],
             reports_received: user.reports_received || [],
-            current_ban: user.current_ban || null
+            current_ban: user.current_ban || null,
+            ban_history: user.ban_history || []
         }));
         
         // Return single object for user details

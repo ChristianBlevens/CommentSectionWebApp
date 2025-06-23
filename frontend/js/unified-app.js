@@ -1074,8 +1074,11 @@ function unifiedApp() {
                         // Ensure other arrays exist
                         const warnings = userDetails.warnings || [];
                         const reports = userDetails.reports_received || [];
-                        // Convert current_ban to array format for display consistency
-                        const banHistory = userDetails.current_ban ? [userDetails.current_ban] : [];
+                        // Use ban_history from API if available, otherwise fall back to current_ban
+                        let banHistory = userDetails.ban_history || [];
+                        if (banHistory.length === 0 && userDetails.current_ban) {
+                            banHistory = [userDetails.current_ban];
+                        }
                         
                         // Create new user object to ensure reactivity
                         const updatedUser = {
