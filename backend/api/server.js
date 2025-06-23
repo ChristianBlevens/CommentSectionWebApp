@@ -2160,26 +2160,6 @@ app.get('/api/moderators', authenticateUser, requireModerator, async (req, res) 
     }
 });
 
-// Grant or revoke moderator role
-app.put('/api/users/:targetUserId/moderator', authenticateUser, requireModerator, async (req, res) => {
-    const { targetUserId } = req.params;
-    const { isModerator } = req.body;
-    
-    if (typeof isModerator !== 'boolean') {
-        return res.status(400).json({ error: 'Moderator status required' });
-    }
-    
-    try {
-        await pgPool.query(
-            'UPDATE users SET is_moderator = $1 WHERE id = $2',
-            [isModerator, targetUserId]
-        );
-        res.json({ success: true });
-    } catch (error) {
-        console.error('Set moderator error:', error);
-        res.status(500).json({ error: 'Failed to update moderator status' });
-    }
-});
 
 // Clear all page comments
 app.delete('/api/comments/page/:pageId/all', authenticateUser, requireModerator, async (req, res) => {

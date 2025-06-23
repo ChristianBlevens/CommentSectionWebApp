@@ -26,31 +26,6 @@ function extractYouTubeId(url) {
     return Utils.getYoutubeId(url);
 }
 
-async function banUserWithDuration(userId, userName, duration) {
-    const reason = prompt(`Why are you banning ${userName}?`);
-    if (!reason) return;
-    
-    const response = await BanHandler.banUser(API_URL, userId, userName, duration, reason);
-    if (response.success) {
-        // Display ban success message
-        if (window.unifiedAppInstance) {
-            window.unifiedAppInstance.banNotification = {
-                show: true,
-                message: `${userName} has been banned.\n${response.result.ban_duration_text}`,
-                expired: false
-            };
-            setTimeout(() => {
-                if (window.unifiedAppInstance.banNotification) {
-                    window.unifiedAppInstance.banNotification.show = false;
-                }
-            }, 5000);
-        }
-    }
-}
-
-function showCustomBanInput(userId, userName) {
-    BanHandler.showCustomBanInput(userId, userName, banUserWithDuration);
-}
 
 // Setup markdown parser
 function initializeMarkdown() {
@@ -1132,6 +1107,37 @@ function unifiedApp() {
             } catch (error) {
                 console.error('Error unbanning user:', error);
             }
+        },
+        
+        async banUserWithDuration(userId, userName, duration) {
+            const reason = prompt(`Why are you banning ${userName}?`);
+            if (!reason) return;
+            
+            const response = await BanHandler.banUser(API_URL, userId, userName, duration, reason);
+            if (response.success) {
+                // Display ban success message
+                this.banNotification = {
+                    show: true,
+                    message: `${userName} has been banned.\n${response.result.ban_duration_text}`,
+                    expired: false
+                };
+                setTimeout(() => {
+                    if (this.banNotification) {
+                        this.banNotification.show = false;
+                    }
+                }, 5000);
+                
+                // Reload data if in reports or users tab
+                if (this.activeTab === 'reports') {
+                    await this.loadReports();
+                } else if (this.activeTab === 'users') {
+                    await this.loadUsers();
+                }
+            }
+        },
+        
+        showCustomBanInput(userId, userName) {
+            BanHandler.showCustomBanInput(userId, userName, this.banUserWithDuration.bind(this));
         },
         
         async deleteUserComment(commentId) {
@@ -2962,3 +2968,9 @@ function unifiedApp() {
         }
     };
 }
+
+// Register Alpine.js component
+document.addEventListener('alpine:init', () => {
+    Alpine.data('unifiedApp', unifiedApp);
+});
+
