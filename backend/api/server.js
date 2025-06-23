@@ -29,7 +29,7 @@ const config = {
         credentials: true
     },
     session: {
-        duration: parseInt(process.env.SESSION_DURATION) || 86400
+        // duration removed - sessions no longer expire
     }
 };
 
@@ -250,6 +250,17 @@ const safeRedisOp = async (operation) => {
     } catch (error) {
         console.error('Redis operation failed:', error);
         return null;
+    }
+};
+
+// Clean orphaned sessions from user sets
+const cleanUserSessions = async (userId) => {
+    const sessions = await redisClient.sMembers(`user_sessions:${userId}`);
+    for (const token of sessions) {
+        const exists = await redisClient.exists(`session:${token}`);
+        if (!exists) {
+            await redisClient.sRem(`user_sessions:${userId}`, token);
+        }
     }
 };
 
@@ -1032,11 +1043,18 @@ app.post('/api/discord/callback', authLimiter, async (req, res) => {
             }
         }
         
+        // Clean any orphaned sessions before creating new one
+        await safeRedisOp(() => cleanUserSessions(user.id));
+        
         // Create session token
         const sessionToken = generateSessionToken();
-        await safeRedisOp(() => 
-            redisClient.setEx(`session:${sessionToken}`, config.session.duration, user.id)
-        );
+        await safeRedisOp(async () => {
+            // Store the session
+            await redisClient.set(`session:${sessionToken}`, user.id);
+            
+            // Add to user's session set
+            await redisClient.sAdd(`user_sessions:${user.id}`, sessionToken);
+        });
         
         res.json({ 
             user: {
@@ -1192,7 +1210,49 @@ app.get('/api/session/validate', async (req, res) => {
 // Destroy user session
 app.post('/api/logout', authenticateUser, async (req, res) => {
     const token = req.headers.authorization.substring(7);
-    await safeRedisOp(() => redisClient.del(`session:${token}`));
+    const userId = req.user.id;
+    
+    await safeRedisOp(async () => {
+        // Remove the session
+        await redisClient.del(`session:${token}`);
+        
+        // Remove from user's session set
+        await redisClient.sRem(`user_sessions:${userId}`, token);
+    });
+    
+    res.json({ success: true });
+});
+
+// List user's active sessions
+app.get('/api/sessions', authenticateUser, async (req, res) => {
+    const sessions = await safeRedisOp(() => 
+        redisClient.sMembers(`user_sessions:${req.user.id}`)
+    );
+    
+    // Return session count (tokens themselves are opaque)
+    res.json({ 
+        sessionCount: sessions ? sessions.length : 0,
+        currentSession: req.headers.authorization.substring(7)
+    });
+});
+
+// Sign out from all devices
+app.post('/api/logout/all', authenticateUser, async (req, res) => {
+    const userId = req.user.id;
+    
+    await safeRedisOp(async () => {
+        // Get all user sessions
+        const sessions = await redisClient.sMembers(`user_sessions:${userId}`);
+        
+        // Delete all session keys
+        if (sessions.length > 0) {
+            await redisClient.del(...sessions.map(token => `session:${token}`));
+        }
+        
+        // Clear the user's session set
+        await redisClient.del(`user_sessions:${userId}`);
+    });
+    
     res.json({ success: true });
 });
 

@@ -478,9 +478,6 @@ cd comment-app
    # CORS Configuration
    ALLOWED_ORIGINS=https://mycomments.duckdns.org
 
-   # Session Configuration
-   SESSION_DURATION=86400
-
    # Moderation Service
    ADMIN_KEY=GenerateAStrongAdminKey123!@#
 

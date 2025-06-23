@@ -141,7 +141,7 @@ The comment system is a single-page application (index.html) with all features i
 ### Sign In Process
 1. **Discord OAuth Button**: Located in the top-right corner, click "Sign in with Discord"
 2. **Authorization**: Discord requests permission to share your username and avatar
-3. **Session Creation**: After authorization, you're logged in for SESSION_DURATION (default 24 hours)
+3. **Session Creation**: After authorization, you remain logged in until you explicitly sign out
 4. **User Display**: Your Discord avatar and username appear in the top-right corner
 
 ### Comments Tab (Default View)

@@ -87,7 +87,6 @@ services:
       DISCORD_SERVER_URL: ${DISCORD_SERVER_URL:-}
       INITIAL_MODERATORS: ${INITIAL_MODERATORS:-}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:8080}
-      SESSION_DURATION: ${SESSION_DURATION:-86400}
     # Port disabled for security
     # Access via nginx only
     # ports:
