@@ -1141,6 +1141,32 @@ app.get('/api/session/validate', async (req, res) => {
         }
         
         const user = userResult.rows[0];
+        
+        // Check if ban has expired
+        if (user.is_banned && user.ban_expires_at && new Date(user.ban_expires_at) <= new Date()) {
+            // Ban has expired, unban the user
+            await pgPool.query(
+                `UPDATE users 
+                 SET is_banned = FALSE, 
+                     ban_expires_at = NULL, 
+                     ban_reason = NULL, 
+                     banned_by = NULL, 
+                     banned_at = NULL 
+                 WHERE id = $1`,
+                [user.id]
+            );
+            
+            // Update the user object to reflect the unban
+            user.is_banned = false;
+            user.ban_expired = true;
+            
+            // Keep the old ban info for the notification
+            user.previous_ban_reason = user.ban_reason;
+            user.ban_expires_at = null;
+            user.ban_reason = null;
+            user.banned_at = null;
+        }
+        
         res.json({
             id: getPublicId(user.id),
             username: user.name,
@@ -1152,6 +1178,8 @@ app.get('/api/session/validate', async (req, res) => {
             ban_expires_at: user.ban_expires_at,
             ban_reason: user.ban_reason,
             banned_at: user.banned_at,
+            ban_expired: user.ban_expired,
+            previous_ban_reason: user.previous_ban_reason,
             allow_discord_dms: user.allow_discord_dms,
             _internalId: user.id // Add real ID only for current user
         });

@@ -62,7 +62,11 @@ Auth.setupOAuthListener((user, data) => {
             avatar: user.avatar || user.picture,
             // Set defaults if properties are missing
             allow_discord_dms: user.allow_discord_dms !== undefined ? user.allow_discord_dms : true,
-            is_banned: user.is_banned || false
+            is_banned: user.is_banned || false,
+            // Include ban information if present
+            ban_expires_at: user.ban_expires_at,
+            ban_reason: user.ban_reason,
+            banned_at: user.banned_at
         };
         
         // Force Alpine.js to update the UI
@@ -70,9 +74,10 @@ Auth.setupOAuthListener((user, data) => {
             // Re-render components that depend on user state
             window.unifiedAppInstance.loadComments();
             
-            // Check for warnings after successful OAuth login
+            // Check for warnings and ban status after successful OAuth login
             if (window.unifiedAppInstance.user) {
                 await window.unifiedAppInstance.checkWarnings();
+                await window.unifiedAppInstance.checkBanStatus();
             }
         });
     }
@@ -295,7 +300,13 @@ function unifiedApp() {
                     avatar: sessionUser.avatar || sessionUser.picture,
                     // Set defaults if properties are missing
                     allow_discord_dms: sessionUser.allow_discord_dms !== undefined ? sessionUser.allow_discord_dms : true,
-                    is_banned: sessionUser.is_banned || false
+                    is_banned: sessionUser.is_banned || false,
+                    // Include all ban-related fields
+                    ban_expires_at: sessionUser.ban_expires_at,
+                    ban_reason: sessionUser.ban_reason,
+                    banned_at: sessionUser.banned_at,
+                    ban_expired: sessionUser.ban_expired,
+                    previous_ban_reason: sessionUser.previous_ban_reason
                 };
             } else {
                 this.user = null;
@@ -446,6 +457,28 @@ function unifiedApp() {
         async checkBanStatus() {
             if (!this.user) return;
             
+            // Check if ban just expired (from backend)
+            if (this.user.ban_expired && !this.hasShownUnbanNotification) {
+                this.hasShownUnbanNotification = true;
+                this.banNotification = {
+                    show: true,
+                    message: "Welcome back! Your ban has expired.\nPlease remember to be respectful and follow the community rules.",
+                    expired: true
+                };
+                
+                // Clear the ban status from localStorage
+                const userBanKey = `user_${this.user.id}_ban_status`;
+                localStorage.setItem(userBanKey, 'false');
+                
+                // Auto-hide after 10 seconds
+                setTimeout(() => {
+                    if (this.banNotification && this.banNotification.expired) {
+                        this.banNotification.show = false;
+                    }
+                }, 10000);
+                return;
+            }
+            
             // Check if user is currently banned
             if (this.user.is_banned && this.user.ban_expires_at) {
                 const banExpiresAt = new Date(this.user.ban_expires_at);
@@ -463,7 +496,7 @@ function unifiedApp() {
                 }
             }
             
-            // Check if user was recently unbanned
+            // Check if user was recently unbanned (from localStorage)
             const lastBanCheck = localStorage.getItem('lastBanCheck');
             const userBanKey = `user_${this.user.id}_ban_status`;
             const wasBanned = localStorage.getItem(userBanKey) === 'true';
@@ -1185,18 +1218,6 @@ function unifiedApp() {
             
             const response = await BanHandler.banUser(API_URL, userId, userName, duration, reason);
             if (response.success) {
-                // Display ban success message
-                this.banNotification = {
-                    show: true,
-                    message: `${userName} has been banned.\n${response.result.ban_duration_text}`,
-                    expired: false
-                };
-                setTimeout(() => {
-                    if (this.banNotification) {
-                        this.banNotification.show = false;
-                    }
-                }, 5000);
-                
                 // Hide dropdown
                 this.showBanDropdown = null;
                 
