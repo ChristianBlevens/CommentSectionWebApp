@@ -1314,9 +1314,8 @@ app.get('/api/comments/:commentId', optionalAuth, async (req, res) => {
                     c.parent_id,
                     c.created_at,
                     c.updated_at,
-                    u.name as username,
-                    u.name as display_name,
-                    u.picture as avatar_url,
+                    u.name as user_name,
+                    u.picture as user_picture,
                     0 as depth,
                     ARRAY[c.created_at] as path
                 FROM comments c
@@ -1334,9 +1333,8 @@ app.get('/api/comments/:commentId', optionalAuth, async (req, res) => {
                     c.parent_id,
                     c.created_at,
                     c.updated_at,
-                    u.name as username,
-                    u.name as display_name,
-                    u.picture as avatar_url,
+                    u.name as user_name,
+                    u.picture as user_picture,
                     ct.depth + 1,
                     ct.path || c.created_at
                 FROM comments c
@@ -1379,11 +1377,10 @@ app.get('/api/comments/:commentId', optionalAuth, async (req, res) => {
                 parentId: row.parent_id,
                 createdAt: row.created_at,
                 updatedAt: row.updated_at,
-                username: row.username,
-                displayName: row.display_name,
-                avatarUrl: row.avatar_url,
-                upvotes: row.upvotes,
-                downvotes: row.downvotes,
+                userName: row.user_name,
+                userPicture: row.user_picture,
+                likes: row.upvotes,
+                dislikes: row.downvotes,
                 userVote: row.user_vote,
                 children: [],
                 isOwner: userId && row.user_id === userId
