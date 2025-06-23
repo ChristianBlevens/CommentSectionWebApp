@@ -155,6 +155,7 @@ function generatePublicId(discordId) {
 
 // Cache for performance
 const publicIdCache = new Map();
+const reverseIdCache = new Map(); // Maps public IDs back to Discord IDs
 
 function getPublicId(discordId) {
     if (!discordId) return null;
@@ -165,7 +166,44 @@ function getPublicId(discordId) {
     
     const publicId = generatePublicId(discordId);
     publicIdCache.set(discordId, publicId);
+    reverseIdCache.set(publicId, discordId); // Also store reverse mapping
     return publicId;
+}
+
+// Get Discord ID from public ID
+function getDiscordId(publicId) {
+    if (!publicId) return null;
+    
+    // Check if it's already a Discord ID
+    if (publicId.startsWith('discord_') || publicId.length > 16) {
+        return publicId;
+    }
+    
+    // Look up in reverse cache
+    if (reverseIdCache.has(publicId)) {
+        return reverseIdCache.get(publicId);
+    }
+    
+    // If not in cache, we need to find it in the database
+    // This will be populated when users are loaded
+    console.warn(`Public ID ${publicId} not found in reverse cache`);
+    return null;
+}
+
+// Populate reverse cache from database
+async function populateIdCaches() {
+    try {
+        const result = await pgPool.query('SELECT DISTINCT id FROM users');
+        console.log(`Populating ID caches for ${result.rows.length} users...`);
+        
+        for (const row of result.rows) {
+            const publicId = getPublicId(row.id); // This will populate both caches
+        }
+        
+        console.log(`ID caches populated. Public cache: ${publicIdCache.size}, Reverse cache: ${reverseIdCache.size}`);
+    } catch (error) {
+        console.error('Error populating ID caches:', error);
+    }
 }
 
 // Sanitize user object to hide Discord ID
@@ -1177,8 +1215,15 @@ app.get('/api/comments', optionalAuth, async (req, res) => {
         }
         
         if (userId) {
-            whereConditions.push(`c.user_id = $${queryParams.length + 1}`);
-            queryParams.push(userId);
+            // Convert public ID to Discord ID
+            const discordId = getDiscordId(userId);
+            if (discordId) {
+                whereConditions.push(`c.user_id = $${queryParams.length + 1}`);
+                queryParams.push(discordId);
+            } else {
+                // If we can't resolve the ID, return empty results
+                return res.json([]);
+            }
         }
         
         // Include user's votes if logged in
@@ -1871,8 +1916,12 @@ app.get('/api/reports', authenticateUser, requireModerator, async (req, res) => 
         }
         
         if (userId) {
-            whereConditions.push(`r.comment_user_id = $${queryParams.length + 1}`);
-            queryParams.push(userId);
+            // Convert public ID to Discord ID
+            const discordId = getDiscordId(userId);
+            if (discordId) {
+                whereConditions.push(`r.comment_user_id = $${queryParams.length + 1}`);
+                queryParams.push(discordId);
+            }
         }
         
         const whereClause = whereConditions.join(' AND ');
@@ -1884,7 +1933,9 @@ app.get('/api/reports', authenticateUser, requireModerator, async (req, res) => 
                    u1.name as reporter_name,
                    u2.name as comment_user_name,
                    u1.picture as reporter_picture,
-                   u2.picture as comment_user_picture
+                   u2.picture as comment_user_picture,
+                   u2.is_moderator as comment_user_is_moderator,
+                   u2.is_super_moderator as comment_user_is_super_moderator
             FROM reports r
             JOIN users u1 ON r.reporter_id = u1.id
             LEFT JOIN users u2 ON r.comment_user_id = u2.id
@@ -1999,6 +2050,12 @@ app.post('/api/users/:targetUserId/ban', authenticateUser, requireModerator, asy
     const { duration, reason, deleteComments = true } = req.body;
     const userId = req.user.id;
     
+    // Convert public ID to Discord ID
+    const discordId = getDiscordId(targetUserId);
+    if (!discordId) {
+        return res.status(400).json({ error: 'Invalid user ID' });
+    }
+    
     // Convert duration to timestamp
     const banDurationMs = parseBanDuration(duration);
     const banExpiresAt = banDurationMs ? new Date(Date.now() + banDurationMs) : null;
@@ -2010,7 +2067,7 @@ app.post('/api/users/:targetUserId/ban', authenticateUser, requireModerator, asy
         // Verify user exists
         const userCheck = await client.query(
             'SELECT id, name FROM users WHERE id = $1',
-            [targetUserId]
+            [discordId]
         );
         
         if (userCheck.rows.length === 0) {
@@ -2027,14 +2084,14 @@ app.post('/api/users/:targetUserId/ban', authenticateUser, requireModerator, asy
                  banned_by = $4,
                  banned_at = CURRENT_TIMESTAMP
              WHERE id = $1`,
-            [targetUserId, banExpiresAt, reason || 'No reason provided', userId]
+            [discordId, banExpiresAt, reason || 'No reason provided', userId]
         );
         
         // Remove user's comments if requested
         if (deleteComments) {
             await client.query(
                 'DELETE FROM comments WHERE user_id = $1',
-                [targetUserId]
+                [discordId]
             );
         }
         
@@ -2045,7 +2102,7 @@ app.post('/api/users/:targetUserId/ban', authenticateUser, requireModerator, asy
                  resolved_at = CURRENT_TIMESTAMP, 
                  resolved_by = $1
              WHERE comment_user_id = $2 AND status = 'pending'`,
-            [userId, targetUserId]
+            [userId, discordId]
         );
         
         await client.query('COMMIT');
@@ -2068,7 +2125,7 @@ app.post('/api/users/:targetUserId/ban', authenticateUser, requireModerator, asy
             'ban_user',
             req.user.id,
             req.user.name,
-            targetUserId,
+            discordId,
             userCheck.rows[0].name,
             {
                 duration: duration || 'permanent',
@@ -2250,8 +2307,16 @@ app.get('/api/users', authenticateUser, requireModerator, async (req, res) => {
         const queryParams = [];
         
         if (userId) {
-            whereConditions.push(`u.id = $${queryParams.length + 1}`);
-            queryParams.push(userId);
+            // Convert public ID to Discord ID if needed
+            const discordId = getDiscordId(userId);
+            if (discordId) {
+                whereConditions.push(`u.id = $${queryParams.length + 1}`);
+                queryParams.push(discordId);
+            } else {
+                console.error(`Failed to resolve user ID: ${userId}`);
+                // Return empty result if we can't resolve the ID
+                return res.json([]);
+            }
         }
         
         // Apply user filters
@@ -2434,6 +2499,12 @@ app.post('/api/users/:userId/warn', authenticateUser, requireModerator, async (r
     const { reason, message } = req.body;
     const moderatorId = req.user.id;
     
+    // Convert public ID to Discord ID
+    const discordId = getDiscordId(userId);
+    if (!discordId) {
+        return res.status(400).json({ error: 'Invalid user ID' });
+    }
+    
     if (!reason) {
         return res.status(400).json({ error: 'Reason is required' });
     }
@@ -2445,7 +2516,7 @@ app.post('/api/users/:userId/warn', authenticateUser, requireModerator, async (r
         // Get target user name
         const userResult = await client.query(
             'SELECT name FROM users WHERE id = $1',
-            [userId]
+            [discordId]
         );
         
         if (userResult.rows.length === 0) {
@@ -2459,7 +2530,7 @@ app.post('/api/users/:userId/warn', authenticateUser, requireModerator, async (r
         await client.query(
             `INSERT INTO warnings (user_id, moderator_id, reason, message)
              VALUES ($1, $2, $3, $4)`,
-            [userId, moderatorId, reason, message || null]
+            [discordId, moderatorId, reason, message || null]
         );
         
         // Update warning statistics
@@ -2468,7 +2539,7 @@ app.post('/api/users/:userId/warn', authenticateUser, requireModerator, async (r
              SET warning_count = warning_count + 1,
                  last_warning_at = CURRENT_TIMESTAMP
              WHERE id = $1`,
-            [userId]
+            [discordId]
         );
         
         await client.query('COMMIT');
@@ -2478,7 +2549,7 @@ app.post('/api/users/:userId/warn', authenticateUser, requireModerator, async (r
             'warn_user',
             req.user.id,
             req.user.name,
-            userId,
+            discordId,
             targetUserName,
             {
                 reason: reason,
@@ -2596,6 +2667,12 @@ app.put('/api/users/:userId/moderator', authenticateUser, async (req, res) => {
     const { userId } = req.params;
     const { is_moderator } = req.body;
     
+    // Convert public ID to Discord ID
+    const discordId = getDiscordId(userId);
+    if (!discordId) {
+        return res.status(400).json({ error: 'Invalid user ID' });
+    }
+    
     // Verify super moderator permission
     if (!req.user.is_super_moderator) {
         const initialMods = process.env.INITIAL_MODERATORS?.split(',').map(id => id.trim()).filter(Boolean) || [];
@@ -2608,7 +2685,7 @@ app.put('/api/users/:userId/moderator', authenticateUser, async (req, res) => {
         // Get user name
         const userResult = await pgPool.query(
             'SELECT name FROM users WHERE id = $1',
-            [userId]
+            [discordId]
         );
         
         if (userResult.rows.length === 0) {
@@ -2619,7 +2696,7 @@ app.put('/api/users/:userId/moderator', authenticateUser, async (req, res) => {
         
         await pgPool.query(
             'UPDATE users SET is_moderator = $1 WHERE id = $2',
-            [is_moderator, userId]
+            [is_moderator, discordId]
         );
         
         // Log moderation action
@@ -2627,7 +2704,7 @@ app.put('/api/users/:userId/moderator', authenticateUser, async (req, res) => {
             is_moderator ? 'grant_moderator' : 'revoke_moderator',
             req.user.id,
             req.user.name,
-            userId,
+            discordId,
             targetUserName,
             {}
         );
@@ -2643,11 +2720,17 @@ app.put('/api/users/:userId/moderator', authenticateUser, async (req, res) => {
 app.post('/api/users/:userId/unban', authenticateUser, requireModerator, async (req, res) => {
     const { userId } = req.params;
     
+    // Convert public ID to Discord ID
+    const discordId = getDiscordId(userId);
+    if (!discordId) {
+        return res.status(400).json({ error: 'Invalid user ID' });
+    }
+    
     try {
         // Get user name
         const userResult = await pgPool.query(
             'SELECT name FROM users WHERE id = $1',
-            [userId]
+            [discordId]
         );
         
         if (userResult.rows.length === 0) {
@@ -2663,7 +2746,7 @@ app.post('/api/users/:userId/unban', authenticateUser, requireModerator, async (
                  banned_by = NULL,
                  banned_at = NULL
              WHERE id = $1`,
-            [userId]
+            [discordId]
         );
         
         // Log moderation action
@@ -2671,7 +2754,7 @@ app.post('/api/users/:userId/unban', authenticateUser, requireModerator, async (
             'unban_user',
             req.user.id,
             req.user.name,
-            userId,
+            discordId,
             targetUserName,
             {}
         );
@@ -2716,8 +2799,12 @@ app.get('/api/moderation-logs', authenticateUser, requireModerator, async (req, 
         const queryParams = [];
         
         if (userId) {
-            query += ' WHERE ml.moderator_id = $1';
-            queryParams.push(userId);
+            // Convert public ID to Discord ID
+            const discordId = getDiscordId(userId);
+            if (discordId) {
+                query += ' WHERE ml.moderator_id = $1';
+                queryParams.push(discordId);
+            }
         }
         
         query += ' ORDER BY ml.created_at DESC';
@@ -3204,6 +3291,9 @@ const server = app.listen(port, async () => {
     console.log(`Comment API server running on port ${port}`);
     console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`Database host: ${process.env.DB_HOST || 'localhost'}`);
+    
+    // Populate ID caches on startup
+    await populateIdCaches();
     
     // Check if analytics data needs to be initialized
     try {

@@ -209,11 +209,12 @@
                                             class="btn-base report-action-btn delete">
                                         <i class="fas fa-trash"></i>Delete Comment
                                     </button>
-                                    <button @click="warnUser(report.comment_user_id, report.comment_user_name, report.id)" 
+                                    <button x-show="!report.comment_user_is_moderator && !report.comment_user_is_super_moderator"
+                                            @click="warnUser(report.comment_user_id, report.comment_user_name, report.id)" 
                                             class="btn-base report-action-btn warn">
                                         <i class="fas fa-exclamation-triangle"></i>Warn User
                                     </button>
-                                    <div class="ban-dropdown-container">
+                                    <div x-show="!report.comment_user_is_moderator && !report.comment_user_is_super_moderator" class="ban-dropdown-container">
                                         <button @click="toggleBanDropdown(report.id, $event)" 
                                                 class="btn-base report-action-btn ban">
                                             <i class="fas fa-ban"></i>Ban User
@@ -371,12 +372,13 @@
 
                                 <!-- User Actions -->
                                 <div class="mt-4 flex flex-wrap gap-2">
-                                    <button @click="warnUser(userItem.id, userItem.name)" 
+                                    <button x-show="!userItem.is_moderator && !userItem.is_super_moderator"
+                                            @click="warnUser(userItem.id, userItem.name)" 
                                             :disabled="userItem.is_banned"
                                             class="btn-base btn btn-warning text-sm">
                                         <i class="fas fa-exclamation-triangle mr-1"></i>Warn
                                     </button>
-                                    <div class="relative">
+                                    <div x-show="!userItem.is_moderator && !userItem.is_super_moderator" class="relative">
                                         <button @click="toggleBanDropdown(userItem.id, $event)" 
                                                 :disabled="userItem.is_banned"
                                                 class="btn-base btn btn-danger text-sm">
