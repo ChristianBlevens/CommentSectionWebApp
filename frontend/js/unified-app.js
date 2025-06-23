@@ -976,11 +976,14 @@ function unifiedApp() {
                 });
                 
                 if (response.ok) {
-                    const details = await response.json();
-                    console.log('Loaded user details:', details);
+                    const userDetails = await response.json();
+                    console.log('Loaded user details:', userDetails);
                     
-                    // Handle both single user object and array response
-                    const userDetails = Array.isArray(details) ? details[0] : details;
+                    // The API returns a single user object when userId and includeDetails=true
+                    if (!userDetails || !userDetails.id) {
+                        console.error('Invalid user details response');
+                        throw new Error('Invalid user details response');
+                    }
                     
                     const userIndex = this.users.findIndex(u => u.id === userId);
                     if (userIndex !== -1) {
@@ -993,7 +996,8 @@ function unifiedApp() {
                         // Ensure other arrays exist
                         const warnings = userDetails.warnings || [];
                         const reports = userDetails.reports_received || [];
-                        const banHistory = userDetails.ban_history || [];
+                        // Convert current_ban to array format for display consistency
+                        const banHistory = userDetails.current_ban ? [userDetails.current_ban] : [];
                         
                         // Create new user object to ensure reactivity
                         const updatedUser = {

@@ -518,14 +518,24 @@
 
                                         <!-- Ban History -->
                                         <div x-show="userItem.ban_history && userItem.ban_history.length > 0">
-                                            <h4 class="font-semibold mb-2">Ban History</h4>
+                                            <h4 class="font-semibold mb-2">Ban Information</h4>
                                             <div class="space-y-2">
-                                                <template x-for="ban in userItem.ban_history" :key="ban.id">
+                                                <template x-for="ban in userItem.ban_history" :key="ban.banned_at || 'current'">
                                                     <div class="text-sm p-2 rounded" style="background-color: var(--color-backgrounds-secondary); border: 1px solid var(--color-borders-light);">
-                                                        <p><span class="font-medium">Banned by:</span> <span x-text="ban.banned_by_name"></span></p>
-                                                        <p><span class="font-medium">Date:</span> <span x-text="new Date(ban.banned_at).toLocaleString()"></span></p>
-                                                        <p><span class="font-medium">Duration:</span> <span x-text="ban.duration"></span></p>
-                                                        <p x-show="ban.reason"><span class="font-medium">Reason:</span> <span x-text="ban.reason"></span></p>
+                                                        <p><span class="font-medium">Status:</span> 
+                                                            <span x-text="ban.is_active ? 'Currently Banned' : 'Previously Banned'" 
+                                                                  :class="ban.is_active ? 'text-danger' : 'text-muted'"></span>
+                                                        </p>
+                                                        <p><span class="font-medium">Banned by:</span> <span x-text="ban.banned_by_name || 'Unknown'"></span></p>
+                                                        <p><span class="font-medium">Banned on:</span> <span x-text="new Date(ban.banned_at).toLocaleString()"></span></p>
+                                                        <p x-show="ban.ban_expires_at">
+                                                            <span class="font-medium">Expires:</span> 
+                                                            <span x-text="ban.ban_expires_at ? new Date(ban.ban_expires_at).toLocaleString() : 'Never'"></span>
+                                                        </p>
+                                                        <p x-show="!ban.ban_expires_at && ban.is_active">
+                                                            <span class="font-medium">Duration:</span> <span class="text-danger">Permanent</span>
+                                                        </p>
+                                                        <p x-show="ban.ban_reason"><span class="font-medium">Reason:</span> <span x-text="ban.ban_reason"></span></p>
                                                     </div>
                                                 </template>
                                             </div>

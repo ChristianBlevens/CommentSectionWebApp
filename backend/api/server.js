@@ -2334,7 +2334,20 @@ app.get('/api/users', authenticateUser, requireModerator, async (req, res) => {
                                 'reporter_name', rep.name
                             )
                         ) FILTER (WHERE r.id IS NOT NULL), '[]'
-                    ) as reports_received
+                    ) as reports_received,
+                    
+                    -- Current ban info (if any)
+                    CASE 
+                        WHEN u.banned_at IS NOT NULL THEN 
+                            jsonb_build_object(
+                                'banned_at', u.banned_at,
+                                'ban_expires_at', u.ban_expires_at,
+                                'ban_reason', u.ban_reason,
+                                'banned_by_name', banner.name,
+                                'is_active', u.is_banned
+                            )
+                        ELSE NULL
+                    END as current_ban
             `;
         }
         
@@ -2356,9 +2369,10 @@ app.get('/api/users', authenticateUser, requireModerator, async (req, res) => {
                     LIMIT 5
                 ) r ON true
                 LEFT JOIN users rep ON r.reporter_id = rep.id
+                LEFT JOIN users banner ON u.banned_by = banner.id
             ` : ''}
             ${whereConditions.length > 0 ? 'WHERE ' + whereConditions.join(' AND ') : ''}
-            ${includeDetails === 'true' && userId ? 'GROUP BY u.id' : ''}
+            ${includeDetails === 'true' && userId ? 'GROUP BY u.id, banner.id, banner.name' : ''}
             ORDER BY u.${safeOrderBy} ${safeOrder}
         `;
         
@@ -2385,12 +2399,19 @@ app.get('/api/users', authenticateUser, requireModerator, async (req, res) => {
             is_banned: user.is_banned,
             ban_expires_at: user.ban_expires_at,
             ban_reason: user.ban_reason,
+            banned_at: user.banned_at,
+            banned_by: user.banned_by,
             warning_count: user.warning_count,
             total_comments: user.total_comments,
             total_reports_made: user.total_reports_made,
             total_reports_received: user.total_reports_received,
             trust_score: user.trust_score,
-            created_at: user.created_at
+            created_at: user.created_at,
+            // Include aggregated data if available
+            comments: user.comments || [],
+            warnings: user.warnings || [],
+            reports_received: user.reports_received || [],
+            current_ban: user.current_ban || null
         }));
         
         // Return single object for user details
