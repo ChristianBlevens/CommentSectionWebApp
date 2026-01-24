@@ -5,7 +5,7 @@
 // It provides the BASE_PATH constant used for all API calls and routing.
 //
 // For embedded usage, the path is auto-detected from the script location.
-// For direct access, it defaults to '/mycomments' or can be overridden.
+// For direct access, it defaults to '/comments' or can be overridden.
 // =============================================================================
 
 (function() {
@@ -18,9 +18,9 @@
     function detectBasePath() {
         const path = window.location.pathname;
 
-        // Check if we're at /mycomments or /mycomments/...
-        if (path.startsWith('/mycomments')) {
-            return '/mycomments';
+        // Check if we're at /comments or /comments/...
+        if (path.startsWith('/comments')) {
+            return '/comments';
         }
 
         // If we're at root or root with query params (like ?pageId=xxx),
@@ -32,8 +32,8 @@
             return '';
         }
 
-        // Default to /mycomments for any other path (production)
-        return '/mycomments';
+        // Default to /comments for any other path (production)
+        return '/comments';
     }
 
     // Allow override via data attribute on script tag

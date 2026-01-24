@@ -3,7 +3,7 @@ const STATIC_CACHE = `static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `dynamic-${CACHE_VERSION}`;
 
 // Base path for the app (will be set via message from main app)
-let BASE_PATH = '/mycomments';
+let BASE_PATH = '/comments';
 
 // Files to cache immediately (relative to BASE_PATH)
 const STATIC_FILES = [
@@ -64,7 +64,7 @@ self.addEventListener('message', event => {
         self.skipWaiting();
     }
     if (event.data.action === 'setBasePath') {
-        BASE_PATH = event.data.basePath || '/mycomments';
+        BASE_PATH = event.data.basePath || '/comments';
         console.log('[SW] Base path set to:', BASE_PATH);
     }
 });
