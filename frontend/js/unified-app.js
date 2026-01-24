@@ -1,5 +1,18 @@
-// Set API base URL
-const API_URL = window.location.origin;
+// Set API base URL using base path configuration
+const API_URL = window.location.origin + (window.BASE_PATH || '');
+
+// Helper function to build API endpoints
+function buildApiEndpoint(path) {
+    // Use the global helper if available
+    if (window.buildApiUrl) {
+        return window.buildApiUrl(path);
+    }
+    // Fallback: ensure path starts with /api
+    if (!path.startsWith('/api')) {
+        path = '/api' + path;
+    }
+    return API_URL + path;
+}
 
 // Shared utility functions
 function getRelativeTime(dateString) {
@@ -272,7 +285,7 @@ function unifiedApp() {
             
             // Load Discord server URL from config
             try {
-                const response = await fetch('/api/config');
+                const response = await fetch(buildApiEndpoint('/config'));
                 if (response.ok) {
                     const config = await response.json();
                     this.discordServerUrl = config.discordServerUrl || '';
@@ -411,7 +424,7 @@ function unifiedApp() {
             }
             
             try {
-                const response = await fetch(`${API_URL}/api/users/warnings/unread`, {
+                const response = await fetch(buildApiEndpoint('/users/warnings/unread'), {
                     headers: getAuthHeaders(),
                     credentials: 'include'
                 });
@@ -444,7 +457,7 @@ function unifiedApp() {
         // Acknowledge warning
         async acknowledgeWarning() {
             try {
-                await fetch(`${API_URL}/api/users/warnings/acknowledge`, {
+                await fetch(buildApiEndpoint('/users/warnings/acknowledge'), {
                     method: 'POST',
                     headers: getAuthHeaders(),
                     credentials: 'include'
@@ -548,7 +561,7 @@ function unifiedApp() {
         // Load report count
         async loadReportCount() {
             try {
-                const response = await fetch(`${API_URL}/api/reports/count`, {
+                const response = await fetch(buildApiEndpoint('/reports/count'), {
                     headers: getAuthHeaders(),
                     credentials: 'include'
                 });
@@ -583,7 +596,7 @@ function unifiedApp() {
             if (!this.user) return;
             
             try {
-                const response = await fetch(`${API_URL}/api/users/discord-dms`, {
+                const response = await fetch(buildApiEndpoint('/users/discord-dms'), {
                     method: 'PUT',
                     headers: getAuthHeaders(),
                     credentials: 'include',
@@ -819,7 +832,7 @@ function unifiedApp() {
                 
                 console.log('Submitting comment with body:', requestBody);
                 
-                const response = await fetch(`${API_URL}/api/comments`, {
+                const response = await fetch(buildApiEndpoint('/comments'), {
                     method: 'POST',
                     headers: getAuthHeaders(),
                     credentials: 'include',
@@ -915,7 +928,7 @@ function unifiedApp() {
             if (!confirm(`Delete comment by ${report.comment_user_name}?`)) return;
             
             try {
-                const response = await fetch(`${API_URL}/api/comments/${report.comment_id}`, {
+                const response = await fetch(buildApiEndpoint(`/comments/${report.comment_id}`), {
                     method: 'DELETE',
                     headers: getAuthHeaders(),
                     credentials: 'include'
@@ -934,7 +947,7 @@ function unifiedApp() {
         
         async dismissReport(reportId) {
             try {
-                const response = await fetch(`${API_URL}/api/reports/${reportId}/resolve`, {
+                const response = await fetch(buildApiEndpoint(`/reports/${reportId}/resolve`), {
                     method: 'PUT',
                     headers: getAuthHeaders(),
                     credentials: 'include',
@@ -953,7 +966,7 @@ function unifiedApp() {
         
         async resolveReport(reportId) {
             try {
-                const response = await fetch(`${API_URL}/api/reports/${reportId}/resolve`, {
+                const response = await fetch(buildApiEndpoint(`/reports/${reportId}/resolve`), {
                     method: 'PUT',
                     headers: getAuthHeaders(),
                     credentials: 'include',
@@ -977,7 +990,7 @@ function unifiedApp() {
             
             this.loadingUsers = true;
             try {
-                const response = await fetch(`${API_URL}/api/users`, {
+                const response = await fetch(buildApiEndpoint('/users'), {
                     headers: getAuthHeaders(),
                     credentials: 'include'
                 });
@@ -1149,7 +1162,7 @@ function unifiedApp() {
             const message = prompt('Enter a message for the user (optional):');
             
             try {
-                const response = await fetch(`${API_URL}/api/users/${userId}/warn`, {
+                const response = await fetch(buildApiEndpoint(`/users/${userId}/warn`), {
                     method: 'POST',
                     headers: getAuthHeaders(),
                     credentials: 'include',
@@ -1180,7 +1193,7 @@ function unifiedApp() {
             if (!confirm(`Are you sure you want to ${action} ${userName}?`)) return;
             
             try {
-                const response = await fetch(`${API_URL}/api/users/${userId}/moderator`, {
+                const response = await fetch(buildApiEndpoint(`/users/${userId}/moderator`), {
                     method: 'PUT',
                     headers: {
                         ...getAuthHeaders(),
@@ -1202,7 +1215,7 @@ function unifiedApp() {
             if (!confirm(`Unban ${userName}?`)) return;
             
             try {
-                const response = await fetch(`${API_URL}/api/users/${userId}/unban`, {
+                const response = await fetch(buildApiEndpoint(`/users/${userId}/unban`), {
                     method: 'POST',
                     headers: getAuthHeaders(),
                     credentials: 'include'
@@ -1246,7 +1259,7 @@ function unifiedApp() {
             if (!confirm('Delete this comment?')) return;
             
             try {
-                const response = await fetch(`${API_URL}/api/comments/${commentId}`, {
+                const response = await fetch(buildApiEndpoint(`/comments/${commentId}`), {
                     method: 'DELETE',
                     headers: getAuthHeaders(),
                     credentials: 'include'
@@ -1578,7 +1591,7 @@ function unifiedApp() {
             }
             
             try {
-                const response = await fetch(`${API_URL}/api/comments/${commentId}/vote`, {
+                const response = await fetch(buildApiEndpoint(`/comments/${commentId}/vote`), {
                     method: 'POST',
                     headers: getAuthHeaders(),
                     credentials: 'include',
@@ -1663,7 +1676,7 @@ function unifiedApp() {
             if (!confirm('Delete this comment?')) return;
             
             try {
-                const response = await fetch(`${API_URL}/api/comments/${commentId}`, {
+                const response = await fetch(buildApiEndpoint(`/comments/${commentId}`), {
                     method: 'DELETE',
                     headers: getAuthHeaders(),
                     credentials: 'include'
@@ -1728,7 +1741,7 @@ function unifiedApp() {
             if (!reason) return;
             
             try {
-                const response = await fetch(`${API_URL}/api/comments/${commentId}/report`, {
+                const response = await fetch(buildApiEndpoint(`/comments/${commentId}/report`), {
                     method: 'POST',
                     headers: getAuthHeaders(),
                     credentials: 'include',
@@ -1792,7 +1805,7 @@ function unifiedApp() {
             console.log('Submitting reply with body:', requestBody);
             
             try {
-                const response = await fetch(`${API_URL}/api/comments`, {
+                const response = await fetch(buildApiEndpoint('/comments'), {
                     method: 'POST',
                     headers: getAuthHeaders(),
                     credentials: 'include',
@@ -1933,7 +1946,7 @@ function unifiedApp() {
         
         async fetchCommentById(commentId) {
             try {
-                const response = await fetch(`/api/comments/${commentId}`);
+                const response = await fetch(buildApiEndpoint(`/comments/${commentId}`));
                 if (response.ok) {
                     return await response.json();
                 }
@@ -2053,14 +2066,14 @@ function unifiedApp() {
                 
                 // Use authenticated endpoint for super moderators, public endpoint for everyone else
                 if (this.user?.is_super_moderator && Auth.getToken()) {
-                    response = await fetch(`${API_URL}/api/theme`, {
+                    response = await fetch(buildApiEndpoint('/theme'), {
                         headers: {
                             'Authorization': `Bearer ${Auth.getToken()}`
                         }
                     });
                 } else {
                     // Use public endpoint that doesn't require authentication
-                    response = await fetch(`${API_URL}/api/theme/public`);
+                    response = await fetch(buildApiEndpoint('/theme/public'));
                 }
                 
                 if (response.ok) {
@@ -2149,7 +2162,7 @@ function unifiedApp() {
         async saveTheme() {
             this.loadingTheme = true;
             try {
-                const response = await fetch(`${API_URL}/api/theme`, {
+                const response = await fetch(buildApiEndpoint('/theme'), {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -2329,7 +2342,7 @@ function unifiedApp() {
                         index: 0
                     });
                     
-                    const response = await fetch(`${API_URL}/api/analytics/activity-data?${params}`, {
+                    const response = await fetch(buildApiEndpoint(`/analytics/activity-data?${params}`), {
                         headers: getAuthHeaders()
                     });
                     
@@ -2371,7 +2384,7 @@ function unifiedApp() {
             
             console.log(`Loading period summary for ${this.analyticsTimeframe}, count: ${count}`);
             
-            const response = await fetch(`${API_URL}/api/analytics/period-summary?period=${this.analyticsTimeframe}&count=${count}`, {
+            const response = await fetch(buildApiEndpoint(`/analytics/period-summary?period=${this.analyticsTimeframe}&count=${count}`), {
                 headers: getAuthHeaders()
             });
             
@@ -2437,7 +2450,7 @@ function unifiedApp() {
                 
                 console.log('Fetching analytics with params:', params.toString());
                 
-                const response = await fetch(`${API_URL}/api/analytics/activity-data?${params}`, {
+                const response = await fetch(buildApiEndpoint(`/analytics/activity-data?${params}`), {
                     headers: getAuthHeaders()
                 });
                 

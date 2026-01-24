@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Discord OAuth Callback</title>
+    <!-- Base path configuration -->
+    <script src="js/base-path.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -43,16 +45,19 @@
     </div>
 
     <script>
+        // Get base path
+        const basePath = window.BASE_PATH || '';
+
         // OAuth callback handler
         async function handleOAuthCallback() {
             const urlParams = new URLSearchParams(window.location.search);
             const code = urlParams.get('code');
             const state = urlParams.get('state');
             const error = urlParams.get('error');
-            
+
             // Check if we're in a popup
             const isPopup = window.opener && window.opener !== window;
-            
+
             if (error) {
                 showError('Discord authorization was cancelled or failed.');
                 if (isPopup) {
@@ -60,7 +65,7 @@
                 }
                 return;
             }
-            
+
             if (!code || !state) {
                 showError('Invalid authorization response.');
                 if (isPopup) {
@@ -68,10 +73,10 @@
                 }
                 return;
             }
-            
+
             // Validate state to prevent CSRF
             let savedState = localStorage.getItem('discord_state');
-            
+
             // If we're in a popup and don't have state, try multiple methods
             if (!savedState && isPopup && window.opener) {
                 // Method 1: Try to get from opener's localStorage (same origin only)
@@ -80,7 +85,7 @@
                 } catch (e) {
                     console.log('Cross-origin localStorage access blocked, trying alternative methods');
                 }
-                
+
                 // Method 2: Try to get from opener's window object
                 if (!savedState) {
                     try {
@@ -89,12 +94,12 @@
                         console.log('Cross-origin window access blocked');
                     }
                 }
-                
+
                 // Method 3: Use postMessage to request state from opener
                 if (!savedState && window.opener) {
                     const statePromise = new Promise((resolve) => {
                         const timeout = setTimeout(() => resolve(null), 1000);
-                        
+
                         const messageHandler = (event) => {
                             if (event.data?.type === 'discord-state-response') {
                                 clearTimeout(timeout);
@@ -102,20 +107,20 @@
                                 resolve(event.data.state);
                             }
                         };
-                        
+
                         window.addEventListener('message', messageHandler);
                         window.opener.postMessage({ type: 'discord-state-request' }, '*');
                     });
-                    
+
                     savedState = await statePromise;
                 }
             }
-            
+
             // Only validate state if we were able to retrieve it
             if (savedState && state !== savedState) {
                 showError('Security validation failed. Please try again.');
-                console.error('State mismatch:', { 
-                    received: state, 
+                console.error('State mismatch:', {
+                    received: state,
                     saved: savedState,
                     isPopup: isPopup,
                     origin: window.location.origin
@@ -127,29 +132,30 @@
             } else if (!savedState) {
                 console.warn('Could not validate state due to cross-origin restrictions, proceeding with authentication');
             }
-            
+
             try {
                 // Exchange code for user info
-                console.log('Attempting to call backend at:', '/api/discord/callback');
+                const apiUrl = basePath + '/api/discord/callback';
+                console.log('Attempting to call backend at:', apiUrl);
                 console.log('With code:', code.substring(0, 10) + '...');
-                    
-                const response = await fetch('/api/discord/callback', {
+
+                const response = await fetch(apiUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ code, state })
                 });
-                
+
                 console.log('Response status:', response.status);
-                
+
                 if (!response.ok) {
                     const errorText = await response.text();
                     console.error('Backend error response:', errorText);
                     throw new Error(`Backend returned ${response.status}: ${errorText}`);
                 }
-                
+
                 const data = await response.json();
                 console.log('Backend response:', data);
-                
+
                 if (data.user) {
                     // Store user data
                     localStorage.setItem('user', JSON.stringify(data.user));
@@ -157,28 +163,28 @@
                         localStorage.setItem('sessionToken', data.sessionToken);
                     }
                     localStorage.removeItem('discord_state');
-                    
+
                     if (isPopup) {
                         // We're in a popup - notify parent and close
                         if (window.opener) {
-                            window.opener.postMessage({ 
-                                type: 'discord-login-success', 
+                            window.opener.postMessage({
+                                type: 'discord-login-success',
                                 user: data.user,
                                 sessionToken: data.sessionToken
                             }, window.location.origin);
                         }
-                        
-                        document.getElementById('content').innerHTML = 
+
+                        document.getElementById('content').innerHTML =
                             '<p style="color: #10b981;">Sign in successful! Closing window...</p>';
-                        
+
                         setTimeout(() => window.close(), 1000);
                     } else {
                         // We're in the main window - redirect to the app
-                        document.getElementById('content').innerHTML = 
+                        document.getElementById('content').innerHTML =
                             '<p style="color: #10b981;">Sign in successful! Redirecting...</p>';
-                        
+
                         // Redirect to the main app without OAuth params
-                        const redirectUrl = new URL(window.location.origin + window.location.pathname.replace('oauth-callback.html', 'index.html'));
+                        const redirectUrl = new URL(window.location.origin + basePath + '/index.html');
                         setTimeout(() => window.location.href = redirectUrl.toString(), 1000);
                     }
                 } else {
@@ -187,27 +193,26 @@
             } catch (error) {
                 console.error('OAuth callback error:', error);
                 showError('Failed to complete sign in. Please try again.');
-                
+
                 if (isPopup) {
                     setTimeout(() => window.close(), 3000);
                 } else {
                     // Redirect back to main app after delay
                     setTimeout(() => {
-                        window.location.href = window.location.origin + 
-                            window.location.pathname.replace('oauth-callback.html', 'index.html');
+                        window.location.href = window.location.origin + basePath + '/index.html';
                     }, 3000);
                 }
             }
         }
-        
+
         function showError(message) {
-            document.getElementById('content').innerHTML = 
+            document.getElementById('content').innerHTML =
                 `<div class="error">
-                    <p>❌</p>
+                    <p>&#10060;</p>
                     <p>${message}</p>
                 </div>`;
         }
-        
+
         // Handle the callback immediately
         handleOAuthCallback();
     </script>

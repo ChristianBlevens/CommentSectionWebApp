@@ -2,6 +2,7 @@
 const CONFIG = {
     backendUrl: window.location.origin,
     moderationUrl: window.location.origin,
+    basePath: window.BASE_PATH || '',
     discordClientId: '',
     discordRedirectUri: ''
 };
@@ -9,14 +10,15 @@ const CONFIG = {
 // Fetch config from API
 async function loadConfig() {
     try {
-        const response = await fetch('/api/config');
+        const response = await fetch(window.buildApiUrl('/config'));
         if (response.ok) {
             const config = await response.json();
             CONFIG.discordClientId = config.discordClientId;
             CONFIG.discordRedirectUri = config.discordRedirectUri;
             CONFIG.backendUrl = window.location.origin;
             CONFIG.moderationUrl = window.location.origin;
-            
+            CONFIG.basePath = window.BASE_PATH || '';
+
             console.log('Configuration loaded:', CONFIG);
         } else {
             console.error('Failed to load configuration');
@@ -30,7 +32,8 @@ async function loadConfig() {
 
 function setDefaultConfig() {
     CONFIG.discordClientId = '';
-    CONFIG.discordRedirectUri = window.location.origin + '/oauth-callback.html';
+    CONFIG.discordRedirectUri = window.location.origin + (window.BASE_PATH || '') + '/oauth-callback.html';
+    CONFIG.basePath = window.BASE_PATH || '';
 }
 
 // Initialize on page load
