@@ -1,6 +1,6 @@
 # Deployment Guide
 
-*Notice: https://mycomments.duckdns.org/ is in use by me, so you can view it as an example*
+*Notice: https://christianblevens.me/ is in use by me, so you can view it as an example*
 
 ## Table of Contents
 
@@ -292,7 +292,7 @@ You have two options for domain setup:
 2. **Create a Subdomain**
    - In the "sub domain" field, enter your desired name (e.g., `mycomments`)
    - Click "add domain"
-   - Your domain will be `mycomments.duckdns.org`
+   - Your domain will be `christianblevens.me`
 
 3. **Update IP Address**
    - Your current IP should be detected automatically
@@ -336,14 +336,14 @@ You have two options for domain setup:
 
 **Windows:**
 ```powershell
-nslookup mycomments.duckdns.org
+nslookup christianblevens.me
 ```
 
 **Linux:**
 ```bash
-dig mycomments.duckdns.org
+dig christianblevens.me
 # or
-nslookup mycomments.duckdns.org
+nslookup christianblevens.me
 ```
 
 Should return your public IP address.
@@ -379,7 +379,7 @@ Should return your public IP address.
 2. **Configure OAuth2**
    - In left sidebar, click "OAuth2"
    - Under "Redirects", click "Add Redirect"
-   - Enter: `https://mycomments.duckdns.org/oauth-callback.html`
+   - Enter: `https://christianblevens.me/oauth-callback.html`
    - Click "Save Changes"
 
 3. **Get Your Credentials**
@@ -467,7 +467,7 @@ cd comment-app
    # Discord OAuth Configuration
    DISCORD_CLIENT_ID=your-discord-client-id-here
    DISCORD_CLIENT_SECRET=your-discord-client-secret-here
-   DISCORD_REDIRECT_URI=https://mycomments.duckdns.org/oauth-callback.html
+   DISCORD_REDIRECT_URI=https://christianblevens.me/oauth-callback.html
 
    # Discord Bot Configuration (Optional)
    DISCORD_BOT_TOKEN=your-discord-bot-token-here
@@ -476,13 +476,13 @@ cd comment-app
    INITIAL_MODERATORS=discord_123456789012345678
 
    # CORS Configuration
-   ALLOWED_ORIGINS=https://mycomments.duckdns.org
+   ALLOWED_ORIGINS=https://christianblevens.me
 
    # Moderation Service
    ADMIN_KEY=GenerateAStrongAdminKey123!@#
 
    # SSL Configuration (for production)
-   SSL_DOMAIN=mycomments.duckdns.org
+   SSL_DOMAIN=christianblevens.me
    ```
 
 3. **Important Notes**:
@@ -535,7 +535,7 @@ Since Certbot no longer officially supports Windows, you have to use WSL2 (Windo
 5. **Generate Certificate**
    ```bash
    # Make sure port 80 is available
-   sudo certbot certonly --standalone -d mycomments.duckdns.org
+   sudo certbot certonly --standalone -d christianblevens.me
    ```
 
 6. **Copy Certificates to Windows** (from WSL2)
@@ -544,9 +544,9 @@ Since Certbot no longer officially supports Windows, you have to use WSL2 (Windo
    mkdir -p /mnt/c/Projects/CommentSectionWebApp/docker/ssl
    
    # Copy certificates
-   sudo cp /etc/letsencrypt/live/mycomments.duckdns.org/fullchain.pem /mnt/c/Projects/CommentSectionWebApp/docker/ssl/
-   sudo cp /etc/letsencrypt/live/mycomments.duckdns.org/privkey.pem /mnt/c/Projects/CommentSectionWebApp/docker/ssl/
-   sudo cp /etc/letsencrypt/live/mycomments.duckdns.org/chain.pem /mnt/c/Projects/CommentSectionWebApp/docker/ssl/
+   sudo cp /etc/letsencrypt/live/christianblevens.me/fullchain.pem /mnt/c/Projects/CommentSectionWebApp/docker/ssl/
+   sudo cp /etc/letsencrypt/live/christianblevens.me/privkey.pem /mnt/c/Projects/CommentSectionWebApp/docker/ssl/
+   sudo cp /etc/letsencrypt/live/christianblevens.me/chain.pem /mnt/c/Projects/CommentSectionWebApp/docker/ssl/
    ```
 
 ### For Linux/VPS
@@ -579,11 +579,11 @@ dnf install certbot -y
    
    # For home server (with sudo)
    cd ~
-   sudo certbot certonly --standalone -d mycomments.duckdns.org
+   sudo certbot certonly --standalone -d christianblevens.me
    
    # For VPS (as root) - Run from /root directory
    cd /root
-   certbot certonly --standalone -d mycomments.duckdns.org
+   certbot certonly --standalone -d christianblevens.me
    ```
 
 3. **Copy Certificates to Project**
@@ -597,12 +597,12 @@ dnf install certbot -y
    
    # Copy certificates (the SSL directory already exists)
    # For home server:
-   sudo cp /etc/letsencrypt/live/mycomments.duckdns.org/fullchain.pem docker/ssl/
-   sudo cp /etc/letsencrypt/live/mycomments.duckdns.org/privkey.pem docker/ssl/
-   sudo cp /etc/letsencrypt/live/mycomments.duckdns.org/chain.pem docker/ssl/
+   sudo cp /etc/letsencrypt/live/christianblevens.me/fullchain.pem docker/ssl/
+   sudo cp /etc/letsencrypt/live/christianblevens.me/privkey.pem docker/ssl/
+   sudo cp /etc/letsencrypt/live/christianblevens.me/chain.pem docker/ssl/
    
    # For VPS:
-   cp /etc/letsencrypt/live/mycomments.duckdns.org/*.pem docker/ssl/
+   cp /etc/letsencrypt/live/christianblevens.me/*.pem docker/ssl/
    
    # Set proper permissions
    chmod 644 docker/ssl/*.pem
@@ -643,7 +643,7 @@ dnf install certbot -y
    chmod +x docker/ssl/renew-ssl.sh
    
    # Edit .env to set your domain (if not already done)
-   # SSL_DOMAIN=mycomments.duckdns.org
+   # SSL_DOMAIN=christianblevens.me
    ```
 
 2. **Add to crontab**:
@@ -709,12 +709,12 @@ docker-compose logs frontend
 
 1. **Test HTTPS Access**
    - Open browser
-   - Go to `https://mycomments.duckdns.org`
+   - Go to `https://christianblevens.me`
    - Should show secure connection (padlock icon)
    - No security warnings!
 
 2. **Test HTTP Redirect**
-   - Go to `http://mycomments.duckdns.org`
+   - Go to `http://christianblevens.me`
    - Should automatically redirect to HTTPS
 
 ---
@@ -757,15 +757,15 @@ docker-compose logs frontend
    - You should see "Moderator Panel" section
 
 2. **Moderator URLs**
-   - Moderator management: `https://mycomments.duckdns.org/moderators.html`
-   - Global reports: `https://mycomments.duckdns.org/reports.html`
+   - Moderator management: `https://christianblevens.me/moderators.html`
+   - Global reports: `https://christianblevens.me/reports.html`
 
 ### C. Performance Testing
 
 1. **Check Service Health**
    ```bash
-   curl https://mycomments.duckdns.org/api/health
-   curl https://mycomments.duckdns.org/moderation/api/health
+   curl https://christianblevens.me/api/health
+   curl https://christianblevens.me/moderation/api/health
    ```
 
 2. **Monitor Resources**
@@ -803,7 +803,7 @@ docker-compose logs frontend
 **Cannot Access Site**
 - Check firewall rules
 - Verify port forwarding on router
-- Test DuckDNS: `nslookup mycomments.duckdns.org`
+- Test DuckDNS: `nslookup christianblevens.me`
 - Check Docker services: `docker-compose ps`
 
 **Discord OAuth Not Working**
@@ -991,10 +991,10 @@ docker-compose exec backend-api sh
 ```
 
 ### Important URLs
-- Main site: `https://mycomments.duckdns.org`
-- Health check: `https://mycomments.duckdns.org/api/health`
-- Moderator panel: `https://mycomments.duckdns.org/moderators.html`
-- Reports: `https://mycomments.duckdns.org/reports.html`
+- Main site: `https://christianblevens.me`
+- Health check: `https://christianblevens.me/api/health`
+- Moderator panel: `https://christianblevens.me/moderators.html`
+- Reports: `https://christianblevens.me/reports.html`
 
 ### Environment Files
 - Root: `.env`

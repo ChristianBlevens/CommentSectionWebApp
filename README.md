@@ -23,7 +23,7 @@ Add this single line wherever you want comments:
 
 ```html
 <script src="https://cdn.jsdelivr.net/gh/ChristianBlevens/CommentSectionWebApp@main/embed.js" 
-        data-instance="https://mycomments.duckdns.org" 
+        data-instance="https://christianblevens.me/comments" 
         data-page-id="unique-page-id"></script>
 ```
 
@@ -37,7 +37,7 @@ The embed script currently accepts the following data attributes:
 
 | Attribute | Required | Description |
 |-----------|----------|-------------|
-| `data-instance` | Yes | The URL of your comment webapp instance (e.g., `https://mycomments.duckdns.org`) |
+| `data-instance` | Yes | The URL of your comment webapp instance (e.g., `https://christianblevens.me/comments`) |
 | `data-page-id` | Yes | A unique identifier for each page where comments appear. This separates comments between different pages. |
 
 ### Automatic Theme Detection
@@ -68,7 +68,7 @@ Add to your theme where comments should appear:
 $page_id = get_the_ID() . '-' . ($_GET['chapter'] ?? '');
 ?>
 <script src="https://cdn.jsdelivr.net/gh/ChristianBlevens/CommentSectionWebApp@main/embed.js" 
-        data-instance="https://mycomments.duckdns.org" 
+        data-instance="https://christianblevens.me/comments" 
         data-page-id="<?php echo esc_attr($page_id); ?>"></script>
 ```
 
@@ -79,7 +79,7 @@ Add to `functions.php`:
 add_filter('disqus_embed_code', function($code) {
   $page_id = get_the_ID() . '-' . ($_GET['chapter'] ?? '');
   return '<script src="https://cdn.jsdelivr.net/gh/ChristianBlevens/CommentSectionWebApp@main/embed.js" 
-                  data-instance="https://mycomments.duckdns.org" 
+                  data-instance="https://christianblevens.me/comments" 
                   data-page-id="' . esc_attr($page_id) . '"></script>';
 });
 ```
@@ -90,7 +90,7 @@ Add to `functions.php`:
 function open_comments_shortcode($atts) {
   $atts = shortcode_atts(['id' => get_the_ID()], $atts);
   return '<script src="https://cdn.jsdelivr.net/gh/ChristianBlevens/CommentSectionWebApp@main/embed.js" 
-                  data-instance="https://mycomments.duckdns.org" 
+                  data-instance="https://christianblevens.me/comments" 
                   data-page-id="' . esc_attr($atts['id']) . '"></script>';
 }
 add_shortcode('comments', 'open_comments_shortcode');
@@ -162,7 +162,7 @@ Users can self-host the comment webapp and point to it:
     
     <!-- Comments -->
     <script src="https://cdn.jsdelivr.net/gh/ChristianBlevens/CommentSectionWebApp@main/embed.js" 
-            data-instance="https://mycomments.duckdns.org" 
+            data-instance="https://christianblevens.me/comments" 
             data-page-id="blog-post-1"></script>
   </article>
 </body>
@@ -178,7 +178,7 @@ Users can self-host the comment webapp and point to it:
 
 <!-- Comments for this chapter -->
 <script src="https://cdn.jsdelivr.net/gh/ChristianBlevens/CommentSectionWebApp@main/embed.js" 
-        data-instance="https://mycomments.duckdns.org" 
+        data-instance="https://christianblevens.me/comments" 
         data-page-id="manga-123-chapter-45"></script>
 ```
 
